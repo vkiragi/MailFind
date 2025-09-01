@@ -67,3 +67,23 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.cache/
+
+# Backend venv
+packages/backend/.venv/
+
+# Allow monorepo packages directory
+!packages/
+!packages/**
