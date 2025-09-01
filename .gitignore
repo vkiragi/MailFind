@@ -87,3 +87,14 @@ packages/backend/.venv/
 # Allow monorepo packages directory
 !packages/
 !packages/**
+
+# Re-ignore Python artifacts inside packages
+packages/**/__pycache__/
+packages/**/.mypy_cache/
+packages/**/.pytest_cache/
+packages/**/.pytype/
+packages/**/.cache/
+
+# Re-ignore venv inside packages
+packages/**/.venv/
+packages/**/.venv/**
