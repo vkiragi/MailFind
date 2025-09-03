@@ -1,9 +1,10 @@
 // Content script that runs on Gmail pages
 console.log('MailFind content script loaded');
 
-// Gmail DOM selectors - these are placeholders that we will replace after inspecting the live Gmail DOM
-// TODO: Update these selectors after analyzing the actual Gmail interface structure
-const GMAIL_TOOLBAR_SELECTOR = '[role="toolbar"]';
+// Gmail DOM selectors - updated with real Gmail DOM elements
+// GMAIL_TOOLBAR_SELECTOR: Real Gmail email toolbar selector found through DOM inspection
+// GMAIL_EMAIL_VIEW_SELECTOR: Still needs to be updated with real Gmail email view selector
+const GMAIL_TOOLBAR_SELECTOR = 'div[gh="tm"]';
 const GMAIL_EMAIL_VIEW_SELECTOR = '.aXjCH';
 
 // Function to inject the summarize button into Gmail
@@ -12,7 +13,7 @@ function injectSummarizeButton() {
   
   // Look for a good place to inject the button (Gmail's toolbar area)
   const toolbar = document.querySelector(GMAIL_TOOLBAR_SELECTOR) || 
-                 document.querySelector('.aXjCH') ||
+                 document.querySelector('[role="toolbar"]') ||
                  document.querySelector('[data-tooltip="More"]')?.parentElement;
   
   console.log('📱 [Gmail] Toolbar element found:', !!toolbar);
