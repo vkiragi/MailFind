@@ -4,8 +4,13 @@ from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
+from dotenv import load_dotenv
 import secrets
 import json
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
