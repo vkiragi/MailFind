@@ -32,23 +32,49 @@ function App() {
   const handleLogin = async () => {
     setIsLoading(true)
     try {
-      // Call backend /login endpoint to start OAuth flow
-      const response = await fetch('http://localhost:8000/login', {
-        method: 'GET',
-        credentials: 'include'
-      });
+      console.log('Initiating OAuth flow...');
       
-      if (response.ok) {
-        // The backend will redirect to Google OAuth
-        // For now, we'll simulate success
-        console.log('OAuth flow initiated');
-        setIsAuthenticated(true);
+      // Open Google OAuth in a new window
+      const oauthWindow = window.open('http://localhost:8000/login', '_blank', 'width=600,height=600');
+      
+      if (oauthWindow) {
+        // Poll for OAuth completion by checking auth status
+        const checkAuth = setInterval(async () => {
+          try {
+            const response = await fetch('http://localhost:8000/auth/status', {
+              credentials: 'include'
+            });
+            
+            if (response.ok) {
+              const status = await response.json();
+              if (status.authenticated_users > 0) {
+                // OAuth completed successfully
+                clearInterval(checkAuth);
+                setIsAuthenticated(true);
+                oauthWindow.close();
+                console.log('OAuth completed successfully!');
+              }
+            }
+          } catch (error) {
+            console.log('Checking auth status...', error);
+          }
+        }, 1000); // Check every second
+        
+        // Timeout after 2 minutes
+        setTimeout(() => {
+          clearInterval(checkAuth);
+          if (!isAuthenticated) {
+            oauthWindow.close();
+            alert('OAuth timed out. Please try again.');
+          }
+        }, 120000);
+        
       } else {
-        throw new Error('Failed to initiate OAuth');
+        throw new Error('Popup blocked. Please allow popups for this site.');
       }
     } catch (error) {
       console.error('Login failed:', error);
-      alert('Login failed. Please check if the backend is running.');
+      alert('Login failed: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsLoading(false);
     }
