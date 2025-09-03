@@ -135,6 +135,43 @@ function App() {
     }
   }
 
+  const handleLogout = async () => {
+    setIsLoading(true)
+    console.log('🚪 [Logout] Starting logout process...');
+    
+    try {
+      // Call backend /logout endpoint
+      console.log('🌐 [Logout] Calling backend /logout endpoint...');
+      const response = await fetch('http://localhost:8000/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ [Logout] Logout successful:', result);
+        
+        // Update local state
+        setIsAuthenticated(false);
+        setAuthStatus(null);
+        
+        // Refresh auth status
+        await checkAuthStatus();
+        
+        console.log('🔐 [Logout] User logged out successfully');
+      } else {
+        console.error(`❌ [Logout] Backend error: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to logout: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('💥 [Logout] Logout failed:', error);
+      alert('Failed to logout. Please try again.');
+    } finally {
+      setIsLoading(false);
+      console.log('🏁 [Logout] Logout flow completed');
+    }
+  }
+
   return (
     <div className="w-80 p-4 bg-white">
       <div className="text-center mb-6">
@@ -155,22 +192,30 @@ function App() {
             {isLoading ? 'Connecting...' : 'Connect with Google'}
           </button>
         </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="bg-green-50 border border-green-200 rounded-md p-3">
-            <p className="text-sm text-green-800">
-              ✅ Connected to Gmail
-            </p>
-          </div>
-          <button
-            onClick={handleSummarize}
-            disabled={isLoading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
-          >
-            {isLoading ? 'Summarizing...' : 'Summarize Current Email'}
-          </button>
-        </div>
-      )}
+                   ) : (
+               <div className="space-y-4">
+                 <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                   <p className="text-sm text-green-800">
+                     ✅ Connected to Gmail
+                   </p>
+                 </div>
+                 <button
+                   onClick={handleSummarize}
+                   disabled={isLoading}
+                   className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                 >
+                   {isLoading ? 'Summarizing...' : 'Summarize Current Email'}
+                 </button>
+                 
+                 <button
+                   onClick={handleLogout}
+                   disabled={isLoading}
+                   className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                 >
+                   {isLoading ? 'Logging out...' : '🚪 Logout'}
+                 </button>
+               </div>
+             )}
 
       <div className="mt-6 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">

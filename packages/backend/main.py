@@ -118,6 +118,25 @@ def auth_status():
         "active_states": len(oauth_states)
     }
 
+@app.post("/logout")
+def logout():
+    """Logout user and clear credentials"""
+    try:
+        # For now, clear all credentials (in a real app, you'd clear specific user's credentials)
+        global user_credentials, oauth_states
+        
+        # Clear all stored credentials
+        user_credentials.clear()
+        oauth_states.clear()
+        
+        return {
+            "message": "Logout successful",
+            "authenticated_users": 0,
+            "active_states": 0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Logout error: {str(e)}")
+
 @app.post("/summarize")
 def summarize_email_thread(thread_id: str = Form(...)):
     """Summarize an email thread (currently returns mock data)"""
