@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "MailFind - Email Summarizer",
+  "version": "1.0.0",
+  "description": "Summarize Gmail threads with AI-powered insights",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://mail.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["src/content.tsx"],
+      "css": ["src/index.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "MailFind"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
