@@ -9,18 +9,24 @@ function App() {
   // Check authentication status on component mount
   const checkAuthStatus = async () => {
     try {
+      console.log('🔍 [Auth] Checking authentication status...');
       const response = await fetch('http://localhost:8000/auth/status', {
         credentials: 'include'
       });
       
       if (response.ok) {
         const status = await response.json();
+        console.log('📊 [Auth] Current auth status:', status);
         setAuthStatus(status);
         // If there are authenticated users, consider user as authenticated
-        setIsAuthenticated(status.authenticated_users > 0);
+        const wasAuthenticated = status.authenticated_users > 0;
+        setIsAuthenticated(wasAuthenticated);
+        console.log(`🔐 [Auth] Authentication state: ${wasAuthenticated ? 'Authenticated' : 'Not authenticated'}`);
+      } else {
+        console.warn(`⚠️ [Auth] Auth status check failed: ${response.status}`);
       }
     } catch (error) {
-      console.error('Failed to check auth status:', error);
+      console.error('❌ [Auth] Failed to check auth status:', error);
     }
   };
 
@@ -31,39 +37,54 @@ function App() {
 
   const handleLogin = async () => {
     setIsLoading(true)
+    console.log('🚀 [OAuth] Starting OAuth flow...');
+    
     try {
-      console.log('Initiating OAuth flow...');
-      
       // Open Google OAuth in a new window
+      console.log('📱 [OAuth] Opening popup window...');
       const oauthWindow = window.open('http://localhost:8000/login', '_blank', 'width=600,height=600');
       
       if (oauthWindow) {
+        console.log('✅ [OAuth] Popup window opened successfully');
+        
         // Poll for OAuth completion by checking auth status
+        let pollCount = 0;
         const checkAuth = setInterval(async () => {
+          pollCount++;
           try {
+            console.log(`🔍 [OAuth] Polling auth status (attempt ${pollCount})...`);
             const response = await fetch('http://localhost:8000/auth/status', {
               credentials: 'include'
             });
             
             if (response.ok) {
               const status = await response.json();
+              console.log(`📊 [OAuth] Auth status:`, status);
+              
               if (status.authenticated_users > 0) {
                 // OAuth completed successfully
+                console.log('🎉 [OAuth] Authentication successful! User authenticated.');
                 clearInterval(checkAuth);
                 setIsAuthenticated(true);
                 oauthWindow.close();
-                console.log('OAuth completed successfully!');
+                console.log('🔒 [OAuth] Popup window closed');
+              } else {
+                console.log(`⏳ [OAuth] Still waiting... (${status.authenticated_users} users, ${status.active_states} states)`);
               }
+            } else {
+              console.warn(`⚠️ [OAuth] Auth status check failed: ${response.status}`);
             }
           } catch (error) {
-            console.log('Checking auth status...', error);
+            console.error(`❌ [OAuth] Error checking auth status (attempt ${pollCount}):`, error);
           }
         }, 1000); // Check every second
         
         // Timeout after 2 minutes
         setTimeout(() => {
+          console.log('⏰ [OAuth] Timeout reached (2 minutes)');
           clearInterval(checkAuth);
           if (!isAuthenticated) {
+            console.warn('⚠️ [OAuth] OAuth timed out, closing popup');
             oauthWindow.close();
             alert('OAuth timed out. Please try again.');
           }
@@ -73,17 +94,21 @@ function App() {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('💥 [OAuth] Login failed:', error);
       alert('Login failed: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsLoading(false);
+      console.log('🏁 [OAuth] Login flow completed');
     }
   }
 
   const handleSummarize = async () => {
     setIsLoading(true)
+    console.log('📧 [Summarize] Starting email summarization...');
+    
     try {
       // Call backend /summarize endpoint
+      console.log('🌐 [Summarize] Calling backend /summarize endpoint...');
       const response = await fetch('http://localhost:8000/summarize', {
         method: 'POST',
         headers: {
@@ -95,16 +120,18 @@ function App() {
       
       if (response.ok) {
         const summary = await response.json();
-        console.log('Summary received:', summary);
+        console.log('✅ [Summarize] Summary received successfully:', summary);
         alert(`Summary: ${summary.summary}`);
       } else {
-        throw new Error('Failed to get summary');
+        console.error(`❌ [Summarize] Backend error: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to get summary: ${response.status}`);
       }
     } catch (error) {
-      console.error('Summarization failed:', error);
+      console.error('💥 [Summarize] Summarization failed:', error);
       alert('Failed to get summary. Please check if the backend is running.');
     } finally {
       setIsLoading(false);
+      console.log('🏁 [Summarize] Summarization flow completed');
     }
   }
 
