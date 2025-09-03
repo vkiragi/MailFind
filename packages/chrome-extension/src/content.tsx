@@ -1,12 +1,21 @@
 // Content script that runs on Gmail pages
 console.log('MailFind content script loaded');
 
+// Gmail DOM selectors - these are placeholders that we will replace after inspecting the live Gmail DOM
+// TODO: Update these selectors after analyzing the actual Gmail interface structure
+const GMAIL_TOOLBAR_SELECTOR = '[role="toolbar"]';
+const GMAIL_EMAIL_VIEW_SELECTOR = '.aXjCH';
+
 // Function to inject the summarize button into Gmail
 function injectSummarizeButton() {
+  console.log('🔍 [Gmail] Attempting to inject summarize button...');
+  
   // Look for a good place to inject the button (Gmail's toolbar area)
-  const toolbar = document.querySelector('[role="toolbar"]') || 
+  const toolbar = document.querySelector(GMAIL_TOOLBAR_SELECTOR) || 
                  document.querySelector('.aXjCH') ||
                  document.querySelector('[data-tooltip="More"]')?.parentElement;
+  
+  console.log('📱 [Gmail] Toolbar element found:', !!toolbar);
   
   if (toolbar && !document.getElementById('mailfind-summarize-btn')) {
     const button = document.createElement('button');
@@ -27,16 +36,19 @@ function injectSummarizeButton() {
     
     button.addEventListener('click', handleSummarizeClick);
     toolbar.appendChild(button);
+    console.log('✅ [Gmail] Summarize button successfully injected into Gmail toolbar');
+  } else {
+    console.log('⚠️ [Gmail] Button injection skipped - button already exists or toolbar not found');
   }
 }
 
 // Handle summarize button click
 function handleSummarizeClick() {
-  console.log('Summarize button clicked');
+  console.log('📧 [Gmail] Summarize button clicked in Gmail interface');
   
-  // TODO: Extract current email thread ID
-  // TODO: Call backend API
-  // TODO: Show summary modal
+  // TODO: Extract current email thread ID from Gmail DOM
+  // TODO: Call backend API with real thread ID
+  // TODO: Show summary modal with real data
   
   // For now, just show a simple alert
   alert('MailFind: Summarization feature coming soon!');
@@ -45,7 +57,10 @@ function handleSummarizeClick() {
 // Watch for Gmail navigation and inject button
 function observeGmailChanges() {
   const observer = new MutationObserver(() => {
-    injectSummarizeButton();
+    // Check if we're in an email view before injecting
+    if (document.querySelector(GMAIL_EMAIL_VIEW_SELECTOR)) {
+      injectSummarizeButton();
+    }
   });
   
   observer.observe(document.body, {
