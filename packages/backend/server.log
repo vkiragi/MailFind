@@ -21,3 +21,5 @@ INFO:     127.0.0.1:54452 - "GET /auth/status HTTP/1.1" 200 OK
 INFO:     127.0.0.1:54452 - "POST /summarize HTTP/1.1" 200 OK
 INFO:     127.0.0.1:53922 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request
 INFO:     127.0.0.1:54090 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:54289 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54465 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request
