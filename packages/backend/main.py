@@ -138,9 +138,17 @@ def logout():
         raise HTTPException(status_code=500, detail=f"Logout error: {str(e)}")
 
 @app.post("/summarize")
-def summarize_email_thread(thread_id: str = Form(...)):
+def summarize_email_thread(request: dict):
     """Summarize an email thread (currently returns mock data)"""
     try:
+        # Extract threadId from JSON body
+        thread_id = request.get("threadId")
+        
+        if not thread_id:
+            raise HTTPException(status_code=400, detail="threadId is required")
+        
+        print(f"Received summarization request for thread ID: {thread_id}")
+        
         # TODO: Step 1.3 - Replace with real Gmail API integration
         # TODO: Step 4.1 - Replace with real OpenAI integration
         
@@ -158,7 +166,11 @@ def summarize_email_thread(thread_id: str = Form(...)):
             "status": "mock_data"
         }
         
-        return mock_summary
+        return {
+            "message": f"Summary request received for thread {thread_id}",
+            "thread_id": thread_id,
+            "status": "processing"
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Summarization error: {str(e)}")

@@ -1,0 +1,23 @@
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [47214]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49674 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49675 - "POST /logout HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49708 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49708 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49708 - "GET /login HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:49708 - "GET /callback?state=i4GeZjogw8ukpkj4MYWNbCvR4vYTfJU62iEBrQk-5jo&code=4%2F0AVMBsJjZZNwJe4rMmuLSUhgiRnyoONi26FC_YCBRTnLkjwaDLOc7Jnf9FCvzJ0-b9I0pNQ&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49708 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49879 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49881 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53149 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53149 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53149 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53151 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54452 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54452 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53922 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:54090 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request

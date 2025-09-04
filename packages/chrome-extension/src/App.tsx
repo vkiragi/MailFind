@@ -102,38 +102,7 @@ function App() {
     }
   }
 
-  const handleSummarize = async () => {
-    setIsLoading(true)
-    console.log('📧 [Summarize] Starting email summarization...');
-    
-    try {
-      // Call backend /summarize endpoint
-      console.log('🌐 [Summarize] Calling backend /summarize endpoint...');
-      const response = await fetch('http://localhost:8000/summarize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'thread_id=test123', // TODO: Get actual thread ID from Gmail
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const summary = await response.json();
-        console.log('✅ [Summarize] Summary received successfully:', summary);
-        alert(`Summary: ${summary.summary}`);
-      } else {
-        console.error(`❌ [Summarize] Backend error: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to get summary: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('💥 [Summarize] Summarization failed:', error);
-      alert('Failed to get summary. Please check if the backend is running.');
-    } finally {
-      setIsLoading(false);
-      console.log('🏁 [Summarize] Summarization flow completed');
-    }
-  }
+
 
   const handleLogout = async () => {
     setIsLoading(true)
@@ -199,13 +168,6 @@ function App() {
                      ✅ Connected to Gmail
                    </p>
                  </div>
-                 <button
-                   onClick={handleSummarize}
-                   disabled={isLoading}
-                   className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
-                 >
-                   {isLoading ? 'Summarizing...' : 'Summarize Current Email'}
-                 </button>
                  
                  <button
                    onClick={handleLogout}
@@ -219,7 +181,7 @@ function App() {
 
       <div className="mt-6 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">
-          Click the "📧 Summarize" button in Gmail to summarize email threads
+          ✅ Use the "📧 Summarize" button in Gmail to summarize email threads
         </p>
         
         {authStatus && (
