@@ -8,6 +8,13 @@ from dotenv import load_dotenv
 import secrets
 import json
 import os
+from typing import Optional
+
+# OpenAI SDK
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None  # Will validate at runtime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -139,37 +146,65 @@ def logout():
 
 @app.post("/summarize")
 def summarize_email_thread(request: dict):
-    """Summarize an email thread (currently returns mock data)"""
+    """Summarize an email thread using OpenAI.
+
+    Expected request body:
+    { "threadId": "...", "emailText": "..." }
+
+    Until Gmail API integration is complete, `emailText` is optional.
+    If it's not provided, we will generate a best-effort placeholder summary
+    based on the thread id.
+    """
     try:
         # Extract threadId from JSON body
         thread_id = request.get("threadId")
+        email_text: Optional[str] = request.get("emailText")
         
         if not thread_id:
             raise HTTPException(status_code=400, detail="threadId is required")
         
         print(f"Received summarization request for thread ID: {thread_id}")
-        
-        # TODO: Step 1.3 - Replace with real Gmail API integration
-        # TODO: Step 4.1 - Replace with real OpenAI integration
-        
-        # Mock summary data for now
-        mock_summary = {
-            "thread_id": thread_id,
-            "summary": "This is a mock summary of the email thread. The actual implementation will fetch the email content via Gmail API and generate a summary using OpenAI.",
-            "key_points": [
-                "Mock key point 1: Important discussion about project timeline",
-                "Mock key point 2: Team members assigned to specific tasks", 
-                "Mock key point 3: Next meeting scheduled for Friday"
-            ],
-            "participants": ["sender@example.com", "recipient@example.com"],
-            "timestamp": "2025-01-02T23:56:00Z",
-            "status": "mock_data"
-        }
-        
+
+        # Ensure OpenAI client is available and API key present
+        api_key = os.getenv("OPENAI_API_KEY")
+        if OpenAI is None or not api_key:
+            raise HTTPException(status_code=500, detail="OpenAI SDK not available or OPENAI_API_KEY not set")
+
+        client = OpenAI(api_key=api_key)
+
+        # If we don't yet have the real email text (Gmail API to be integrated),
+        # create a short prompt that references the thread id. Once Gmail API is
+        # implemented, supply the actual concatenated email body text here.
+        prompt_text = email_text if email_text else (
+            f"You are an assistant that summarizes Gmail threads. We don't have the raw message bodies yet. "
+            f"Provide a concise placeholder summary and likely next actions for thread id {thread_id}."
+        )
+
+        system_msg = (
+            "You are a helpful assistant that writes concise, factual summaries of email threads. "
+            "Output 3-5 sentences followed by up to 3 bullet point action items. If details are missing, "
+            "note assumptions explicitly."
+        )
+
+        try:
+            completion = client.chat.completions.create(
+                model="gpt-5-nano",
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": prompt_text},
+                ],
+                temperature=0.3,
+                max_tokens=350,
+            )
+            summary_text = completion.choices[0].message.content.strip() if completion.choices else ""
+        except Exception as oe:
+            raise HTTPException(status_code=500, detail=f"OpenAI error: {str(oe)}")
+
         return {
-            "message": f"Summary request received for thread {thread_id}",
             "thread_id": thread_id,
-            "status": "processing"
+            "summary": summary_text,
+            "model": "gpt-5-nano",
+            "status": "ok"
         }
         
     except Exception as e:
