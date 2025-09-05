@@ -9,6 +9,11 @@ import secrets
 import json
 import os
 from typing import Optional
+import base64
+
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from google.oauth2.credentials import Credentials
 
 # OpenAI SDK
 try:
@@ -63,6 +68,115 @@ def get_flow():
     flow = Flow.from_client_config(client_config, scopes=SCOPES)
     flow.redirect_uri = REDIRECT_URI
     return flow
+
+
+def _get_credentials_for_user(user_id: Optional[str] = None) -> Credentials:
+    """Construct google.oauth2.credentials.Credentials from stored user token info.
+
+    If user_id is not provided, use the first (and only) stored user for now.
+    """
+    if not user_credentials:
+        raise HTTPException(status_code=401, detail="No authenticated users. Please login first.")
+
+    resolved_user_id = user_id
+    if not resolved_user_id:
+        # Best-effort: use the first stored user
+        resolved_user_id = next(iter(user_credentials.keys()))
+
+    stored = user_credentials.get(resolved_user_id)
+    if not stored:
+        raise HTTPException(status_code=404, detail="User credentials not found. Please re-authenticate.")
+
+    creds = Credentials(
+        token=stored.get("token"),
+        refresh_token=stored.get("refresh_token"),
+        token_uri=stored.get("token_uri"),
+        client_id=stored.get("client_id"),
+        client_secret=stored.get("client_secret"),
+        scopes=stored.get("scopes", SCOPES),
+    )
+
+    # Refresh if needed
+    try:
+        if not creds.valid and creds.refresh_token:
+            creds.refresh(Request())
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Failed to refresh credentials: {str(e)}")
+
+    return creds
+
+
+def _build_gmail_service(user_id: Optional[str] = None):
+    """Build an authenticated Gmail API service using stored credentials."""
+    creds = _get_credentials_for_user(user_id)
+    try:
+        # cache_discovery=False avoids file cache issues in some environments
+        service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+        return service
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to initialize Gmail service: {str(e)}")
+
+
+def _base64url_decode(data_str: str) -> str:
+    """Decode base64url-encoded Gmail body data to UTF-8 text, ignoring errors."""
+    if not data_str:
+        return ""
+    try:
+        padded = data_str + "=" * (-len(data_str) % 4)
+        return base64.urlsafe_b64decode(padded).decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+
+def _collect_plaintext_from_payload(payload: dict) -> list[str]:
+    """Traverse Gmail message payload recursively and collect 'text/plain' parts."""
+    texts: list[str] = []
+    if not payload:
+        return texts
+
+    mime_type = payload.get("mimeType", "")
+    body = payload.get("body", {}) or {}
+    data = body.get("data")
+
+    if mime_type == "text/plain" and data:
+        text = _base64url_decode(data)
+        if text.strip():
+            texts.append(text)
+
+    for part in payload.get("parts", []) or []:
+        texts.extend(_collect_plaintext_from_payload(part))
+
+    return texts
+
+
+def _fetch_thread_plaintext(service, thread_id: str) -> str:
+    """Fetch a Gmail thread and return concatenated plain text content from all messages."""
+    try:
+        thread = service.users().threads().get(userId="me", id=thread_id, format="full").execute()
+    except HttpError as he:
+        raise HTTPException(status_code=he.resp.status if hasattr(he, "resp") else 500,
+                            detail=f"Gmail API error: {str(he)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch thread: {str(e)}")
+
+    messages = thread.get("messages", [])
+    all_texts: list[str] = []
+    for msg in messages:
+        payload = msg.get("payload", {})
+        texts = _collect_plaintext_from_payload(payload)
+
+        # Fallback: sometimes text/plain is at top-level body without explicit parts
+        if not texts:
+            body = payload.get("body", {}) or {}
+            data = body.get("data")
+            if data and (payload.get("mimeType", "").startswith("text/plain") or not payload.get("mimeType")):
+                fallback_text = _base64url_decode(data)
+                if fallback_text.strip():
+                    texts.append(fallback_text)
+
+        all_texts.extend(texts)
+
+    return "\n\n".join([t.strip() for t in all_texts if t and t.strip()])
 
 @app.get("/")
 def health_check():
@@ -153,16 +267,15 @@ def summarize_email_thread(request: dict):
     """Summarize an email thread using OpenAI.
 
     Expected request body:
-    { "threadId": "...", "emailText": "..." }
+    { "threadId": "...", "userId": "..." (optional) }
 
-    Until Gmail API integration is complete, `emailText` is optional.
-    If it's not provided, we will generate a best-effort placeholder summary
-    based on the thread id.
+    The email body text will be fetched from Gmail via the backend using the
+    stored credentials. The frontend should not send raw email content.
     """
     try:
-        # Extract threadId from JSON body
+        # Extract threadId and optional userId from JSON body
         thread_id = request.get("threadId")
-        email_text: Optional[str] = request.get("emailText")
+        user_id = request.get("userId")
         
         if not thread_id:
             raise HTTPException(status_code=400, detail="threadId is required")
@@ -176,13 +289,14 @@ def summarize_email_thread(request: dict):
 
         client = OpenAI(api_key=api_key)
 
-        # If we don't yet have the real email text (Gmail API to be integrated),
-        # create a short prompt that references the thread id. Once Gmail API is
-        # implemented, supply the actual concatenated email body text here.
-        prompt_text = email_text if email_text else (
-            f"You are an assistant that summarizes Gmail threads. We don't have the raw message bodies yet. "
-            f"Provide a concise placeholder summary and likely next actions for thread id {thread_id}."
-        )
+        # Build Gmail service and fetch clean email text for the thread
+        gmail_service = _build_gmail_service(user_id)
+        email_text = _fetch_thread_plaintext(gmail_service, thread_id)
+        if not email_text:
+            email_text = (
+                "No plain text content found in this thread. Summarize what can be inferred "
+                f"from the conversation context of thread {thread_id}."
+            )
 
         system_msg = (
             "You are a helpful assistant that writes concise, factual summaries of email threads. "
@@ -194,7 +308,7 @@ def summarize_email_thread(request: dict):
             # Use Responses API for gpt-5-nano; avoid unsupported params
             resp = client.responses.create(
                 model="gpt-5-nano",
-                input=f"System: {system_msg}\n\nUser: {prompt_text}",
+                input=f"System: {system_msg}\n\nUser: {email_text}",
             )
             summary_text = ""
             try:
@@ -212,6 +326,9 @@ def summarize_email_thread(request: dict):
             "status": "ok"
         }
         
+    except HTTPException as he:
+        # Preserve intended HTTP status codes (e.g., 401 for no auth, 404 for not found)
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Summarization error: {str(e)}")
 

@@ -1,40 +1,51 @@
 INFO:     Will watch for changes in these directories: ['/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend']
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [46632] using StatReload
+INFO:     Started reloader process [73264] using StatReload
 /Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
   warnings.warn(
-INFO:     Started server process [46703]
+INFO:     Started server process [73336]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-Received summarization request for thread ID: test-thread-123
-INFO:     127.0.0.1:62358 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55078 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: fallback-thread-id
+INFO:     127.0.0.1:55080 - "POST /summarize HTTP/1.1" 500 Internal Server Error
+Received summarization request for thread ID: fallback-thread-id
+INFO:     127.0.0.1:55080 - "POST /summarize HTTP/1.1" 500 Internal Server Error
 WARNING:  StatReload detected changes in 'main.py'. Reloading...
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [46703]
+INFO:     Finished server process [73336]
 /Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
   warnings.warn(
-INFO:     Started server process [46974]
+INFO:     Started server process [73669]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 WARNING:  StatReload detected changes in 'main.py'. Reloading...
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [46974]
+INFO:     Finished server process [73669]
 /Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
   warnings.warn(
-INFO:     Started server process [46990]
+INFO:     Started server process [74603]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     127.0.0.1:62404 - "OPTIONS /summarize HTTP/1.1" 200 OK
-Received summarization request for thread ID: fallback-thread-id
-Received summarization request for thread ID: fallback-thread-id
-INFO:     127.0.0.1:62406 - "POST /summarize HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62411 - "POST /summarize HTTP/1.1" 200 OK
-Received summarization request for thread ID: fallback-thread-id
-Received summarization request for thread ID: #thread-f:1842373303871637709
-INFO:     127.0.0.1:62706 - "POST /summarize HTTP/1.1" 200 OK
-Received summarization request for thread ID: fallback-thread-id
-INFO:     127.0.0.1:62865 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [74603]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [74855]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:62684 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19916cc230ee88cd
+INFO:     127.0.0.1:62686 - "POST /summarize HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:62688 - "GET /login HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:62690 - "GET /callback?state=OVF00_FoXNh7kn6a2opeURm447hUL9ntBSFCwutiERk&code=4/0AVMBsJhPI34akC18ouwwOFUMTC5mGwyDbo9gLcSA8o5D3zlWKt_IwHiOLUeP53ct6ft6BA&scope=https://www.googleapis.com/auth/gmail.readonly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62690 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+Received summarization request for thread ID: 19916cc230ee88cd
+INFO:     127.0.0.1:62700 - "POST /summarize HTTP/1.1" 200 OK

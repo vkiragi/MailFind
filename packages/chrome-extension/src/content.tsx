@@ -207,26 +207,35 @@ async function handleSummarizeClick() {
       threadId = threadIdElement.getAttribute('data-thread-id');
       console.log('✅ [Gmail] Found thread ID from data-thread-id:', threadId);
     } else {
-      // Fallback: look for thread ID in URL or other common locations
+      // Fallbacks: URL param th=, then list view legacy id, then page content
       const url = window.location.href;
-      const threadMatch = url.match(/th=([a-f0-9]+)/);
+      const threadMatch = url.match(/[#&?]th=([a-f0-9]+)/i);
       if (threadMatch) {
         threadId = threadMatch[1];
         console.log('✅ [Gmail] Found thread ID from URL:', threadId);
       } else {
-        // Look for thread ID in page content
-        const pageContent = document.body.innerHTML;
-        const contentMatch = pageContent.match(/thread_id["\s]*[:=]["\s]*([a-f0-9]+)/i);
-        if (contentMatch) {
-          threadId = contentMatch[1];
-          console.log('✅ [Gmail] Found thread ID from page content:', threadId);
+        const row = document.querySelector('[data-legacy-thread-id]');
+        const legacyId = row && (row as HTMLElement).getAttribute('data-legacy-thread-id');
+        if (legacyId) {
+          threadId = legacyId;
+          console.log('✅ [Gmail] Found legacy thread ID from list row:', threadId);
+        } else {
+          // Look for thread ID in page content
+          const pageContent = document.body.innerHTML;
+          const contentMatch = pageContent.match(/thread_id["\s]*[:=]["\s]*([a-f0-9]+)/i);
+          if (contentMatch) {
+            threadId = contentMatch[1];
+            console.log('✅ [Gmail] Found thread ID from page content:', threadId);
+          }
         }
       }
     }
 
     if (!threadId) {
-      console.warn('⚠️ [Gmail] Could not find thread ID, using fallback');
-      threadId = 'fallback-thread-id';
+      console.warn('⚠️ [Gmail] Could not find thread ID. Open a conversation and retry.');
+      const t = showToast('MailFind: Open a conversation to summarize.');
+      hideToast(t, 1800);
+      return;
     }
 
     console.log('📤 [Gmail] Sending thread ID to backend:', threadId);
@@ -251,6 +260,18 @@ async function handleSummarizeClick() {
       renderInlineSummary(summary);
     } else {
       console.error(`❌ [Gmail] Backend error: ${response.status} ${response.statusText}`);
+      if (response.status === 401) {
+        updateToast(toast, 'Login required. Opening login page…');
+        try {
+          window.open('http://localhost:8000/login', '_blank', 'noopener');
+        } catch (_) {}
+      } else if (response.status === 404) {
+        updateToast(toast, 'Thread not found. Open a conversation and try again.');
+      } else if (response.status === 400) {
+        updateToast(toast, 'Invalid request. Refresh Gmail and try again.');
+      } else {
+        updateToast(toast, 'Server error. Check backend logs.');
+      }
       throw new Error(`Backend error: ${response.status}`);
     }
   } catch (error) {
