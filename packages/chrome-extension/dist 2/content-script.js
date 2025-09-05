@@ -1,0 +1,20 @@
+console.log("MailFind content script loaded");const d='div[gh="tm"]',c='div[gh="mtb"]',u='[aria-label="Toolbar"], [role="toolbar"]',m=[c,d,u].join(", ");function h(t){if(!t)return!1;const e=t.getBoundingClientRect(),o=window.getComputedStyle(t);return e.width>0&&e.height>0&&o.visibility!=="hidden"&&o.display!=="none"}function b(){const t=Array.from(document.querySelectorAll(m));console.log(`🔍 [Gmail] Toolbar candidates found: ${t.length}`);const n=t.filter(h).sort((i,l)=>{const a=i.getAttribute("gh")==="mtb"?1:0;return(l.getAttribute("gh")==="mtb"?1:0)-a})[0]||null;return console.log("🔍 [Gmail] Chosen toolbar:",n),n}function r(){const t=document.getElementById("mailfind-summarize-btn"),e=b();if(!e){console.log("⚠️ [Gmail] No toolbar found; will retry on next mutation");return}if(t&&t.parentElement!==e&&t.remove(),e&&!document.getElementById("mailfind-summarize-btn")){const o=e.querySelector('[data-tooltip="More"], [aria-label="More"]'),n=document.createElement("button");n.id="mailfind-summarize-btn",n.className="mailfind-btn",n.innerHTML="📧 Summarize",n.style.cssText=`
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      height: 24px;
+      line-height: 24px;
+      padding: 0 10px;
+      margin-left: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 1000;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      box-sizing: border-box;
+      vertical-align: middle;
+      white-space: nowrap;
+    `,n.addEventListener("mouseenter",()=>{n.style.background="#1557b0"}),n.addEventListener("mouseleave",()=>{n.style.background="#1a73e8"}),n.addEventListener("click",g),o&&o.parentNode?o.parentNode.insertBefore(n,o.nextSibling):e.appendChild(n),console.log("✅ [Gmail] Summarize button injected")}}async function g(){console.log("📧 [Gmail] Summarize button clicked in Gmail interface");try{console.log("🔍 [Gmail] Searching for thread ID...");const t=document.querySelector("[data-thread-id]");let e=null;if(t)e=t.getAttribute("data-thread-id"),console.log("✅ [Gmail] Found thread ID from data-thread-id:",e);else{const i=window.location.href.match(/th=([a-f0-9]+)/);if(i)e=i[1],console.log("✅ [Gmail] Found thread ID from URL:",e);else{const a=document.body.innerHTML.match(/thread_id["\s]*[:=]["\s]*([a-f0-9]+)/i);a&&(e=a[1],console.log("✅ [Gmail] Found thread ID from page content:",e))}}e||(console.warn("⚠️ [Gmail] Could not find thread ID, using fallback"),e="fallback-thread-id"),console.log("📤 [Gmail] Sending thread ID to backend:",e);const o=await fetch("http://localhost:8000/summarize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({threadId:e}),credentials:"include"});if(o.ok){const n=await o.json();console.log("✅ [Gmail] Backend response:",n),alert(`MailFind: ${n.message||"Summary request sent successfully!"}`)}else throw console.error(`❌ [Gmail] Backend error: ${o.status} ${o.statusText}`),new Error(`Backend error: ${o.status}`)}catch(t){console.error("💥 [Gmail] Summarization failed:",t),alert("MailFind: Failed to send summary request. Please try again.")}}function s(){let t=null;const e=()=>{t&&clearTimeout(t),t=window.setTimeout(()=>{r()},400)};new MutationObserver(()=>{e()}).observe(document.body,{childList:!0,subtree:!0}),window.addEventListener("popstate",e)}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",()=>{setTimeout(r,1e3),s()}):(setTimeout(r,1e3),s());

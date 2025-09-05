@@ -1,25 +1,40 @@
+INFO:     Will watch for changes in these directories: ['/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [46632] using StatReload
 /Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
   warnings.warn(
-INFO:     Started server process [47214]
+INFO:     Started server process [46703]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:49674 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49675 - "POST /logout HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49708 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49708 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49708 - "GET /login HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:49708 - "GET /callback?state=i4GeZjogw8ukpkj4MYWNbCvR4vYTfJU62iEBrQk-5jo&code=4%2F0AVMBsJjZZNwJe4rMmuLSUhgiRnyoONi26FC_YCBRTnLkjwaDLOc7Jnf9FCvzJ0-b9I0pNQ&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49708 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49879 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49881 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53149 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53149 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53149 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53151 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54452 - "GET /auth/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54452 - "POST /summarize HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53922 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request
-INFO:     127.0.0.1:54090 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request
-INFO:     127.0.0.1:54289 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54465 - "OPTIONS /summarize HTTP/1.1" 400 Bad Request
+Received summarization request for thread ID: test-thread-123
+INFO:     127.0.0.1:62358 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [46703]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [46974]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [46974]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [46990]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:62404 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: fallback-thread-id
+Received summarization request for thread ID: fallback-thread-id
+INFO:     127.0.0.1:62406 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62411 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: fallback-thread-id
+Received summarization request for thread ID: #thread-f:1842373303871637709
+INFO:     127.0.0.1:62706 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: fallback-thread-id
+INFO:     127.0.0.1:62865 - "POST /summarize HTTP/1.1" 200 OK
