@@ -78,24 +78,57 @@ function renderInlineSummary(summaryText: string): HTMLDivElement {
   `;
 
   const header = document.createElement('div');
-  header.style.cssText = 'display:flex;align-items:center;margin-bottom:8px;';
+  header.style.cssText = 'display:flex;align-items:center;margin-bottom:8px;gap:6px;';
   const title = document.createElement('div');
   title.textContent = 'MailFind Summary';
   title.style.cssText = 'font-weight:600;font-size:14px;flex:1;';
+
+  // Minimize toggle button
+  const minimizeBtn = document.createElement('button');
+  minimizeBtn.textContent = '–';
+  minimizeBtn.setAttribute('aria-label', 'Minimize summary');
+  minimizeBtn.title = 'Minimize';
+  minimizeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:16px;line-height:16px;padding:0 4px;';
+
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
   closeBtn.setAttribute('aria-label', 'Close summary');
   closeBtn.title = 'Close';
-  closeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:18px;line-height:18px;';
+  closeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:18px;line-height:18px;padding:0 4px;';
   closeBtn.addEventListener('click', () => card.remove());
 
   header.appendChild(title);
+  header.appendChild(minimizeBtn);
   header.appendChild(closeBtn);
   const body = document.createElement('div');
   body.textContent = summaryText;
   card.appendChild(header);
   card.appendChild(body);
   document.body.appendChild(card);
+
+  // Minimize/expand behavior
+  let collapsed = false;
+  const applyCollapsed = () => {
+    if (collapsed) {
+      body.style.display = 'none';
+      card.style.width = '260px';
+      card.style.maxHeight = 'unset';
+      title.textContent = 'MailFind Summary (minimized)';
+      minimizeBtn.textContent = '+';
+      minimizeBtn.title = 'Expand';
+      minimizeBtn.setAttribute('aria-label', 'Expand summary');
+    } else {
+      body.style.display = '';
+      card.style.width = '420px';
+      card.style.maxHeight = '70vh';
+      title.textContent = 'MailFind Summary';
+      minimizeBtn.textContent = '–';
+      minimizeBtn.title = 'Minimize';
+      minimizeBtn.setAttribute('aria-label', 'Minimize summary');
+    }
+  };
+  minimizeBtn.addEventListener('click', () => { collapsed = !collapsed; applyCollapsed(); });
+  applyCollapsed();
   return body as HTMLDivElement;
 }
 
