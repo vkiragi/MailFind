@@ -7,13 +7,96 @@ console.log('MailFind content script loaded');
 const GMAIL_LIST_TOOLBAR_SELECTOR = 'div[gh="tm"]';
 const GMAIL_THREAD_TOOLBAR_SELECTOR = 'div[gh="mtb"]';
 const GMAIL_ARIA_TOOLBAR_SELECTOR = '[aria-label="Toolbar"], [role="toolbar"]';
-const GMAIL_EMAIL_VIEW_SELECTOR = '.aeH'; // Generic container present in Gmail views
+// const GMAIL_EMAIL_VIEW_SELECTOR = '.aeH'; // Previously used; not needed now
 
 const TOOLBAR_CANDIDATES = [
   GMAIL_THREAD_TOOLBAR_SELECTOR,
   GMAIL_LIST_TOOLBAR_SELECTOR,
   GMAIL_ARIA_TOOLBAR_SELECTOR,
 ].join(', ');
+
+// Lightweight toast utilities for non-blocking notifications
+function showToast(message: string) {
+  let toast = document.getElementById('mailfind-toast') as HTMLDivElement | null;
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'mailfind-toast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 2147483647;
+      background: rgba(32,33,36,0.98);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+      max-width: 360px;
+      line-height: 1.4;
+      pointer-events: none;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  return toast;
+}
+
+function updateToast(toast: HTMLElement, message: string) {
+  if (toast) toast.textContent = message;
+}
+
+function hideToast(toast: HTMLElement, delayMs = 1200) {
+  if (!toast) return;
+  setTimeout(() => { toast.remove(); }, delayMs);
+}
+
+// Inline summary card renderer
+function renderInlineSummary(summaryText: string) {
+  const existing = document.getElementById('mailfind-summary-card');
+  if (existing) existing.remove();
+
+  const card = document.createElement('div');
+  card.id = 'mailfind-summary-card';
+  card.style.cssText = `
+    position: fixed;
+    top: 72px;
+    right: 16px;
+    z-index: 2147483647;
+    width: 420px;
+    max-height: 70vh;
+    overflow: auto;
+    background: #fff;
+    color: #202124;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+    border: 1px solid rgba(0,0,0,0.08);
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  `;
+
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;margin-bottom:8px;';
+  const title = document.createElement('div');
+  title.textContent = 'MailFind Summary';
+  title.style.cssText = 'font-weight:600;font-size:14px;flex:1;';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.setAttribute('aria-label', 'Close summary');
+  closeBtn.title = 'Close';
+  closeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:18px;line-height:18px;';
+  closeBtn.addEventListener('click', () => card.remove());
+
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  const body = document.createElement('div');
+  body.textContent = summaryText;
+  card.appendChild(header);
+  card.appendChild(body);
+  document.body.appendChild(card);
+}
 
 function isVisible(element: Element | null): boolean {
   if (!element) return false;
@@ -147,6 +230,7 @@ async function handleSummarizeClick() {
     }
 
     console.log('📤 [Gmail] Sending thread ID to backend:', threadId);
+    const toast = showToast('Request sent. Generating summary…');
 
     // Call backend API
     const response = await fetch('http://localhost:8000/summarize', {
@@ -161,13 +245,18 @@ async function handleSummarizeClick() {
     if (response.ok) {
       const result = await response.json();
       console.log('✅ [Gmail] Backend response:', result);
-      alert(`MailFind: ${result.message || 'Summary request sent successfully!'}`);
+      updateToast(toast, 'Summary ready.');
+      hideToast(toast, 800);
+      const summary = (result && (result.summary || result.message)) || 'Summary generated.';
+      renderInlineSummary(summary);
     } else {
       console.error(`❌ [Gmail] Backend error: ${response.status} ${response.statusText}`);
       throw new Error(`Backend error: ${response.status}`);
     }
   } catch (error) {
     console.error('💥 [Gmail] Summarization failed:', error);
+    const t = document.getElementById('mailfind-toast');
+    if (t) updateToast(t as HTMLElement, 'MailFind: Failed.');
     alert('MailFind: Failed to send summary request. Please try again.');
   }
 }

@@ -24,7 +24,11 @@ app = FastAPI()
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Frontend dev server
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://mail.google.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -187,16 +191,17 @@ def summarize_email_thread(request: dict):
         )
 
         try:
-            completion = client.chat.completions.create(
+            # Use Responses API for gpt-5-nano; avoid unsupported params
+            resp = client.responses.create(
                 model="gpt-5-nano",
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": prompt_text},
-                ],
-                temperature=0.3,
-                max_tokens=350,
+                input=f"System: {system_msg}\n\nUser: {prompt_text}",
             )
-            summary_text = completion.choices[0].message.content.strip() if completion.choices else ""
+            summary_text = ""
+            try:
+                summary_text = resp.output_text.strip()  # type: ignore[attr-defined]
+            except Exception:
+                if getattr(resp, "choices", None):
+                    summary_text = resp.choices[0].message["content"].strip()  # type: ignore[index]
         except Exception as oe:
             raise HTTPException(status_code=500, detail=f"OpenAI error: {str(oe)}")
 
