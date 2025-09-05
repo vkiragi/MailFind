@@ -52,7 +52,7 @@ function hideToast(toast: HTMLElement, delayMs = 1200) {
 }
 
 // Inline summary card renderer
-function renderInlineSummary(summaryText: string) {
+function renderInlineSummary(summaryText: string): HTMLDivElement {
   const existing = document.getElementById('mailfind-summary-card');
   if (existing) existing.remove();
 
@@ -96,6 +96,7 @@ function renderInlineSummary(summaryText: string) {
   card.appendChild(header);
   card.appendChild(body);
   document.body.appendChild(card);
+  return body as HTMLDivElement;
 }
 
 function isVisible(element: Element | null): boolean {
@@ -252,12 +253,35 @@ async function handleSummarizeClick() {
     });
 
     if (response.ok) {
-      const result = await response.json();
-      console.log('✅ [Gmail] Backend response:', result);
-      updateToast(toast, 'Summary ready.');
-      hideToast(toast, 800);
-      const summary = (result && (result.summary || result.message)) || 'Summary generated.';
-      renderInlineSummary(summary);
+      // Stream text chunks and update UI live
+      const bodyEl = renderInlineSummary('');
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let aggregated = '';
+      if (!reader) {
+        bodyEl.textContent = 'No stream available.';
+        updateToast(toast, 'Summary ready.');
+        hideToast(toast, 800);
+        return;
+      }
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            aggregated += chunk;
+            bodyEl.textContent = aggregated;
+          }
+        }
+        updateToast(toast, 'Summary ready.');
+        hideToast(toast, 800);
+      } catch (e) {
+        console.error('❌ [Gmail] Stream read error', e);
+        bodyEl.textContent = aggregated || 'Failed to read stream.';
+        updateToast(toast, 'Stream ended with error.');
+        hideToast(toast, 1200);
+      }
     } else {
       console.error(`❌ [Gmail] Backend error: ${response.status} ${response.statusText}`);
       if (response.status === 401) {

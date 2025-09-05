@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, HTTPException, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
@@ -304,27 +304,27 @@ def summarize_email_thread(request: dict):
             "note assumptions explicitly."
         )
 
-        try:
-            # Use Responses API for gpt-5-nano; avoid unsupported params
-            resp = client.responses.create(
-                model="gpt-5-nano",
-                input=f"System: {system_msg}\n\nUser: {email_text}",
-            )
-            summary_text = ""
+        def token_stream():
             try:
-                summary_text = resp.output_text.strip()  # type: ignore[attr-defined]
-            except Exception:
-                if getattr(resp, "choices", None):
-                    summary_text = resp.choices[0].message["content"].strip()  # type: ignore[index]
-        except Exception as oe:
-            raise HTTPException(status_code=500, detail=f"OpenAI error: {str(oe)}")
+                # Stream using OpenAI Responses API
+                with client.responses.stream(
+                    model="gpt-5-nano",
+                    input=f"System: {system_msg}\n\nUser: {email_text}",
+                ) as stream:
+                    for event in stream:
+                        if event.type == "response.output_text.delta":
+                            delta = getattr(event, "delta", "") or ""
+                            if delta:
+                                yield delta.encode("utf-8")
+                        elif event.type == "response.error":
+                            err = getattr(event, "error", None)
+                            message = getattr(err, "message", None) if err else None
+                            if message:
+                                yield f"\n[error] {message}".encode("utf-8")
+            except Exception as oe:
+                yield f"\n[error] OpenAI stream error: {str(oe)}".encode("utf-8")
 
-        return {
-            "thread_id": thread_id,
-            "summary": summary_text,
-            "model": "gpt-5-nano",
-            "status": "ok"
-        }
+        return StreamingResponse(token_stream(), media_type="text/plain; charset=utf-8")
         
     except HTTPException as he:
         # Preserve intended HTTP status codes (e.g., 401 for no auth, 404 for not found)

@@ -49,3 +49,40 @@ INFO:     127.0.0.1:62690 - "GET /callback?state=OVF00_FoXNh7kn6a2opeURm447hUL9n
 INFO:     127.0.0.1:62690 - "GET /favicon.ico HTTP/1.1" 404 Not Found
 Received summarization request for thread ID: 19916cc230ee88cd
 INFO:     127.0.0.1:62700 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [74855]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [75706]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [75706]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [76253]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [76253]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [76259]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:63035 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19916cc230ee88cd
+INFO:     127.0.0.1:63037 - "POST /summarize HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:63039 - "GET /login HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:63039 - "GET /callback?state=72vYhtud_x-sQPpGzvrzglXVydeDgfQEsFedqvklZPA&code=4%2F0AVMBsJhZMqAtaubltuYLp_p-kC4bA8nzXtx4RgVf8yjF7Ys-wCkgLAD4-7L0QA3DEcBZdA&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19916cc230ee88cd
+INFO:     127.0.0.1:63037 - "POST /summarize HTTP/1.1" 200 OK
