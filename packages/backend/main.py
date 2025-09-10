@@ -649,36 +649,55 @@ async def sync_inbox(request: dict):
     Expected request body: { "userId": "..." (optional) }
     """
     try:
+        print(f"[Sync] Starting inbox sync with request: {request}")
         sb = _get_supabase()
 
         user_id = request.get("userId")
+        print(f"[Sync] User ID: {user_id}")
 
         # Build Gmail service
+        print("[Sync] Building Gmail service...")
         service = _build_gmail_service(user_id)
+        print("[Sync] Gmail service built successfully")
 
         # List last 50 threads
+        print("[Sync] Fetching threads list...")
         threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
         threads = threads_resp.get('threads', []) or []
+        print(f"[Sync] Found {len(threads)} threads")
 
         if not threads:
+            print("[Sync] No threads found, returning 0")
             return {"status": "success", "indexed_count": 0}
 
+        print("[Sync] Loading embedding model...")
         model = _get_embedding_model()
+        print("[Sync] Embedding model loaded")
 
         indexed = 0
-        for t in threads:
+        for i, t in enumerate(threads):
             tid = t.get('id')
             if not tid:
+                print(f"[Sync] Thread {i+1}/{len(threads)}: No ID, skipping")
                 continue
+            
+            print(f"[Sync] Processing thread {i+1}/{len(threads)}: {tid}")
             try:
                 thread_full = service.users().threads().get(userId="me", id=tid, format="full").execute()
+                print(f"[Sync] Thread {tid}: Fetched full thread data")
+                
                 content = _fetch_thread_plaintext(service, tid)
+                print(f"[Sync] Thread {tid}: Extracted content ({len(content)} chars)")
+                
                 meta = _parse_thread_metadata(thread_full)
                 subject = meta.get('subject', '')
                 sender = meta.get('from', '')
+                print(f"[Sync] Thread {tid}: Subject='{subject[:50]}...', Sender='{sender}'")
 
                 text_for_embedding = (subject + "\n\n" + content).strip() or content
+                print(f"[Sync] Thread {tid}: Generating embedding for {len(text_for_embedding)} chars")
                 emb = model.encode(text_for_embedding, normalize_embeddings=True).tolist()  # 384 dims
+                print(f"[Sync] Thread {tid}: Generated embedding with {len(emb)} dimensions")
 
                 # Upsert into Supabase emails table
                 payload = {
@@ -689,12 +708,17 @@ async def sync_inbox(request: dict):
                     "content": content,
                     "embedding": emb,
                 }
+                print(f"[Sync] Thread {tid}: Upserting to Supabase...")
                 sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
                 indexed += 1
-            except Exception:
-                # Skip problematic thread; continue
+                print(f"[Sync] Thread {tid}: Successfully indexed ({indexed}/{len(threads)})")
+            except Exception as e:
+                print(f"[Sync] Thread {tid}: ERROR - {str(e)}")
+                import traceback
+                traceback.print_exc()
                 continue
 
+        print(f"[Sync] Completed: {indexed}/{len(threads)} threads indexed successfully")
         return {"status": "success", "indexed_count": indexed}
     except HTTPException as he:
         print(f"[ERROR] HTTPException in /sync-inbox: {he.status_code} - {he.detail}")

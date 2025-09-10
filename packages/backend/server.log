@@ -188,3 +188,1885 @@ Received summarization request for thread ID: 19930a647fcae0eb
 INFO:     127.0.0.1:61822 - "POST /summarize HTTP/1.1" 200 OK
 Received summarization request for thread ID: 19930a647fcae0eb
 INFO:     127.0.0.1:61827 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61890 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61900 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61900 - "POST /sync-inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61983 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61983 - "POST /sync-inbox HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [88433]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [89420]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [89420]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [89436]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [89436]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [89710]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:62431 - "GET /auth/status HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Starting inbox sync with request: {}
+[Sync] User ID: None
+[Sync] Building Gmail service...
+[Sync] Gmail service built successfully
+[Sync] Fetching threads list...
+[Sync] Found 50 threads
+[Sync] Loading embedding model...
+[Sync] Embedding model loaded
+[Sync] Processing thread 1/50: 19930a647fcae0eb
+[Sync] Thread 19930a647fcae0eb: Fetched full thread data
+[Sync] Thread 19930a647fcae0eb: Extracted content (734 chars)
+[Sync] Thread 19930a647fcae0eb: Subject='Waiver wire: Top players to target in Week 2 🎯 🔍...', Sender='Yahoo Fantasy <get-to-the-points@newsletters.yahoo.net>'
+[Sync] Thread 19930a647fcae0eb: Generating embedding for 784 chars
+[Sync] Thread 19930a647fcae0eb: Generated embedding with 384 dimensions
+[Sync] Thread 19930a647fcae0eb: Upserting to Supabase...
+[Sync] Thread 19930a647fcae0eb: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 2/50: 199302ec98e78622
+[Sync] Thread 199302ec98e78622: Fetched full thread data
+[Sync] Thread 199302ec98e78622: Extracted content (1398 chars)
+[Sync] Thread 199302ec98e78622: Subject='👉 Your week 1 Fantasy recap is here...', Sender='Yahoo Sports Fantasy Football <fantasy-football@sports.comms.yahoo.net>'
+[Sync] Thread 199302ec98e78622: Generating embedding for 1435 chars
+[Sync] Thread 199302ec98e78622: Generated embedding with 384 dimensions
+[Sync] Thread 199302ec98e78622: Upserting to Supabase...
+[Sync] Thread 199302ec98e78622: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 3/50: 199302c50345d3f7
+[Sync] Thread 199302c50345d3f7: Fetched full thread data
+[Sync] Thread 199302c50345d3f7: Extracted content (0 chars)
+[Sync] Thread 199302c50345d3f7: Subject='How JPMorgan enabled Jeffrey Epstein’s crimes...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 199302c50345d3f7: Generating embedding for 45 chars
+[Sync] Thread 199302c50345d3f7: Generated embedding with 384 dimensions
+[Sync] Thread 199302c50345d3f7: Upserting to Supabase...
+[Sync] Thread 199302c50345d3f7: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 4/50: 1992fe1d2c645472
+[Sync] Thread 1992fe1d2c645472: Fetched full thread data
+[Sync] Thread 1992fe1d2c645472: Extracted content (0 chars)
+[Sync] Thread 1992fe1d2c645472: Subject='Jobs like Software Engineer InternCo-op in San Fra...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1992fe1d2c645472: Generating embedding for 56 chars
+[Sync] Thread 1992fe1d2c645472: Generated embedding with 384 dimensions
+[Sync] Thread 1992fe1d2c645472: Upserting to Supabase...
+[Sync] Thread 1992fe1d2c645472: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 5/50: 1992fbd2acdc20f0
+[Sync] Thread 1992fbd2acdc20f0: Fetched full thread data
+[Sync] Thread 1992fbd2acdc20f0: Extracted content (778 chars)
+[Sync] Thread 1992fbd2acdc20f0: Subject='An update to your benefits...', Sender='"H&M" <membership@email.hm.com>'
+[Sync] Thread 1992fbd2acdc20f0: Generating embedding for 806 chars
+[Sync] Thread 1992fbd2acdc20f0: Generated embedding with 384 dimensions
+[Sync] Thread 1992fbd2acdc20f0: Upserting to Supabase...
+[Sync] Thread 1992fbd2acdc20f0: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 6/50: 1992fb51958ecd6f
+[Sync] Thread 1992fb51958ecd6f: Fetched full thread data
+[Sync] Thread 1992fb51958ecd6f: Extracted content (9983 chars)
+[Sync] Thread 1992fb51958ecd6f: Subject='Clerk Update – Sept 9, 2025...', Sender='Clerk <systems@clerk.com>'
+[Sync] Thread 1992fb51958ecd6f: Generating embedding for 10012 chars
+[Sync] Thread 1992fb51958ecd6f: Generated embedding with 384 dimensions
+[Sync] Thread 1992fb51958ecd6f: Upserting to Supabase...
+[Sync] Thread 1992fb51958ecd6f: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 7/50: 1992ec0e75317ca5
+[Sync] Thread 1992ec0e75317ca5: Fetched full thread data
+[Sync] Thread 1992ec0e75317ca5: Extracted content (2754 chars)
+[Sync] Thread 1992ec0e75317ca5: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1992ec0e75317ca5: Generating embedding for 2789 chars
+[Sync] Thread 1992ec0e75317ca5: Generated embedding with 384 dimensions
+[Sync] Thread 1992ec0e75317ca5: Upserting to Supabase...
+[Sync] Thread 1992ec0e75317ca5: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 8/50: 1992e5bdf4a9e7a7
+[Sync] Thread 1992e5bdf4a9e7a7: Fetched full thread data
+[Sync] Thread 1992e5bdf4a9e7a7: Extracted content (0 chars)
+[Sync] Thread 1992e5bdf4a9e7a7: Subject='A 16-year-old was suicidal. He confided in ChatGPT...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1992e5bdf4a9e7a7: Generating embedding for 51 chars
+[Sync] Thread 1992e5bdf4a9e7a7: Generated embedding with 384 dimensions
+[Sync] Thread 1992e5bdf4a9e7a7: Upserting to Supabase...
+[Sync] Thread 1992e5bdf4a9e7a7: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 9/50: 1992e1af610f3900
+[Sync] Thread 1992e1af610f3900: Fetched full thread data
+[Sync] Thread 1992e1af610f3900: Extracted content (0 chars)
+[Sync] Thread 1992e1af610f3900: Subject='The Morning: State vs. state...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1992e1af610f3900: Generating embedding for 28 chars
+[Sync] Thread 1992e1af610f3900: Generated embedding with 384 dimensions
+[Sync] Thread 1992e1af610f3900: Upserting to Supabase...
+[Sync] Thread 1992e1af610f3900: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 10/50: 1992c4be4d7d8a9e
+[Sync] Thread 1992c4be4d7d8a9e: Fetched full thread data
+[Sync] Thread 1992c4be4d7d8a9e: Extracted content (1201 chars)
+[Sync] Thread 1992c4be4d7d8a9e: Subject='Security alert...', Sender='Google <no-reply@accounts.google.com>'
+[Sync] Thread 1992c4be4d7d8a9e: Generating embedding for 1217 chars
+[Sync] Thread 1992c4be4d7d8a9e: Generated embedding with 384 dimensions
+[Sync] Thread 1992c4be4d7d8a9e: Upserting to Supabase...
+[Sync] Thread 1992c4be4d7d8a9e: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 11/50: 1992abb3f73a0bf2
+[Sync] Thread 1992abb3f73a0bf2: Fetched full thread data
+[Sync] Thread 1992abb3f73a0bf2: Extracted content (0 chars)
+[Sync] Thread 1992abb3f73a0bf2: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1992abb3f73a0bf2: Generating embedding for 55 chars
+[Sync] Thread 1992abb3f73a0bf2: Generated embedding with 384 dimensions
+[Sync] Thread 1992abb3f73a0bf2: Upserting to Supabase...
+[Sync] Thread 1992abb3f73a0bf2: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 12/50: 1992a485d2446263
+[Sync] Thread 1992a485d2446263: Fetched full thread data
+[Sync] Thread 1992a485d2446263: Extracted content (1507 chars)
+[Sync] Thread 1992a485d2446263: Subject='🔥 Free Beta Pack: Django Vol. 3 - Groovy Tech Hous...', Sender='Phantom Sounds <info@phantom-sounds.com>'
+[Sync] Thread 1992a485d2446263: Generating embedding for 1565 chars
+[Sync] Thread 1992a485d2446263: Generated embedding with 384 dimensions
+[Sync] Thread 1992a485d2446263: Upserting to Supabase...
+[Sync] Thread 1992a485d2446263: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 13/50: 1992a033d24e2f34
+[Sync] Thread 1992a033d24e2f34: Fetched full thread data
+[Sync] Thread 1992a033d24e2f34: Extracted content (6517 chars)
+[Sync] Thread 1992a033d24e2f34: Subject='OpenQuant Newsletter - Edition #133...', Sender='OpenQuant Newsletter <openquant@substack.com>'
+[Sync] Thread 1992a033d24e2f34: Generating embedding for 6554 chars
+[Sync] Thread 1992a033d24e2f34: Generated embedding with 384 dimensions
+[Sync] Thread 1992a033d24e2f34: Upserting to Supabase...
+[Sync] Thread 1992a033d24e2f34: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 14/50: 19929ac4e3be916e
+[Sync] Thread 19929ac4e3be916e: Fetched full thread data
+[Sync] Thread 19929ac4e3be916e: Extracted content (2551 chars)
+[Sync] Thread 19929ac4e3be916e: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 19929ac4e3be916e: Generating embedding for 2586 chars
+[Sync] Thread 19929ac4e3be916e: Generated embedding with 384 dimensions
+[Sync] Thread 19929ac4e3be916e: Upserting to Supabase...
+[Sync] Thread 19929ac4e3be916e: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 15/50: 199296ec067d9fef
+[Sync] Thread 199296ec067d9fef: Fetched full thread data
+[Sync] Thread 199296ec067d9fef: Extracted content (13197 chars)
+[Sync] Thread 199296ec067d9fef: Subject='[JUST RELEASED] 45+ New Internships + Harvard Hack...', Sender='Intern Insider <hi@interninsider.me>'
+[Sync] Thread 199296ec067d9fef: Generating embedding for 13255 chars
+[Sync] Thread 199296ec067d9fef: Generated embedding with 384 dimensions
+[Sync] Thread 199296ec067d9fef: Upserting to Supabase...
+[Sync] Thread 199296ec067d9fef: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 16/50: 19929389c050ca41
+[Sync] Thread 19929389c050ca41: Fetched full thread data
+[Sync] Thread 19929389c050ca41: Extracted content (2262 chars)
+[Sync] Thread 19929389c050ca41: Subject='Introducing...our family subscription....', Sender='The New York Times <nytimes@e.newyorktimes.com>'
+[Sync] Thread 19929389c050ca41: Generating embedding for 2302 chars
+[Sync] Thread 19929389c050ca41: Generated embedding with 384 dimensions
+[Sync] Thread 19929389c050ca41: Upserting to Supabase...
+[Sync] Thread 19929389c050ca41: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 17/50: 1992933d49537278
+[Sync] Thread 1992933d49537278: Fetched full thread data
+[Sync] Thread 1992933d49537278: Extracted content (0 chars)
+[Sync] Thread 1992933d49537278: Subject='A surprising (and easy) way to boost your attentio...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1992933d49537278: Generating embedding for 56 chars
+[Sync] Thread 1992933d49537278: Generated embedding with 384 dimensions
+[Sync] Thread 1992933d49537278: Upserting to Supabase...
+[Sync] Thread 1992933d49537278: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 18/50: 19928e9b227cd9ea
+[Sync] Thread 19928e9b227cd9ea: Fetched full thread data
+[Sync] Thread 19928e9b227cd9ea: Extracted content (0 chars)
+[Sync] Thread 19928e9b227cd9ea: Subject='The Morning: Epstein’s bankers...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 19928e9b227cd9ea: Generating embedding for 30 chars
+[Sync] Thread 19928e9b227cd9ea: Generated embedding with 384 dimensions
+[Sync] Thread 19928e9b227cd9ea: Upserting to Supabase...
+[Sync] Thread 19928e9b227cd9ea: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 19/50: 19926c5e06dcfefc
+[Sync] Thread 19926c5e06dcfefc: Fetched full thread data
+[Sync] Thread 19926c5e06dcfefc: Extracted content (522 chars)
+[Sync] Thread 19926c5e06dcfefc: Subject='Review trade within 1 day in Fail Fast - Score Fas...', Sender='Yahoo Fantasy <fantasy-sports-no-reply@yahooinc.com>'
+[Sync] Thread 19926c5e06dcfefc: Generating embedding for 577 chars
+[Sync] Thread 19926c5e06dcfefc: Generated embedding with 384 dimensions
+[Sync] Thread 19926c5e06dcfefc: Upserting to Supabase...
+[Sync] Thread 19926c5e06dcfefc: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 20/50: 19925ffe6a83acf5
+[Sync] Thread 19925ffe6a83acf5: Fetched full thread data
+[Sync] Thread 19925ffe6a83acf5: Extracted content (0 chars)
+[Sync] Thread 19925ffe6a83acf5: Subject='Her life exploded in middle age. So she built a be...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19925ffe6a83acf5: Generating embedding for 59 chars
+[Sync] Thread 19925ffe6a83acf5: Generated embedding with 384 dimensions
+[Sync] Thread 19925ffe6a83acf5: Upserting to Supabase...
+[Sync] Thread 19925ffe6a83acf5: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 21/50: 19925959a3a40563
+[Sync] Thread 19925959a3a40563: Fetched full thread data
+[Sync] Thread 19925959a3a40563: Extracted content (0 chars)
+[Sync] Thread 19925959a3a40563: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 19925959a3a40563: Generating embedding for 55 chars
+[Sync] Thread 19925959a3a40563: Generated embedding with 384 dimensions
+[Sync] Thread 19925959a3a40563: Upserting to Supabase...
+[Sync] Thread 19925959a3a40563: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 22/50: 19925092ac674154
+[Sync] Thread 19925092ac674154: Fetched full thread data
+[Sync] Thread 19925092ac674154: Extracted content (21626 chars)
+[Sync] Thread 19925092ac674154: Subject='Elevate your AI Expertise with these Stanford Cour...', Sender='Stanford University <no-reply@m.mail.coursera.org>'
+[Sync] Thread 19925092ac674154: Generating embedding for 21695 chars
+[Sync] Thread 19925092ac674154: Generated embedding with 384 dimensions
+[Sync] Thread 19925092ac674154: Upserting to Supabase...
+[Sync] Thread 19925092ac674154: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 23/50: 19924b7adeeee70d
+[Sync] Thread 19924b7adeeee70d: Fetched full thread data
+[Sync] Thread 19924b7adeeee70d: Extracted content (2640 chars)
+[Sync] Thread 19924b7adeeee70d: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 19924b7adeeee70d: Generating embedding for 2675 chars
+[Sync] Thread 19924b7adeeee70d: Generated embedding with 384 dimensions
+[Sync] Thread 19924b7adeeee70d: Upserting to Supabase...
+[Sync] Thread 19924b7adeeee70d: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 24/50: 199240dc5f9a3ab4
+[Sync] Thread 199240dc5f9a3ab4: Fetched full thread data
+[Sync] Thread 199240dc5f9a3ab4: Extracted content (0 chars)
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Thread 199240dc5f9a3ab4: Subject='18 packable, nutritious lunches your kids will act...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 199240dc5f9a3ab4: Generating embedding for 59 chars
+[Sync] Thread 199240dc5f9a3ab4: Generated embedding with 384 dimensions
+[Sync] Thread 199240dc5f9a3ab4: Upserting to Supabase...
+[Sync] Thread 199240dc5f9a3ab4: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 25/50: 19923c9b6841493d
+[Sync] Thread 19923c9b6841493d: Fetched full thread data
+[Sync] Thread 19923c9b6841493d: Extracted content (0 chars)
+[Sync] Thread 19923c9b6841493d: Subject='The Morning: The best of the U.S. Open...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 19923c9b6841493d: Generating embedding for 38 chars
+[Sync] Thread 19923c9b6841493d: Generated embedding with 384 dimensions
+[Sync] Thread 19923c9b6841493d: Upserting to Supabase...
+[Sync] Thread 19923c9b6841493d: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 26/50: 19920d8274ba6402
+[Sync] Thread 19920d8274ba6402: Fetched full thread data
+[Sync] Thread 19920d8274ba6402: Extracted content (0 chars)
+[Sync] Thread 19920d8274ba6402: Subject='10 nutrition myths that experts wish would die...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19920d8274ba6402: Generating embedding for 46 chars
+[Sync] Thread 19920d8274ba6402: Generated embedding with 384 dimensions
+[Sync] Thread 19920d8274ba6402: Upserting to Supabase...
+[Sync] Thread 19920d8274ba6402: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 27/50: 199206f59368f660
+[Sync] Thread 199206f59368f660: Fetched full thread data
+[Sync] Thread 199206f59368f660: Extracted content (0 chars)
+[Sync] Thread 199206f59368f660: Subject='Jobs like Software Engineer InternCo-op in San Fra...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 199206f59368f660: Generating embedding for 56 chars
+[Sync] Thread 199206f59368f660: Generated embedding with 384 dimensions
+[Sync] Thread 199206f59368f660: Upserting to Supabase...
+[Sync] Thread 199206f59368f660: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 28/50: 1991ffcec2888abd
+[Sync] Thread 1991ffcec2888abd: Fetched full thread data
+[Sync] Thread 1991ffcec2888abd: Extracted content (11889 chars)
+[Sync] Thread 1991ffcec2888abd: Subject='Last chance: 50% off 3 delivery orders....', Sender='DoorDash <no-reply@messages.doordash.com>'
+[Sync] Thread 1991ffcec2888abd: Generating embedding for 11930 chars
+[Sync] Thread 1991ffcec2888abd: Generated embedding with 384 dimensions
+[Sync] Thread 1991ffcec2888abd: Upserting to Supabase...
+[Sync] Thread 1991ffcec2888abd: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 29/50: 1991f9e7aa46c809
+[Sync] Thread 1991f9e7aa46c809: Fetched full thread data
+[Sync] Thread 1991f9e7aa46c809: Extracted content (2632 chars)
+[Sync] Thread 1991f9e7aa46c809: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1991f9e7aa46c809: Generating embedding for 2667 chars
+[Sync] Thread 1991f9e7aa46c809: Generated embedding with 384 dimensions
+[Sync] Thread 1991f9e7aa46c809: Upserting to Supabase...
+[Sync] Thread 1991f9e7aa46c809: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 30/50: 1991ee877edba267
+[Sync] Thread 1991ee877edba267: Fetched full thread data
+[Sync] Thread 1991ee877edba267: Extracted content (0 chars)
+[Sync] Thread 1991ee877edba267: Subject='T Magazine’s favorite bedrooms...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1991ee877edba267: Generating embedding for 30 chars
+[Sync] Thread 1991ee877edba267: Generated embedding with 384 dimensions
+[Sync] Thread 1991ee877edba267: Upserting to Supabase...
+[Sync] Thread 1991ee877edba267: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 31/50: 1991e7e49885f1de
+[Sync] Thread 1991e7e49885f1de: Fetched full thread data
+[Sync] Thread 1991e7e49885f1de: Extracted content (0 chars)
+[Sync] Thread 1991e7e49885f1de: Subject='The Morning: Offer accepted...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1991e7e49885f1de: Generating embedding for 27 chars
+[Sync] Thread 1991e7e49885f1de: Generated embedding with 384 dimensions
+[Sync] Thread 1991e7e49885f1de: Upserting to Supabase...
+[Sync] Thread 1991e7e49885f1de: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 32/50: 1991bb1366bfd1ed
+[Sync] Thread 1991bb1366bfd1ed: Fetched full thread data
+[Sync] Thread 1991bb1366bfd1ed: Extracted content (0 chars)
+[Sync] Thread 1991bb1366bfd1ed: Subject='The “performative male”: A new masculine archetype...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1991bb1366bfd1ed: Generating embedding for 50 chars
+[Sync] Thread 1991bb1366bfd1ed: Generated embedding with 384 dimensions
+[Sync] Thread 1991bb1366bfd1ed: Upserting to Supabase...
+[Sync] Thread 1991bb1366bfd1ed: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 33/50: 1991b48b23430494
+[Sync] Thread 1991b48b23430494: Fetched full thread data
+[Sync] Thread 1991b48b23430494: Extracted content (0 chars)
+[Sync] Thread 1991b48b23430494: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1991b48b23430494: Generating embedding for 55 chars
+[Sync] Thread 1991b48b23430494: Generated embedding with 384 dimensions
+[Sync] Thread 1991b48b23430494: Upserting to Supabase...
+[Sync] Thread 1991b48b23430494: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 34/50: 1991b12de841cb18
+[Sync] Thread 1991b12de841cb18: Fetched full thread data
+[Sync] Thread 1991b12de841cb18: Extracted content (1201 chars)
+[Sync] Thread 1991b12de841cb18: Subject='Security alert...', Sender='Google <no-reply@accounts.google.com>'
+[Sync] Thread 1991b12de841cb18: Generating embedding for 1217 chars
+[Sync] Thread 1991b12de841cb18: Generated embedding with 384 dimensions
+[Sync] Thread 1991b12de841cb18: Upserting to Supabase...
+[Sync] Thread 1991b12de841cb18: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 35/50: 1991ad9aa825dbd1
+[Sync] Thread 1991ad9aa825dbd1: Fetched full thread data
+[Sync] Thread 1991ad9aa825dbd1: Extracted content (2620 chars)
+[Sync] Thread 1991ad9aa825dbd1: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1991ad9aa825dbd1: Generating embedding for 2655 chars
+[Sync] Thread 1991ad9aa825dbd1: Generated embedding with 384 dimensions
+[Sync] Thread 1991ad9aa825dbd1: Upserting to Supabase...
+[Sync] Thread 1991ad9aa825dbd1: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 36/50: 1991acb3ce3a7c83
+[Sync] Thread 1991acb3ce3a7c83: Fetched full thread data
+[Sync] Thread 1991acb3ce3a7c83: Extracted content (723 chars)
+[Sync] Thread 1991acb3ce3a7c83: Subject='Week 1 start/sit advice 🚦 👀...', Sender='Yahoo Fantasy <get-to-the-points@newsletters.yahoo.net>'
+[Sync] Thread 1991acb3ce3a7c83: Generating embedding for 752 chars
+[Sync] Thread 1991acb3ce3a7c83: Generated embedding with 384 dimensions
+[Sync] Thread 1991acb3ce3a7c83: Upserting to Supabase...
+[Sync] Thread 1991acb3ce3a7c83: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 37/50: 1991a5dfdcfd726b
+[Sync] Thread 1991a5dfdcfd726b: Fetched full thread data
+[Sync] Thread 1991a5dfdcfd726b: Extracted content (1185 chars)
+[Sync] Thread 1991a5dfdcfd726b: Subject='Mom Lands $75K+ Remote SDR Job in 1 Month...', Sender='CourseCareers <feedback@coursecareers.com>'
+[Sync] Thread 1991a5dfdcfd726b: Generating embedding for 1228 chars
+[Sync] Thread 1991a5dfdcfd726b: Generated embedding with 384 dimensions
+[Sync] Thread 1991a5dfdcfd726b: Upserting to Supabase...
+[Sync] Thread 1991a5dfdcfd726b: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 38/50: 1991a3f498ac8c01
+[Sync] Thread 1991a3f498ac8c01: Fetched full thread data
+[Sync] Thread 1991a3f498ac8c01: Extracted content (1246 chars)
+[Sync] Thread 1991a3f498ac8c01: Subject='This Mom Became a $75K+ Remote SDR in 1 Month...', Sender='CourseCareers <feedback@coursecareers.com>'
+[Sync] Thread 1991a3f498ac8c01: Generating embedding for 1293 chars
+[Sync] Thread 1991a3f498ac8c01: Generated embedding with 384 dimensions
+[Sync] Thread 1991a3f498ac8c01: Upserting to Supabase...
+[Sync] Thread 1991a3f498ac8c01: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 39/50: 19919c410ebed807
+[Sync] Thread 19919c410ebed807: Fetched full thread data
+[Sync] Thread 19919c410ebed807: Extracted content (0 chars)
+[Sync] Thread 19919c410ebed807: Subject='Why experts caution against the Hegseth-Kennedy fi...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19919c410ebed807: Generating embedding for 65 chars
+[Sync] Thread 19919c410ebed807: Generated embedding with 384 dimensions
+[Sync] Thread 19919c410ebed807: Upserting to Supabase...
+[Sync] Thread 19919c410ebed807: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 40/50: 1991978dc49ab939
+[Sync] Thread 1991978dc49ab939: Fetched full thread data
+[Sync] Thread 1991978dc49ab939: Extracted content (2255 chars)
+[Sync] Thread 1991978dc49ab939: Subject='The latest reporting. And more. $50/yr....', Sender='The New York Times <nytimes@e.newyorktimes.com>'
+[Sync] Thread 1991978dc49ab939: Generating embedding for 2296 chars
+[Sync] Thread 1991978dc49ab939: Generated embedding with 384 dimensions
+[Sync] Thread 1991978dc49ab939: Upserting to Supabase...
+[Sync] Thread 1991978dc49ab939: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 41/50: 1991973fc4d3c743
+[Sync] Thread 1991973fc4d3c743: Fetched full thread data
+[Sync] Thread 1991973fc4d3c743: Extracted content (0 chars)
+[Sync] Thread 1991973fc4d3c743: Subject='The Morning: A nighttime raid...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1991973fc4d3c743: Generating embedding for 29 chars
+[Sync] Thread 1991973fc4d3c743: Generated embedding with 384 dimensions
+[Sync] Thread 1991973fc4d3c743: Upserting to Supabase...
+[Sync] Thread 1991973fc4d3c743: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 42/50: 1991967688cacb13
+[Sync] Thread 1991967688cacb13: Fetched full thread data
+[Sync] Thread 1991967688cacb13: Extracted content (661 chars)
+[Sync] Thread 1991967688cacb13: Subject='Last Chance: 21 Days, 21 Projects, 90% Refund...', Sender='GeeksforGeeks <no-reply@geeksforgeeks.org>'
+[Sync] Thread 1991967688cacb13: Generating embedding for 708 chars
+[Sync] Thread 1991967688cacb13: Generated embedding with 384 dimensions
+[Sync] Thread 1991967688cacb13: Upserting to Supabase...
+[Sync] Thread 1991967688cacb13: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 43/50: 1991923f939970c9
+[Sync] Thread 1991923f939970c9: Fetched full thread data
+[Sync] Thread 1991923f939970c9: Extracted content (1596 chars)
+[Sync] Thread 1991923f939970c9: Subject='Maximize Your Potential with Anaconda 🚀...', Sender='Anaconda <anaconda@try.anaconda.com>'
+[Sync] Thread 1991923f939970c9: Generating embedding for 1637 chars
+[Sync] Thread 1991923f939970c9: Generated embedding with 384 dimensions
+[Sync] Thread 1991923f939970c9: Upserting to Supabase...
+[Sync] Thread 1991923f939970c9: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 44/50: 199190a9f7ff15b2
+[Sync] Thread 199190a9f7ff15b2: Fetched full thread data
+[Sync] Thread 199190a9f7ff15b2: Extracted content (1251 chars)
+[Sync] Thread 199190a9f7ff15b2: Subject='Dev Ops Engineer – Let’s get started!...', Sender='JobLeads <careerservice@email.jobleads.com>'
+[Sync] Thread 199190a9f7ff15b2: Generating embedding for 1290 chars
+[Sync] Thread 199190a9f7ff15b2: Generated embedding with 384 dimensions
+[Sync] Thread 199190a9f7ff15b2: Upserting to Supabase...
+[Sync] Thread 199190a9f7ff15b2: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 45/50: 19918151f75d1d0a
+[Sync] Thread 19918151f75d1d0a: Fetched full thread data
+[Sync] Thread 19918151f75d1d0a: Extracted content (4222 chars)
+[Sync] Thread 19918151f75d1d0a: Subject='Details of your no-contact delivery from Angry Chi...', Sender='DoorDash <no-reply@doordash.com>'
+[Sync] Thread 19918151f75d1d0a: Generating embedding for 4277 chars
+[Sync] Thread 19918151f75d1d0a: Generated embedding with 384 dimensions
+[Sync] Thread 19918151f75d1d0a: Upserting to Supabase...
+[Sync] Thread 19918151f75d1d0a: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 46/50: 19917f7b4c37d8df
+[Sync] Thread 19917f7b4c37d8df: Fetched full thread data
+[Sync] Thread 19917f7b4c37d8df: Extracted content (6017 chars)
+[Sync] Thread 19917f7b4c37d8df: Subject='Order Confirmation for Varun from Angry Chickz...', Sender='DoorDash Order <no-reply@doordash.com>'
+[Sync] Thread 19917f7b4c37d8df: Generating embedding for 6065 chars
+[Sync] Thread 19917f7b4c37d8df: Generated embedding with 384 dimensions
+[Sync] Thread 19917f7b4c37d8df: Upserting to Supabase...
+[Sync] Thread 19917f7b4c37d8df: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 47/50: 19916cc230ee88cd
+[Sync] Thread 19916cc230ee88cd: Fetched full thread data
+[Sync] Thread 19916cc230ee88cd: Extracted content (1380 chars)
+[Sync] Thread 19916cc230ee88cd: Subject='🏈 Meet your new Assistant GM...', Sender='Yahoo Fantasy Sports <fantasy-plus@sports.comms.yahoo.net>'
+[Sync] Thread 19916cc230ee88cd: Generating embedding for 1410 chars
+[Sync] Thread 19916cc230ee88cd: Generated embedding with 384 dimensions
+[Sync] Thread 19916cc230ee88cd: Upserting to Supabase...
+[Sync] Thread 19916cc230ee88cd: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 48/50: 19916c02f47ebe88
+[Sync] Thread 19916c02f47ebe88: Fetched full thread data
+[Sync] Thread 19916c02f47ebe88: Extracted content (0 chars)
+[Sync] Thread 19916c02f47ebe88: Subject='Katherine LaNasa earned her role in ‘The Pitt’ the...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19916c02f47ebe88: Generating embedding for 59 chars
+[Sync] Thread 19916c02f47ebe88: Generated embedding with 384 dimensions
+[Sync] Thread 19916c02f47ebe88: Upserting to Supabase...
+[Sync] Thread 19916c02f47ebe88: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 49/50: 1991697495f3eff5
+[Sync] Thread 1991697495f3eff5: Fetched full thread data
+[Sync] Thread 1991697495f3eff5: Extracted content (15228 chars)
+[Sync] Thread 1991697495f3eff5: Subject='🍪 Lovable for X...', Sender='Half Baked <ideas@mail.gethalfbaked.com>'
+[Sync] Thread 1991697495f3eff5: Generating embedding for 15245 chars
+[Sync] Thread 1991697495f3eff5: Generated embedding with 384 dimensions
+[Sync] Thread 1991697495f3eff5: Upserting to Supabase...
+[Sync] Thread 1991697495f3eff5: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Processing thread 50/50: 199165cf69918bad
+[Sync] Thread 199165cf69918bad: Fetched full thread data
+[Sync] Thread 199165cf69918bad: Extracted content (1381 chars)
+[Sync] Thread 199165cf69918bad: Subject='First ever image model & more...', Sender='OpenRouter Team <welcome@openrouter.ai>'
+[Sync] Thread 199165cf69918bad: Generating embedding for 1412 chars
+[Sync] Thread 199165cf69918bad: Generated embedding with 384 dimensions
+[Sync] Thread 199165cf69918bad: Upserting to Supabase...
+[Sync] Thread 199165cf69918bad: ERROR - {'message': "Could not find the 'google_user_id' column of 'emails' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+[Sync] Completed: 0/50 threads indexed successfully
+INFO:     127.0.0.1:62431 - "POST /sync-inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /auth/status HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Starting inbox sync with request: {}
+[Sync] User ID: None
+[Sync] Building Gmail service...
+[Sync] Gmail service built successfully
+[Sync] Fetching threads list...
+[Sync] Found 50 threads
+[Sync] Loading embedding model...
+[Sync] Embedding model loaded
+[Sync] Processing thread 1/50: 19930a647fcae0eb
+[Sync] Thread 19930a647fcae0eb: Fetched full thread data
+[Sync] Thread 19930a647fcae0eb: Extracted content (734 chars)
+[Sync] Thread 19930a647fcae0eb: Subject='Waiver wire: Top players to target in Week 2 🎯 🔍...', Sender='Yahoo Fantasy <get-to-the-points@newsletters.yahoo.net>'
+[Sync] Thread 19930a647fcae0eb: Generating embedding for 784 chars
+[Sync] Thread 19930a647fcae0eb: Generated embedding with 384 dimensions
+[Sync] Thread 19930a647fcae0eb: Upserting to Supabase...
+[Sync] Thread 19930a647fcae0eb: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 2/50: 199302ec98e78622
+[Sync] Thread 199302ec98e78622: Fetched full thread data
+[Sync] Thread 199302ec98e78622: Extracted content (1398 chars)
+[Sync] Thread 199302ec98e78622: Subject='👉 Your week 1 Fantasy recap is here...', Sender='Yahoo Sports Fantasy Football <fantasy-football@sports.comms.yahoo.net>'
+[Sync] Thread 199302ec98e78622: Generating embedding for 1435 chars
+[Sync] Thread 199302ec98e78622: Generated embedding with 384 dimensions
+[Sync] Thread 199302ec98e78622: Upserting to Supabase...
+[Sync] Thread 199302ec98e78622: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 3/50: 199302c50345d3f7
+[Sync] Thread 199302c50345d3f7: Fetched full thread data
+[Sync] Thread 199302c50345d3f7: Extracted content (0 chars)
+[Sync] Thread 199302c50345d3f7: Subject='How JPMorgan enabled Jeffrey Epstein’s crimes...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 199302c50345d3f7: Generating embedding for 45 chars
+[Sync] Thread 199302c50345d3f7: Generated embedding with 384 dimensions
+[Sync] Thread 199302c50345d3f7: Upserting to Supabase...
+[Sync] Thread 199302c50345d3f7: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 4/50: 1992fe1d2c645472
+[Sync] Thread 1992fe1d2c645472: Fetched full thread data
+[Sync] Thread 1992fe1d2c645472: Extracted content (0 chars)
+[Sync] Thread 1992fe1d2c645472: Subject='Jobs like Software Engineer InternCo-op in San Fra...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1992fe1d2c645472: Generating embedding for 56 chars
+[Sync] Thread 1992fe1d2c645472: Generated embedding with 384 dimensions
+[Sync] Thread 1992fe1d2c645472: Upserting to Supabase...
+[Sync] Thread 1992fe1d2c645472: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 5/50: 1992fbd2acdc20f0
+[Sync] Thread 1992fbd2acdc20f0: Fetched full thread data
+[Sync] Thread 1992fbd2acdc20f0: Extracted content (778 chars)
+[Sync] Thread 1992fbd2acdc20f0: Subject='An update to your benefits...', Sender='"H&M" <membership@email.hm.com>'
+[Sync] Thread 1992fbd2acdc20f0: Generating embedding for 806 chars
+[Sync] Thread 1992fbd2acdc20f0: Generated embedding with 384 dimensions
+[Sync] Thread 1992fbd2acdc20f0: Upserting to Supabase...
+[Sync] Thread 1992fbd2acdc20f0: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 6/50: 1992fb51958ecd6f
+[Sync] Thread 1992fb51958ecd6f: Fetched full thread data
+[Sync] Thread 1992fb51958ecd6f: Extracted content (9983 chars)
+[Sync] Thread 1992fb51958ecd6f: Subject='Clerk Update – Sept 9, 2025...', Sender='Clerk <systems@clerk.com>'
+[Sync] Thread 1992fb51958ecd6f: Generating embedding for 10012 chars
+[Sync] Thread 1992fb51958ecd6f: Generated embedding with 384 dimensions
+[Sync] Thread 1992fb51958ecd6f: Upserting to Supabase...
+[Sync] Thread 1992fb51958ecd6f: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 7/50: 1992ec0e75317ca5
+[Sync] Thread 1992ec0e75317ca5: Fetched full thread data
+[Sync] Thread 1992ec0e75317ca5: Extracted content (2754 chars)
+[Sync] Thread 1992ec0e75317ca5: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1992ec0e75317ca5: Generating embedding for 2789 chars
+[Sync] Thread 1992ec0e75317ca5: Generated embedding with 384 dimensions
+[Sync] Thread 1992ec0e75317ca5: Upserting to Supabase...
+[Sync] Thread 1992ec0e75317ca5: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 8/50: 1992e5bdf4a9e7a7
+[Sync] Thread 1992e5bdf4a9e7a7: Fetched full thread data
+[Sync] Thread 1992e5bdf4a9e7a7: Extracted content (0 chars)
+[Sync] Thread 1992e5bdf4a9e7a7: Subject='A 16-year-old was suicidal. He confided in ChatGPT...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1992e5bdf4a9e7a7: Generating embedding for 51 chars
+[Sync] Thread 1992e5bdf4a9e7a7: Generated embedding with 384 dimensions
+[Sync] Thread 1992e5bdf4a9e7a7: Upserting to Supabase...
+[Sync] Thread 1992e5bdf4a9e7a7: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 9/50: 1992e1af610f3900
+[Sync] Thread 1992e1af610f3900: Fetched full thread data
+[Sync] Thread 1992e1af610f3900: Extracted content (0 chars)
+[Sync] Thread 1992e1af610f3900: Subject='The Morning: State vs. state...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1992e1af610f3900: Generating embedding for 28 chars
+[Sync] Thread 1992e1af610f3900: Generated embedding with 384 dimensions
+[Sync] Thread 1992e1af610f3900: Upserting to Supabase...
+[Sync] Thread 1992e1af610f3900: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 10/50: 1992c4be4d7d8a9e
+[Sync] Thread 1992c4be4d7d8a9e: Fetched full thread data
+[Sync] Thread 1992c4be4d7d8a9e: Extracted content (1201 chars)
+[Sync] Thread 1992c4be4d7d8a9e: Subject='Security alert...', Sender='Google <no-reply@accounts.google.com>'
+[Sync] Thread 1992c4be4d7d8a9e: Generating embedding for 1217 chars
+[Sync] Thread 1992c4be4d7d8a9e: Generated embedding with 384 dimensions
+[Sync] Thread 1992c4be4d7d8a9e: Upserting to Supabase...
+[Sync] Thread 1992c4be4d7d8a9e: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 11/50: 1992abb3f73a0bf2
+[Sync] Thread 1992abb3f73a0bf2: Fetched full thread data
+[Sync] Thread 1992abb3f73a0bf2: Extracted content (0 chars)
+[Sync] Thread 1992abb3f73a0bf2: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1992abb3f73a0bf2: Generating embedding for 55 chars
+[Sync] Thread 1992abb3f73a0bf2: Generated embedding with 384 dimensions
+[Sync] Thread 1992abb3f73a0bf2: Upserting to Supabase...
+[Sync] Thread 1992abb3f73a0bf2: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 12/50: 1992a485d2446263
+[Sync] Thread 1992a485d2446263: Fetched full thread data
+[Sync] Thread 1992a485d2446263: Extracted content (1507 chars)
+[Sync] Thread 1992a485d2446263: Subject='🔥 Free Beta Pack: Django Vol. 3 - Groovy Tech Hous...', Sender='Phantom Sounds <info@phantom-sounds.com>'
+[Sync] Thread 1992a485d2446263: Generating embedding for 1565 chars
+[Sync] Thread 1992a485d2446263: Generated embedding with 384 dimensions
+[Sync] Thread 1992a485d2446263: Upserting to Supabase...
+[Sync] Thread 1992a485d2446263: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 13/50: 1992a033d24e2f34
+[Sync] Thread 1992a033d24e2f34: Fetched full thread data
+[Sync] Thread 1992a033d24e2f34: Extracted content (6517 chars)
+[Sync] Thread 1992a033d24e2f34: Subject='OpenQuant Newsletter - Edition #133...', Sender='OpenQuant Newsletter <openquant@substack.com>'
+[Sync] Thread 1992a033d24e2f34: Generating embedding for 6554 chars
+[Sync] Thread 1992a033d24e2f34: Generated embedding with 384 dimensions
+[Sync] Thread 1992a033d24e2f34: Upserting to Supabase...
+[Sync] Thread 1992a033d24e2f34: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 14/50: 19929ac4e3be916e
+[Sync] Thread 19929ac4e3be916e: Fetched full thread data
+[Sync] Thread 19929ac4e3be916e: Extracted content (2551 chars)
+[Sync] Thread 19929ac4e3be916e: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 19929ac4e3be916e: Generating embedding for 2586 chars
+[Sync] Thread 19929ac4e3be916e: Generated embedding with 384 dimensions
+[Sync] Thread 19929ac4e3be916e: Upserting to Supabase...
+[Sync] Thread 19929ac4e3be916e: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 15/50: 199296ec067d9fef
+[Sync] Thread 199296ec067d9fef: Fetched full thread data
+[Sync] Thread 199296ec067d9fef: Extracted content (13197 chars)
+[Sync] Thread 199296ec067d9fef: Subject='[JUST RELEASED] 45+ New Internships + Harvard Hack...', Sender='Intern Insider <hi@interninsider.me>'
+[Sync] Thread 199296ec067d9fef: Generating embedding for 13255 chars
+[Sync] Thread 199296ec067d9fef: Generated embedding with 384 dimensions
+[Sync] Thread 199296ec067d9fef: Upserting to Supabase...
+[Sync] Thread 199296ec067d9fef: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 16/50: 19929389c050ca41
+[Sync] Thread 19929389c050ca41: Fetched full thread data
+[Sync] Thread 19929389c050ca41: Extracted content (2262 chars)
+[Sync] Thread 19929389c050ca41: Subject='Introducing...our family subscription....', Sender='The New York Times <nytimes@e.newyorktimes.com>'
+[Sync] Thread 19929389c050ca41: Generating embedding for 2302 chars
+[Sync] Thread 19929389c050ca41: Generated embedding with 384 dimensions
+[Sync] Thread 19929389c050ca41: Upserting to Supabase...
+[Sync] Thread 19929389c050ca41: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 17/50: 1992933d49537278
+[Sync] Thread 1992933d49537278: Fetched full thread data
+[Sync] Thread 1992933d49537278: Extracted content (0 chars)
+[Sync] Thread 1992933d49537278: Subject='A surprising (and easy) way to boost your attentio...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1992933d49537278: Generating embedding for 56 chars
+[Sync] Thread 1992933d49537278: Generated embedding with 384 dimensions
+[Sync] Thread 1992933d49537278: Upserting to Supabase...
+[Sync] Thread 1992933d49537278: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 18/50: 19928e9b227cd9ea
+[Sync] Thread 19928e9b227cd9ea: Fetched full thread data
+[Sync] Thread 19928e9b227cd9ea: Extracted content (0 chars)
+[Sync] Thread 19928e9b227cd9ea: Subject='The Morning: Epstein’s bankers...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 19928e9b227cd9ea: Generating embedding for 30 chars
+[Sync] Thread 19928e9b227cd9ea: Generated embedding with 384 dimensions
+[Sync] Thread 19928e9b227cd9ea: Upserting to Supabase...
+[Sync] Thread 19928e9b227cd9ea: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 19/50: 19926c5e06dcfefc
+[Sync] Thread 19926c5e06dcfefc: Fetched full thread data
+[Sync] Thread 19926c5e06dcfefc: Extracted content (522 chars)
+[Sync] Thread 19926c5e06dcfefc: Subject='Review trade within 1 day in Fail Fast - Score Fas...', Sender='Yahoo Fantasy <fantasy-sports-no-reply@yahooinc.com>'
+[Sync] Thread 19926c5e06dcfefc: Generating embedding for 577 chars
+[Sync] Thread 19926c5e06dcfefc: Generated embedding with 384 dimensions
+[Sync] Thread 19926c5e06dcfefc: Upserting to Supabase...
+[Sync] Thread 19926c5e06dcfefc: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 20/50: 19925ffe6a83acf5
+[Sync] Thread 19925ffe6a83acf5: Fetched full thread data
+[Sync] Thread 19925ffe6a83acf5: Extracted content (0 chars)
+[Sync] Thread 19925ffe6a83acf5: Subject='Her life exploded in middle age. So she built a be...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19925ffe6a83acf5: Generating embedding for 59 chars
+[Sync] Thread 19925ffe6a83acf5: Generated embedding with 384 dimensions
+[Sync] Thread 19925ffe6a83acf5: Upserting to Supabase...
+[Sync] Thread 19925ffe6a83acf5: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 21/50: 19925959a3a40563
+[Sync] Thread 19925959a3a40563: Fetched full thread data
+[Sync] Thread 19925959a3a40563: Extracted content (0 chars)
+[Sync] Thread 19925959a3a40563: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 19925959a3a40563: Generating embedding for 55 chars
+[Sync] Thread 19925959a3a40563: Generated embedding with 384 dimensions
+[Sync] Thread 19925959a3a40563: Upserting to Supabase...
+[Sync] Thread 19925959a3a40563: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 22/50: 19925092ac674154
+[Sync] Thread 19925092ac674154: Fetched full thread data
+[Sync] Thread 19925092ac674154: Extracted content (21626 chars)
+[Sync] Thread 19925092ac674154: Subject='Elevate your AI Expertise with these Stanford Cour...', Sender='Stanford University <no-reply@m.mail.coursera.org>'
+[Sync] Thread 19925092ac674154: Generating embedding for 21695 chars
+[Sync] Thread 19925092ac674154: Generated embedding with 384 dimensions
+[Sync] Thread 19925092ac674154: Upserting to Supabase...
+[Sync] Thread 19925092ac674154: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 23/50: 19924b7adeeee70d
+[Sync] Thread 19924b7adeeee70d: Fetched full thread data
+[Sync] Thread 19924b7adeeee70d: Extracted content (2640 chars)
+[Sync] Thread 19924b7adeeee70d: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 19924b7adeeee70d: Generating embedding for 2675 chars
+[Sync] Thread 19924b7adeeee70d: Generated embedding with 384 dimensions
+[Sync] Thread 19924b7adeeee70d: Upserting to Supabase...
+[Sync] Thread 19924b7adeeee70d: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 24/50: 199240dc5f9a3ab4
+[Sync] Thread 199240dc5f9a3ab4: Fetched full thread data
+[Sync] Thread 199240dc5f9a3ab4: Extracted content (0 chars)
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 712, in sync_inbox
+    sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/postgrest/_sync/request_builder.py", line 78, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Thread 199240dc5f9a3ab4: Subject='18 packable, nutritious lunches your kids will act...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 199240dc5f9a3ab4: Generating embedding for 59 chars
+[Sync] Thread 199240dc5f9a3ab4: Generated embedding with 384 dimensions
+[Sync] Thread 199240dc5f9a3ab4: Upserting to Supabase...
+[Sync] Thread 199240dc5f9a3ab4: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 25/50: 19923c9b6841493d
+[Sync] Thread 19923c9b6841493d: Fetched full thread data
+[Sync] Thread 19923c9b6841493d: Extracted content (0 chars)
+[Sync] Thread 19923c9b6841493d: Subject='The Morning: The best of the U.S. Open...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 19923c9b6841493d: Generating embedding for 38 chars
+[Sync] Thread 19923c9b6841493d: Generated embedding with 384 dimensions
+[Sync] Thread 19923c9b6841493d: Upserting to Supabase...
+[Sync] Thread 19923c9b6841493d: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 26/50: 19920d8274ba6402
+[Sync] Thread 19920d8274ba6402: Fetched full thread data
+[Sync] Thread 19920d8274ba6402: Extracted content (0 chars)
+[Sync] Thread 19920d8274ba6402: Subject='10 nutrition myths that experts wish would die...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19920d8274ba6402: Generating embedding for 46 chars
+[Sync] Thread 19920d8274ba6402: Generated embedding with 384 dimensions
+[Sync] Thread 19920d8274ba6402: Upserting to Supabase...
+[Sync] Thread 19920d8274ba6402: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 27/50: 199206f59368f660
+[Sync] Thread 199206f59368f660: Fetched full thread data
+[Sync] Thread 199206f59368f660: Extracted content (0 chars)
+[Sync] Thread 199206f59368f660: Subject='Jobs like Software Engineer InternCo-op in San Fra...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 199206f59368f660: Generating embedding for 56 chars
+[Sync] Thread 199206f59368f660: Generated embedding with 384 dimensions
+[Sync] Thread 199206f59368f660: Upserting to Supabase...
+[Sync] Thread 199206f59368f660: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 28/50: 1991ffcec2888abd
+[Sync] Thread 1991ffcec2888abd: Fetched full thread data
+[Sync] Thread 1991ffcec2888abd: Extracted content (11889 chars)
+[Sync] Thread 1991ffcec2888abd: Subject='Last chance: 50% off 3 delivery orders....', Sender='DoorDash <no-reply@messages.doordash.com>'
+[Sync] Thread 1991ffcec2888abd: Generating embedding for 11930 chars
+[Sync] Thread 1991ffcec2888abd: Generated embedding with 384 dimensions
+[Sync] Thread 1991ffcec2888abd: Upserting to Supabase...
+[Sync] Thread 1991ffcec2888abd: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 29/50: 1991f9e7aa46c809
+[Sync] Thread 1991f9e7aa46c809: Fetched full thread data
+[Sync] Thread 1991f9e7aa46c809: Extracted content (2632 chars)
+[Sync] Thread 1991f9e7aa46c809: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1991f9e7aa46c809: Generating embedding for 2667 chars
+[Sync] Thread 1991f9e7aa46c809: Generated embedding with 384 dimensions
+[Sync] Thread 1991f9e7aa46c809: Upserting to Supabase...
+[Sync] Thread 1991f9e7aa46c809: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 30/50: 1991ee877edba267
+[Sync] Thread 1991ee877edba267: Fetched full thread data
+[Sync] Thread 1991ee877edba267: Extracted content (0 chars)
+[Sync] Thread 1991ee877edba267: Subject='T Magazine’s favorite bedrooms...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1991ee877edba267: Generating embedding for 30 chars
+[Sync] Thread 1991ee877edba267: Generated embedding with 384 dimensions
+[Sync] Thread 1991ee877edba267: Upserting to Supabase...
+[Sync] Thread 1991ee877edba267: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 31/50: 1991e7e49885f1de
+[Sync] Thread 1991e7e49885f1de: Fetched full thread data
+[Sync] Thread 1991e7e49885f1de: Extracted content (0 chars)
+[Sync] Thread 1991e7e49885f1de: Subject='The Morning: Offer accepted...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1991e7e49885f1de: Generating embedding for 27 chars
+[Sync] Thread 1991e7e49885f1de: Generated embedding with 384 dimensions
+[Sync] Thread 1991e7e49885f1de: Upserting to Supabase...
+[Sync] Thread 1991e7e49885f1de: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 32/50: 1991bb1366bfd1ed
+[Sync] Thread 1991bb1366bfd1ed: Fetched full thread data
+[Sync] Thread 1991bb1366bfd1ed: Extracted content (0 chars)
+[Sync] Thread 1991bb1366bfd1ed: Subject='The “performative male”: A new masculine archetype...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1991bb1366bfd1ed: Generating embedding for 50 chars
+[Sync] Thread 1991bb1366bfd1ed: Generated embedding with 384 dimensions
+[Sync] Thread 1991bb1366bfd1ed: Upserting to Supabase...
+[Sync] Thread 1991bb1366bfd1ed: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 33/50: 1991b48b23430494
+[Sync] Thread 1991b48b23430494: Fetched full thread data
+[Sync] Thread 1991b48b23430494: Extracted content (0 chars)
+[Sync] Thread 1991b48b23430494: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1991b48b23430494: Generating embedding for 55 chars
+[Sync] Thread 1991b48b23430494: Generated embedding with 384 dimensions
+[Sync] Thread 1991b48b23430494: Upserting to Supabase...
+[Sync] Thread 1991b48b23430494: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 34/50: 1991b12de841cb18
+[Sync] Thread 1991b12de841cb18: Fetched full thread data
+[Sync] Thread 1991b12de841cb18: Extracted content (1201 chars)
+[Sync] Thread 1991b12de841cb18: Subject='Security alert...', Sender='Google <no-reply@accounts.google.com>'
+[Sync] Thread 1991b12de841cb18: Generating embedding for 1217 chars
+[Sync] Thread 1991b12de841cb18: Generated embedding with 384 dimensions
+[Sync] Thread 1991b12de841cb18: Upserting to Supabase...
+[Sync] Thread 1991b12de841cb18: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 35/50: 1991ad9aa825dbd1
+[Sync] Thread 1991ad9aa825dbd1: Fetched full thread data
+[Sync] Thread 1991ad9aa825dbd1: Extracted content (2620 chars)
+[Sync] Thread 1991ad9aa825dbd1: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1991ad9aa825dbd1: Generating embedding for 2655 chars
+[Sync] Thread 1991ad9aa825dbd1: Generated embedding with 384 dimensions
+[Sync] Thread 1991ad9aa825dbd1: Upserting to Supabase...
+[Sync] Thread 1991ad9aa825dbd1: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 36/50: 1991acb3ce3a7c83
+[Sync] Thread 1991acb3ce3a7c83: Fetched full thread data
+[Sync] Thread 1991acb3ce3a7c83: Extracted content (723 chars)
+[Sync] Thread 1991acb3ce3a7c83: Subject='Week 1 start/sit advice 🚦 👀...', Sender='Yahoo Fantasy <get-to-the-points@newsletters.yahoo.net>'
+[Sync] Thread 1991acb3ce3a7c83: Generating embedding for 752 chars
+[Sync] Thread 1991acb3ce3a7c83: Generated embedding with 384 dimensions
+[Sync] Thread 1991acb3ce3a7c83: Upserting to Supabase...
+[Sync] Thread 1991acb3ce3a7c83: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 37/50: 1991a5dfdcfd726b
+[Sync] Thread 1991a5dfdcfd726b: Fetched full thread data
+[Sync] Thread 1991a5dfdcfd726b: Extracted content (1185 chars)
+[Sync] Thread 1991a5dfdcfd726b: Subject='Mom Lands $75K+ Remote SDR Job in 1 Month...', Sender='CourseCareers <feedback@coursecareers.com>'
+[Sync] Thread 1991a5dfdcfd726b: Generating embedding for 1228 chars
+[Sync] Thread 1991a5dfdcfd726b: Generated embedding with 384 dimensions
+[Sync] Thread 1991a5dfdcfd726b: Upserting to Supabase...
+[Sync] Thread 1991a5dfdcfd726b: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 38/50: 1991a3f498ac8c01
+[Sync] Thread 1991a3f498ac8c01: Fetched full thread data
+[Sync] Thread 1991a3f498ac8c01: Extracted content (1246 chars)
+[Sync] Thread 1991a3f498ac8c01: Subject='This Mom Became a $75K+ Remote SDR in 1 Month...', Sender='CourseCareers <feedback@coursecareers.com>'
+[Sync] Thread 1991a3f498ac8c01: Generating embedding for 1293 chars
+[Sync] Thread 1991a3f498ac8c01: Generated embedding with 384 dimensions
+[Sync] Thread 1991a3f498ac8c01: Upserting to Supabase...
+[Sync] Thread 1991a3f498ac8c01: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 39/50: 19919c410ebed807
+[Sync] Thread 19919c410ebed807: Fetched full thread data
+[Sync] Thread 19919c410ebed807: Extracted content (0 chars)
+[Sync] Thread 19919c410ebed807: Subject='Why experts caution against the Hegseth-Kennedy fi...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19919c410ebed807: Generating embedding for 65 chars
+[Sync] Thread 19919c410ebed807: Generated embedding with 384 dimensions
+[Sync] Thread 19919c410ebed807: Upserting to Supabase...
+[Sync] Thread 19919c410ebed807: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 40/50: 1991978dc49ab939
+[Sync] Thread 1991978dc49ab939: Fetched full thread data
+[Sync] Thread 1991978dc49ab939: Extracted content (2255 chars)
+[Sync] Thread 1991978dc49ab939: Subject='The latest reporting. And more. $50/yr....', Sender='The New York Times <nytimes@e.newyorktimes.com>'
+[Sync] Thread 1991978dc49ab939: Generating embedding for 2296 chars
+[Sync] Thread 1991978dc49ab939: Generated embedding with 384 dimensions
+[Sync] Thread 1991978dc49ab939: Upserting to Supabase...
+[Sync] Thread 1991978dc49ab939: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 41/50: 1991973fc4d3c743
+[Sync] Thread 1991973fc4d3c743: Fetched full thread data
+[Sync] Thread 1991973fc4d3c743: Extracted content (0 chars)
+[Sync] Thread 1991973fc4d3c743: Subject='The Morning: A nighttime raid...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1991973fc4d3c743: Generating embedding for 29 chars
+[Sync] Thread 1991973fc4d3c743: Generated embedding with 384 dimensions
+[Sync] Thread 1991973fc4d3c743: Upserting to Supabase...
+[Sync] Thread 1991973fc4d3c743: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 42/50: 1991967688cacb13
+[Sync] Thread 1991967688cacb13: Fetched full thread data
+[Sync] Thread 1991967688cacb13: Extracted content (661 chars)
+[Sync] Thread 1991967688cacb13: Subject='Last Chance: 21 Days, 21 Projects, 90% Refund...', Sender='GeeksforGeeks <no-reply@geeksforgeeks.org>'
+[Sync] Thread 1991967688cacb13: Generating embedding for 708 chars
+[Sync] Thread 1991967688cacb13: Generated embedding with 384 dimensions
+[Sync] Thread 1991967688cacb13: Upserting to Supabase...
+[Sync] Thread 1991967688cacb13: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 43/50: 1991923f939970c9
+[Sync] Thread 1991923f939970c9: Fetched full thread data
+[Sync] Thread 1991923f939970c9: Extracted content (1596 chars)
+[Sync] Thread 1991923f939970c9: Subject='Maximize Your Potential with Anaconda 🚀...', Sender='Anaconda <anaconda@try.anaconda.com>'
+[Sync] Thread 1991923f939970c9: Generating embedding for 1637 chars
+[Sync] Thread 1991923f939970c9: Generated embedding with 384 dimensions
+[Sync] Thread 1991923f939970c9: Upserting to Supabase...
+[Sync] Thread 1991923f939970c9: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 44/50: 199190a9f7ff15b2
+[Sync] Thread 199190a9f7ff15b2: Fetched full thread data
+[Sync] Thread 199190a9f7ff15b2: Extracted content (1251 chars)
+[Sync] Thread 199190a9f7ff15b2: Subject='Dev Ops Engineer – Let’s get started!...', Sender='JobLeads <careerservice@email.jobleads.com>'
+[Sync] Thread 199190a9f7ff15b2: Generating embedding for 1290 chars
+[Sync] Thread 199190a9f7ff15b2: Generated embedding with 384 dimensions
+[Sync] Thread 199190a9f7ff15b2: Upserting to Supabase...
+[Sync] Thread 199190a9f7ff15b2: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 45/50: 19918151f75d1d0a
+[Sync] Thread 19918151f75d1d0a: Fetched full thread data
+[Sync] Thread 19918151f75d1d0a: Extracted content (4222 chars)
+[Sync] Thread 19918151f75d1d0a: Subject='Details of your no-contact delivery from Angry Chi...', Sender='DoorDash <no-reply@doordash.com>'
+[Sync] Thread 19918151f75d1d0a: Generating embedding for 4277 chars
+[Sync] Thread 19918151f75d1d0a: Generated embedding with 384 dimensions
+[Sync] Thread 19918151f75d1d0a: Upserting to Supabase...
+[Sync] Thread 19918151f75d1d0a: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 46/50: 19917f7b4c37d8df
+[Sync] Thread 19917f7b4c37d8df: Fetched full thread data
+[Sync] Thread 19917f7b4c37d8df: Extracted content (6017 chars)
+[Sync] Thread 19917f7b4c37d8df: Subject='Order Confirmation for Varun from Angry Chickz...', Sender='DoorDash Order <no-reply@doordash.com>'
+[Sync] Thread 19917f7b4c37d8df: Generating embedding for 6065 chars
+[Sync] Thread 19917f7b4c37d8df: Generated embedding with 384 dimensions
+[Sync] Thread 19917f7b4c37d8df: Upserting to Supabase...
+[Sync] Thread 19917f7b4c37d8df: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 47/50: 19916cc230ee88cd
+[Sync] Thread 19916cc230ee88cd: Fetched full thread data
+[Sync] Thread 19916cc230ee88cd: Extracted content (1380 chars)
+[Sync] Thread 19916cc230ee88cd: Subject='🏈 Meet your new Assistant GM...', Sender='Yahoo Fantasy Sports <fantasy-plus@sports.comms.yahoo.net>'
+[Sync] Thread 19916cc230ee88cd: Generating embedding for 1410 chars
+[Sync] Thread 19916cc230ee88cd: Generated embedding with 384 dimensions
+[Sync] Thread 19916cc230ee88cd: Upserting to Supabase...
+[Sync] Thread 19916cc230ee88cd: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 48/50: 19916c02f47ebe88
+[Sync] Thread 19916c02f47ebe88: Fetched full thread data
+[Sync] Thread 19916c02f47ebe88: Extracted content (0 chars)
+[Sync] Thread 19916c02f47ebe88: Subject='Katherine LaNasa earned her role in ‘The Pitt’ the...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19916c02f47ebe88: Generating embedding for 59 chars
+[Sync] Thread 19916c02f47ebe88: Generated embedding with 384 dimensions
+[Sync] Thread 19916c02f47ebe88: Upserting to Supabase...
+[Sync] Thread 19916c02f47ebe88: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 49/50: 1991697495f3eff5
+[Sync] Thread 1991697495f3eff5: Fetched full thread data
+[Sync] Thread 1991697495f3eff5: Extracted content (15228 chars)
+[Sync] Thread 1991697495f3eff5: Subject='🍪 Lovable for X...', Sender='Half Baked <ideas@mail.gethalfbaked.com>'
+[Sync] Thread 1991697495f3eff5: Generating embedding for 15245 chars
+[Sync] Thread 1991697495f3eff5: Generated embedding with 384 dimensions
+[Sync] Thread 1991697495f3eff5: Upserting to Supabase...
+[Sync] Thread 1991697495f3eff5: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Processing thread 50/50: 199165cf69918bad
+[Sync] Thread 199165cf69918bad: Fetched full thread data
+[Sync] Thread 199165cf69918bad: Extracted content (1381 chars)
+[Sync] Thread 199165cf69918bad: Subject='First ever image model & more...', Sender='OpenRouter Team <welcome@openrouter.ai>'
+[Sync] Thread 199165cf69918bad: Generating embedding for 1412 chars
+[Sync] Thread 199165cf69918bad: Generated embedding with 384 dimensions
+[Sync] Thread 199165cf69918bad: Upserting to Supabase...
+[Sync] Thread 199165cf69918bad: ERROR - {'message': 'there is no unique or exclusion constraint matching the ON CONFLICT specification', 'code': '42P10', 'hint': None, 'details': None}
+[Sync] Completed: 0/50 threads indexed successfully
+INFO:     127.0.0.1:62919 - "POST /sync-inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63420 - "GET /auth/status HTTP/1.1" 200 OK
+[Sync] Starting inbox sync with request: {}
+[Sync] User ID: None
+[Sync] Building Gmail service...
+[Sync] Gmail service built successfully
+[Sync] Fetching threads list...
+[Sync] Found 50 threads
+[Sync] Loading embedding model...
+[Sync] Embedding model loaded
+[Sync] Processing thread 1/50: 19930a647fcae0eb
+[Sync] Thread 19930a647fcae0eb: Fetched full thread data
+[Sync] Thread 19930a647fcae0eb: Extracted content (734 chars)
+[Sync] Thread 19930a647fcae0eb: Subject='Waiver wire: Top players to target in Week 2 🎯 🔍...', Sender='Yahoo Fantasy <get-to-the-points@newsletters.yahoo.net>'
+[Sync] Thread 19930a647fcae0eb: Generating embedding for 784 chars
+[Sync] Thread 19930a647fcae0eb: Generated embedding with 384 dimensions
+[Sync] Thread 19930a647fcae0eb: Upserting to Supabase...
+[Sync] Thread 19930a647fcae0eb: Successfully indexed (1/50)
+[Sync] Processing thread 2/50: 199302ec98e78622
+[Sync] Thread 199302ec98e78622: Fetched full thread data
+[Sync] Thread 199302ec98e78622: Extracted content (1398 chars)
+[Sync] Thread 199302ec98e78622: Subject='👉 Your week 1 Fantasy recap is here...', Sender='Yahoo Sports Fantasy Football <fantasy-football@sports.comms.yahoo.net>'
+[Sync] Thread 199302ec98e78622: Generating embedding for 1435 chars
+[Sync] Thread 199302ec98e78622: Generated embedding with 384 dimensions
+[Sync] Thread 199302ec98e78622: Upserting to Supabase...
+[Sync] Thread 199302ec98e78622: Successfully indexed (2/50)
+[Sync] Processing thread 3/50: 199302c50345d3f7
+[Sync] Thread 199302c50345d3f7: Fetched full thread data
+[Sync] Thread 199302c50345d3f7: Extracted content (0 chars)
+[Sync] Thread 199302c50345d3f7: Subject='How JPMorgan enabled Jeffrey Epstein’s crimes...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 199302c50345d3f7: Generating embedding for 45 chars
+[Sync] Thread 199302c50345d3f7: Generated embedding with 384 dimensions
+[Sync] Thread 199302c50345d3f7: Upserting to Supabase...
+[Sync] Thread 199302c50345d3f7: Successfully indexed (3/50)
+[Sync] Processing thread 4/50: 1992fe1d2c645472
+[Sync] Thread 1992fe1d2c645472: Fetched full thread data
+[Sync] Thread 1992fe1d2c645472: Extracted content (0 chars)
+[Sync] Thread 1992fe1d2c645472: Subject='Jobs like Software Engineer InternCo-op in San Fra...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1992fe1d2c645472: Generating embedding for 56 chars
+[Sync] Thread 1992fe1d2c645472: Generated embedding with 384 dimensions
+[Sync] Thread 1992fe1d2c645472: Upserting to Supabase...
+[Sync] Thread 1992fe1d2c645472: Successfully indexed (4/50)
+[Sync] Processing thread 5/50: 1992fbd2acdc20f0
+[Sync] Thread 1992fbd2acdc20f0: Fetched full thread data
+[Sync] Thread 1992fbd2acdc20f0: Extracted content (778 chars)
+[Sync] Thread 1992fbd2acdc20f0: Subject='An update to your benefits...', Sender='"H&M" <membership@email.hm.com>'
+[Sync] Thread 1992fbd2acdc20f0: Generating embedding for 806 chars
+[Sync] Thread 1992fbd2acdc20f0: Generated embedding with 384 dimensions
+[Sync] Thread 1992fbd2acdc20f0: Upserting to Supabase...
+[Sync] Thread 1992fbd2acdc20f0: Successfully indexed (5/50)
+[Sync] Processing thread 6/50: 1992fb51958ecd6f
+[Sync] Thread 1992fb51958ecd6f: Fetched full thread data
+[Sync] Thread 1992fb51958ecd6f: Extracted content (9983 chars)
+[Sync] Thread 1992fb51958ecd6f: Subject='Clerk Update – Sept 9, 2025...', Sender='Clerk <systems@clerk.com>'
+[Sync] Thread 1992fb51958ecd6f: Generating embedding for 10012 chars
+[Sync] Thread 1992fb51958ecd6f: Generated embedding with 384 dimensions
+[Sync] Thread 1992fb51958ecd6f: Upserting to Supabase...
+[Sync] Thread 1992fb51958ecd6f: Successfully indexed (6/50)
+[Sync] Processing thread 7/50: 1992ec0e75317ca5
+[Sync] Thread 1992ec0e75317ca5: Fetched full thread data
+[Sync] Thread 1992ec0e75317ca5: Extracted content (2754 chars)
+[Sync] Thread 1992ec0e75317ca5: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1992ec0e75317ca5: Generating embedding for 2789 chars
+[Sync] Thread 1992ec0e75317ca5: Generated embedding with 384 dimensions
+[Sync] Thread 1992ec0e75317ca5: Upserting to Supabase...
+[Sync] Thread 1992ec0e75317ca5: Successfully indexed (7/50)
+[Sync] Processing thread 8/50: 1992e5bdf4a9e7a7
+[Sync] Thread 1992e5bdf4a9e7a7: Fetched full thread data
+[Sync] Thread 1992e5bdf4a9e7a7: Extracted content (0 chars)
+[Sync] Thread 1992e5bdf4a9e7a7: Subject='A 16-year-old was suicidal. He confided in ChatGPT...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1992e5bdf4a9e7a7: Generating embedding for 51 chars
+[Sync] Thread 1992e5bdf4a9e7a7: Generated embedding with 384 dimensions
+[Sync] Thread 1992e5bdf4a9e7a7: Upserting to Supabase...
+[Sync] Thread 1992e5bdf4a9e7a7: Successfully indexed (8/50)
+[Sync] Processing thread 9/50: 1992e1af610f3900
+[Sync] Thread 1992e1af610f3900: Fetched full thread data
+[Sync] Thread 1992e1af610f3900: Extracted content (0 chars)
+[Sync] Thread 1992e1af610f3900: Subject='The Morning: State vs. state...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1992e1af610f3900: Generating embedding for 28 chars
+[Sync] Thread 1992e1af610f3900: Generated embedding with 384 dimensions
+[Sync] Thread 1992e1af610f3900: Upserting to Supabase...
+[Sync] Thread 1992e1af610f3900: Successfully indexed (9/50)
+[Sync] Processing thread 10/50: 1992c4be4d7d8a9e
+[Sync] Thread 1992c4be4d7d8a9e: Fetched full thread data
+[Sync] Thread 1992c4be4d7d8a9e: Extracted content (1201 chars)
+[Sync] Thread 1992c4be4d7d8a9e: Subject='Security alert...', Sender='Google <no-reply@accounts.google.com>'
+[Sync] Thread 1992c4be4d7d8a9e: Generating embedding for 1217 chars
+[Sync] Thread 1992c4be4d7d8a9e: Generated embedding with 384 dimensions
+[Sync] Thread 1992c4be4d7d8a9e: Upserting to Supabase...
+[Sync] Thread 1992c4be4d7d8a9e: Successfully indexed (10/50)
+[Sync] Processing thread 11/50: 1992abb3f73a0bf2
+[Sync] Thread 1992abb3f73a0bf2: Fetched full thread data
+[Sync] Thread 1992abb3f73a0bf2: Extracted content (0 chars)
+[Sync] Thread 1992abb3f73a0bf2: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1992abb3f73a0bf2: Generating embedding for 55 chars
+[Sync] Thread 1992abb3f73a0bf2: Generated embedding with 384 dimensions
+[Sync] Thread 1992abb3f73a0bf2: Upserting to Supabase...
+[Sync] Thread 1992abb3f73a0bf2: Successfully indexed (11/50)
+[Sync] Processing thread 12/50: 1992a485d2446263
+[Sync] Thread 1992a485d2446263: Fetched full thread data
+[Sync] Thread 1992a485d2446263: Extracted content (1507 chars)
+[Sync] Thread 1992a485d2446263: Subject='🔥 Free Beta Pack: Django Vol. 3 - Groovy Tech Hous...', Sender='Phantom Sounds <info@phantom-sounds.com>'
+[Sync] Thread 1992a485d2446263: Generating embedding for 1565 chars
+[Sync] Thread 1992a485d2446263: Generated embedding with 384 dimensions
+[Sync] Thread 1992a485d2446263: Upserting to Supabase...
+[Sync] Thread 1992a485d2446263: Successfully indexed (12/50)
+[Sync] Processing thread 13/50: 1992a033d24e2f34
+[Sync] Thread 1992a033d24e2f34: Fetched full thread data
+[Sync] Thread 1992a033d24e2f34: Extracted content (6517 chars)
+[Sync] Thread 1992a033d24e2f34: Subject='OpenQuant Newsletter - Edition #133...', Sender='OpenQuant Newsletter <openquant@substack.com>'
+[Sync] Thread 1992a033d24e2f34: Generating embedding for 6554 chars
+[Sync] Thread 1992a033d24e2f34: Generated embedding with 384 dimensions
+[Sync] Thread 1992a033d24e2f34: Upserting to Supabase...
+[Sync] Thread 1992a033d24e2f34: Successfully indexed (13/50)
+[Sync] Processing thread 14/50: 19929ac4e3be916e
+[Sync] Thread 19929ac4e3be916e: Fetched full thread data
+[Sync] Thread 19929ac4e3be916e: Extracted content (2551 chars)
+[Sync] Thread 19929ac4e3be916e: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 19929ac4e3be916e: Generating embedding for 2586 chars
+[Sync] Thread 19929ac4e3be916e: Generated embedding with 384 dimensions
+[Sync] Thread 19929ac4e3be916e: Upserting to Supabase...
+[Sync] Thread 19929ac4e3be916e: Successfully indexed (14/50)
+[Sync] Processing thread 15/50: 199296ec067d9fef
+[Sync] Thread 199296ec067d9fef: Fetched full thread data
+[Sync] Thread 199296ec067d9fef: Extracted content (13197 chars)
+[Sync] Thread 199296ec067d9fef: Subject='[JUST RELEASED] 45+ New Internships + Harvard Hack...', Sender='Intern Insider <hi@interninsider.me>'
+[Sync] Thread 199296ec067d9fef: Generating embedding for 13255 chars
+[Sync] Thread 199296ec067d9fef: Generated embedding with 384 dimensions
+[Sync] Thread 199296ec067d9fef: Upserting to Supabase...
+[Sync] Thread 199296ec067d9fef: Successfully indexed (15/50)
+[Sync] Processing thread 16/50: 19929389c050ca41
+[Sync] Thread 19929389c050ca41: Fetched full thread data
+[Sync] Thread 19929389c050ca41: Extracted content (2262 chars)
+[Sync] Thread 19929389c050ca41: Subject='Introducing...our family subscription....', Sender='The New York Times <nytimes@e.newyorktimes.com>'
+[Sync] Thread 19929389c050ca41: Generating embedding for 2302 chars
+[Sync] Thread 19929389c050ca41: Generated embedding with 384 dimensions
+[Sync] Thread 19929389c050ca41: Upserting to Supabase...
+[Sync] Thread 19929389c050ca41: Successfully indexed (16/50)
+[Sync] Processing thread 17/50: 1992933d49537278
+[Sync] Thread 1992933d49537278: Fetched full thread data
+[Sync] Thread 1992933d49537278: Extracted content (0 chars)
+[Sync] Thread 1992933d49537278: Subject='A surprising (and easy) way to boost your attentio...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1992933d49537278: Generating embedding for 56 chars
+[Sync] Thread 1992933d49537278: Generated embedding with 384 dimensions
+[Sync] Thread 1992933d49537278: Upserting to Supabase...
+[Sync] Thread 1992933d49537278: Successfully indexed (17/50)
+[Sync] Processing thread 18/50: 19928e9b227cd9ea
+[Sync] Thread 19928e9b227cd9ea: Fetched full thread data
+[Sync] Thread 19928e9b227cd9ea: Extracted content (0 chars)
+[Sync] Thread 19928e9b227cd9ea: Subject='The Morning: Epstein’s bankers...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 19928e9b227cd9ea: Generating embedding for 30 chars
+[Sync] Thread 19928e9b227cd9ea: Generated embedding with 384 dimensions
+[Sync] Thread 19928e9b227cd9ea: Upserting to Supabase...
+[Sync] Thread 19928e9b227cd9ea: Successfully indexed (18/50)
+[Sync] Processing thread 19/50: 19926c5e06dcfefc
+[Sync] Thread 19926c5e06dcfefc: Fetched full thread data
+[Sync] Thread 19926c5e06dcfefc: Extracted content (522 chars)
+[Sync] Thread 19926c5e06dcfefc: Subject='Review trade within 1 day in Fail Fast - Score Fas...', Sender='Yahoo Fantasy <fantasy-sports-no-reply@yahooinc.com>'
+[Sync] Thread 19926c5e06dcfefc: Generating embedding for 577 chars
+[Sync] Thread 19926c5e06dcfefc: Generated embedding with 384 dimensions
+[Sync] Thread 19926c5e06dcfefc: Upserting to Supabase...
+[Sync] Thread 19926c5e06dcfefc: Successfully indexed (19/50)
+[Sync] Processing thread 20/50: 19925ffe6a83acf5
+[Sync] Thread 19925ffe6a83acf5: Fetched full thread data
+[Sync] Thread 19925ffe6a83acf5: Extracted content (0 chars)
+[Sync] Thread 19925ffe6a83acf5: Subject='Her life exploded in middle age. So she built a be...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19925ffe6a83acf5: Generating embedding for 59 chars
+[Sync] Thread 19925ffe6a83acf5: Generated embedding with 384 dimensions
+[Sync] Thread 19925ffe6a83acf5: Upserting to Supabase...
+[Sync] Thread 19925ffe6a83acf5: Successfully indexed (20/50)
+[Sync] Processing thread 21/50: 19925959a3a40563
+[Sync] Thread 19925959a3a40563: Fetched full thread data
+[Sync] Thread 19925959a3a40563: Extracted content (0 chars)
+[Sync] Thread 19925959a3a40563: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 19925959a3a40563: Generating embedding for 55 chars
+[Sync] Thread 19925959a3a40563: Generated embedding with 384 dimensions
+[Sync] Thread 19925959a3a40563: Upserting to Supabase...
+[Sync] Thread 19925959a3a40563: Successfully indexed (21/50)
+[Sync] Processing thread 22/50: 19925092ac674154
+[Sync] Thread 19925092ac674154: Fetched full thread data
+[Sync] Thread 19925092ac674154: Extracted content (21626 chars)
+[Sync] Thread 19925092ac674154: Subject='Elevate your AI Expertise with these Stanford Cour...', Sender='Stanford University <no-reply@m.mail.coursera.org>'
+[Sync] Thread 19925092ac674154: Generating embedding for 21695 chars
+[Sync] Thread 19925092ac674154: Generated embedding with 384 dimensions
+[Sync] Thread 19925092ac674154: Upserting to Supabase...
+[Sync] Thread 19925092ac674154: Successfully indexed (22/50)
+[Sync] Processing thread 23/50: 19924b7adeeee70d
+[Sync] Thread 19924b7adeeee70d: Fetched full thread data
+[Sync] Thread 19924b7adeeee70d: Extracted content (2640 chars)
+[Sync] Thread 19924b7adeeee70d: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 19924b7adeeee70d: Generating embedding for 2675 chars
+[Sync] Thread 19924b7adeeee70d: Generated embedding with 384 dimensions
+[Sync] Thread 19924b7adeeee70d: Upserting to Supabase...
+[Sync] Thread 19924b7adeeee70d: Successfully indexed (23/50)
+[Sync] Processing thread 24/50: 199240dc5f9a3ab4
+[Sync] Thread 199240dc5f9a3ab4: Fetched full thread data
+[Sync] Thread 199240dc5f9a3ab4: Extracted content (0 chars)
+[Sync] Thread 199240dc5f9a3ab4: Subject='18 packable, nutritious lunches your kids will act...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 199240dc5f9a3ab4: Generating embedding for 59 chars
+[Sync] Thread 199240dc5f9a3ab4: Generated embedding with 384 dimensions
+[Sync] Thread 199240dc5f9a3ab4: Upserting to Supabase...
+[Sync] Thread 199240dc5f9a3ab4: Successfully indexed (24/50)
+[Sync] Processing thread 25/50: 19923c9b6841493d
+[Sync] Thread 19923c9b6841493d: Fetched full thread data
+[Sync] Thread 19923c9b6841493d: Extracted content (0 chars)
+[Sync] Thread 19923c9b6841493d: Subject='The Morning: The best of the U.S. Open...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 19923c9b6841493d: Generating embedding for 38 chars
+[Sync] Thread 19923c9b6841493d: Generated embedding with 384 dimensions
+[Sync] Thread 19923c9b6841493d: Upserting to Supabase...
+[Sync] Thread 19923c9b6841493d: Successfully indexed (25/50)
+[Sync] Processing thread 26/50: 19920d8274ba6402
+[Sync] Thread 19920d8274ba6402: Fetched full thread data
+[Sync] Thread 19920d8274ba6402: Extracted content (0 chars)
+[Sync] Thread 19920d8274ba6402: Subject='10 nutrition myths that experts wish would die...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19920d8274ba6402: Generating embedding for 46 chars
+[Sync] Thread 19920d8274ba6402: Generated embedding with 384 dimensions
+[Sync] Thread 19920d8274ba6402: Upserting to Supabase...
+[Sync] Thread 19920d8274ba6402: Successfully indexed (26/50)
+[Sync] Processing thread 27/50: 199206f59368f660
+[Sync] Thread 199206f59368f660: Fetched full thread data
+[Sync] Thread 199206f59368f660: Extracted content (0 chars)
+[Sync] Thread 199206f59368f660: Subject='Jobs like Software Engineer InternCo-op in San Fra...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 199206f59368f660: Generating embedding for 56 chars
+[Sync] Thread 199206f59368f660: Generated embedding with 384 dimensions
+[Sync] Thread 199206f59368f660: Upserting to Supabase...
+[Sync] Thread 199206f59368f660: Successfully indexed (27/50)
+[Sync] Processing thread 28/50: 1991ffcec2888abd
+[Sync] Thread 1991ffcec2888abd: Fetched full thread data
+[Sync] Thread 1991ffcec2888abd: Extracted content (11889 chars)
+[Sync] Thread 1991ffcec2888abd: Subject='Last chance: 50% off 3 delivery orders....', Sender='DoorDash <no-reply@messages.doordash.com>'
+[Sync] Thread 1991ffcec2888abd: Generating embedding for 11930 chars
+[Sync] Thread 1991ffcec2888abd: Generated embedding with 384 dimensions
+[Sync] Thread 1991ffcec2888abd: Upserting to Supabase...
+[Sync] Thread 1991ffcec2888abd: Successfully indexed (28/50)
+[Sync] Processing thread 29/50: 1991f9e7aa46c809
+[Sync] Thread 1991f9e7aa46c809: Fetched full thread data
+[Sync] Thread 1991f9e7aa46c809: Extracted content (2632 chars)
+[Sync] Thread 1991f9e7aa46c809: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1991f9e7aa46c809: Generating embedding for 2667 chars
+[Sync] Thread 1991f9e7aa46c809: Generated embedding with 384 dimensions
+[Sync] Thread 1991f9e7aa46c809: Upserting to Supabase...
+[Sync] Thread 1991f9e7aa46c809: Successfully indexed (29/50)
+[Sync] Processing thread 30/50: 1991ee877edba267
+[Sync] Thread 1991ee877edba267: Fetched full thread data
+[Sync] Thread 1991ee877edba267: Extracted content (0 chars)
+[Sync] Thread 1991ee877edba267: Subject='T Magazine’s favorite bedrooms...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1991ee877edba267: Generating embedding for 30 chars
+[Sync] Thread 1991ee877edba267: Generated embedding with 384 dimensions
+[Sync] Thread 1991ee877edba267: Upserting to Supabase...
+[Sync] Thread 1991ee877edba267: Successfully indexed (30/50)
+[Sync] Processing thread 31/50: 1991e7e49885f1de
+[Sync] Thread 1991e7e49885f1de: Fetched full thread data
+[Sync] Thread 1991e7e49885f1de: Extracted content (0 chars)
+[Sync] Thread 1991e7e49885f1de: Subject='The Morning: Offer accepted...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1991e7e49885f1de: Generating embedding for 27 chars
+[Sync] Thread 1991e7e49885f1de: Generated embedding with 384 dimensions
+[Sync] Thread 1991e7e49885f1de: Upserting to Supabase...
+[Sync] Thread 1991e7e49885f1de: Successfully indexed (31/50)
+[Sync] Processing thread 32/50: 1991bb1366bfd1ed
+[Sync] Thread 1991bb1366bfd1ed: Fetched full thread data
+[Sync] Thread 1991bb1366bfd1ed: Extracted content (0 chars)
+[Sync] Thread 1991bb1366bfd1ed: Subject='The “performative male”: A new masculine archetype...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 1991bb1366bfd1ed: Generating embedding for 50 chars
+[Sync] Thread 1991bb1366bfd1ed: Generated embedding with 384 dimensions
+[Sync] Thread 1991bb1366bfd1ed: Upserting to Supabase...
+[Sync] Thread 1991bb1366bfd1ed: Successfully indexed (32/50)
+[Sync] Processing thread 33/50: 1991b48b23430494
+[Sync] Thread 1991b48b23430494: Fetched full thread data
+[Sync] Thread 1991b48b23430494: Extracted content (0 chars)
+[Sync] Thread 1991b48b23430494: Subject='Jobs for Software Engineer InternCo-op at San Fran...', Sender='"jobs trabajo.org" <info@trabajo.org>'
+[Sync] Thread 1991b48b23430494: Generating embedding for 55 chars
+[Sync] Thread 1991b48b23430494: Generated embedding with 384 dimensions
+[Sync] Thread 1991b48b23430494: Upserting to Supabase...
+[Sync] Thread 1991b48b23430494: Successfully indexed (33/50)
+[Sync] Processing thread 34/50: 1991b12de841cb18
+[Sync] Thread 1991b12de841cb18: Fetched full thread data
+[Sync] Thread 1991b12de841cb18: Extracted content (1201 chars)
+[Sync] Thread 1991b12de841cb18: Subject='Security alert...', Sender='Google <no-reply@accounts.google.com>'
+[Sync] Thread 1991b12de841cb18: Generating embedding for 1217 chars
+[Sync] Thread 1991b12de841cb18: Generated embedding with 384 dimensions
+[Sync] Thread 1991b12de841cb18: Upserting to Supabase...
+[Sync] Thread 1991b12de841cb18: Successfully indexed (34/50)
+[Sync] Processing thread 35/50: 1991ad9aa825dbd1
+[Sync] Thread 1991ad9aa825dbd1: Fetched full thread data
+[Sync] Thread 1991ad9aa825dbd1: Extracted content (2620 chars)
+[Sync] Thread 1991ad9aa825dbd1: Subject='10 new jobs match your job search...', Sender='JobLeads <mailer@jobleads.com>'
+[Sync] Thread 1991ad9aa825dbd1: Generating embedding for 2655 chars
+[Sync] Thread 1991ad9aa825dbd1: Generated embedding with 384 dimensions
+[Sync] Thread 1991ad9aa825dbd1: Upserting to Supabase...
+[Sync] Thread 1991ad9aa825dbd1: Successfully indexed (35/50)
+[Sync] Processing thread 36/50: 1991acb3ce3a7c83
+[Sync] Thread 1991acb3ce3a7c83: Fetched full thread data
+[Sync] Thread 1991acb3ce3a7c83: Extracted content (723 chars)
+[Sync] Thread 1991acb3ce3a7c83: Subject='Week 1 start/sit advice 🚦 👀...', Sender='Yahoo Fantasy <get-to-the-points@newsletters.yahoo.net>'
+[Sync] Thread 1991acb3ce3a7c83: Generating embedding for 752 chars
+[Sync] Thread 1991acb3ce3a7c83: Generated embedding with 384 dimensions
+[Sync] Thread 1991acb3ce3a7c83: Upserting to Supabase...
+[Sync] Thread 1991acb3ce3a7c83: Successfully indexed (36/50)
+[Sync] Processing thread 37/50: 1991a5dfdcfd726b
+[Sync] Thread 1991a5dfdcfd726b: Fetched full thread data
+[Sync] Thread 1991a5dfdcfd726b: Extracted content (1185 chars)
+[Sync] Thread 1991a5dfdcfd726b: Subject='Mom Lands $75K+ Remote SDR Job in 1 Month...', Sender='CourseCareers <feedback@coursecareers.com>'
+[Sync] Thread 1991a5dfdcfd726b: Generating embedding for 1228 chars
+[Sync] Thread 1991a5dfdcfd726b: Generated embedding with 384 dimensions
+[Sync] Thread 1991a5dfdcfd726b: Upserting to Supabase...
+[Sync] Thread 1991a5dfdcfd726b: Successfully indexed (37/50)
+[Sync] Processing thread 38/50: 1991a3f498ac8c01
+[Sync] Thread 1991a3f498ac8c01: Fetched full thread data
+[Sync] Thread 1991a3f498ac8c01: Extracted content (1246 chars)
+[Sync] Thread 1991a3f498ac8c01: Subject='This Mom Became a $75K+ Remote SDR in 1 Month...', Sender='CourseCareers <feedback@coursecareers.com>'
+[Sync] Thread 1991a3f498ac8c01: Generating embedding for 1293 chars
+[Sync] Thread 1991a3f498ac8c01: Generated embedding with 384 dimensions
+[Sync] Thread 1991a3f498ac8c01: Upserting to Supabase...
+[Sync] Thread 1991a3f498ac8c01: Successfully indexed (38/50)
+[Sync] Processing thread 39/50: 19919c410ebed807
+[Sync] Thread 19919c410ebed807: Fetched full thread data
+[Sync] Thread 19919c410ebed807: Extracted content (0 chars)
+[Sync] Thread 19919c410ebed807: Subject='Why experts caution against the Hegseth-Kennedy fi...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19919c410ebed807: Generating embedding for 65 chars
+[Sync] Thread 19919c410ebed807: Generated embedding with 384 dimensions
+[Sync] Thread 19919c410ebed807: Upserting to Supabase...
+[Sync] Thread 19919c410ebed807: Successfully indexed (39/50)
+[Sync] Processing thread 40/50: 1991978dc49ab939
+[Sync] Thread 1991978dc49ab939: Fetched full thread data
+[Sync] Thread 1991978dc49ab939: Extracted content (2255 chars)
+[Sync] Thread 1991978dc49ab939: Subject='The latest reporting. And more. $50/yr....', Sender='The New York Times <nytimes@e.newyorktimes.com>'
+[Sync] Thread 1991978dc49ab939: Generating embedding for 2296 chars
+[Sync] Thread 1991978dc49ab939: Generated embedding with 384 dimensions
+[Sync] Thread 1991978dc49ab939: Upserting to Supabase...
+[Sync] Thread 1991978dc49ab939: Successfully indexed (40/50)
+[Sync] Processing thread 41/50: 1991973fc4d3c743
+[Sync] Thread 1991973fc4d3c743: Fetched full thread data
+[Sync] Thread 1991973fc4d3c743: Extracted content (0 chars)
+[Sync] Thread 1991973fc4d3c743: Subject='The Morning: A nighttime raid...', Sender='The New York Times <nytdirect@nytimes.com>'
+[Sync] Thread 1991973fc4d3c743: Generating embedding for 29 chars
+[Sync] Thread 1991973fc4d3c743: Generated embedding with 384 dimensions
+[Sync] Thread 1991973fc4d3c743: Upserting to Supabase...
+[Sync] Thread 1991973fc4d3c743: Successfully indexed (41/50)
+[Sync] Processing thread 42/50: 1991967688cacb13
+[Sync] Thread 1991967688cacb13: Fetched full thread data
+[Sync] Thread 1991967688cacb13: Extracted content (661 chars)
+[Sync] Thread 1991967688cacb13: Subject='Last Chance: 21 Days, 21 Projects, 90% Refund...', Sender='GeeksforGeeks <no-reply@geeksforgeeks.org>'
+[Sync] Thread 1991967688cacb13: Generating embedding for 708 chars
+[Sync] Thread 1991967688cacb13: Generated embedding with 384 dimensions
+[Sync] Thread 1991967688cacb13: Upserting to Supabase...
+[Sync] Thread 1991967688cacb13: Successfully indexed (42/50)
+[Sync] Processing thread 43/50: 1991923f939970c9
+[Sync] Thread 1991923f939970c9: Fetched full thread data
+[Sync] Thread 1991923f939970c9: Extracted content (1596 chars)
+[Sync] Thread 1991923f939970c9: Subject='Maximize Your Potential with Anaconda 🚀...', Sender='Anaconda <anaconda@try.anaconda.com>'
+[Sync] Thread 1991923f939970c9: Generating embedding for 1637 chars
+[Sync] Thread 1991923f939970c9: Generated embedding with 384 dimensions
+[Sync] Thread 1991923f939970c9: Upserting to Supabase...
+[Sync] Thread 1991923f939970c9: Successfully indexed (43/50)
+[Sync] Processing thread 44/50: 199190a9f7ff15b2
+[Sync] Thread 199190a9f7ff15b2: Fetched full thread data
+[Sync] Thread 199190a9f7ff15b2: Extracted content (1251 chars)
+[Sync] Thread 199190a9f7ff15b2: Subject='Dev Ops Engineer – Let’s get started!...', Sender='JobLeads <careerservice@email.jobleads.com>'
+[Sync] Thread 199190a9f7ff15b2: Generating embedding for 1290 chars
+[Sync] Thread 199190a9f7ff15b2: Generated embedding with 384 dimensions
+[Sync] Thread 199190a9f7ff15b2: Upserting to Supabase...
+[Sync] Thread 199190a9f7ff15b2: Successfully indexed (44/50)
+[Sync] Processing thread 45/50: 19918151f75d1d0a
+[Sync] Thread 19918151f75d1d0a: Fetched full thread data
+[Sync] Thread 19918151f75d1d0a: Extracted content (4222 chars)
+[Sync] Thread 19918151f75d1d0a: Subject='Details of your no-contact delivery from Angry Chi...', Sender='DoorDash <no-reply@doordash.com>'
+[Sync] Thread 19918151f75d1d0a: Generating embedding for 4277 chars
+[Sync] Thread 19918151f75d1d0a: Generated embedding with 384 dimensions
+[Sync] Thread 19918151f75d1d0a: Upserting to Supabase...
+[Sync] Thread 19918151f75d1d0a: Successfully indexed (45/50)
+[Sync] Processing thread 46/50: 19917f7b4c37d8df
+[Sync] Thread 19917f7b4c37d8df: Fetched full thread data
+[Sync] Thread 19917f7b4c37d8df: Extracted content (6017 chars)
+[Sync] Thread 19917f7b4c37d8df: Subject='Order Confirmation for Varun from Angry Chickz...', Sender='DoorDash Order <no-reply@doordash.com>'
+[Sync] Thread 19917f7b4c37d8df: Generating embedding for 6065 chars
+[Sync] Thread 19917f7b4c37d8df: Generated embedding with 384 dimensions
+[Sync] Thread 19917f7b4c37d8df: Upserting to Supabase...
+[Sync] Thread 19917f7b4c37d8df: Successfully indexed (46/50)
+[Sync] Processing thread 47/50: 19916cc230ee88cd
+[Sync] Thread 19916cc230ee88cd: Fetched full thread data
+[Sync] Thread 19916cc230ee88cd: Extracted content (1380 chars)
+[Sync] Thread 19916cc230ee88cd: Subject='🏈 Meet your new Assistant GM...', Sender='Yahoo Fantasy Sports <fantasy-plus@sports.comms.yahoo.net>'
+[Sync] Thread 19916cc230ee88cd: Generating embedding for 1410 chars
+[Sync] Thread 19916cc230ee88cd: Generated embedding with 384 dimensions
+[Sync] Thread 19916cc230ee88cd: Upserting to Supabase...
+[Sync] Thread 19916cc230ee88cd: Successfully indexed (47/50)
+[Sync] Processing thread 48/50: 19916c02f47ebe88
+[Sync] Thread 19916c02f47ebe88: Fetched full thread data
+[Sync] Thread 19916c02f47ebe88: Extracted content (0 chars)
+[Sync] Thread 19916c02f47ebe88: Subject='Katherine LaNasa earned her role in ‘The Pitt’ the...', Sender='The New York Times <fromthetimes-noreply@nytimes.com>'
+[Sync] Thread 19916c02f47ebe88: Generating embedding for 59 chars
+[Sync] Thread 19916c02f47ebe88: Generated embedding with 384 dimensions
+[Sync] Thread 19916c02f47ebe88: Upserting to Supabase...
+[Sync] Thread 19916c02f47ebe88: Successfully indexed (48/50)
+[Sync] Processing thread 49/50: 1991697495f3eff5
+[Sync] Thread 1991697495f3eff5: Fetched full thread data
+[Sync] Thread 1991697495f3eff5: Extracted content (15228 chars)
+[Sync] Thread 1991697495f3eff5: Subject='🍪 Lovable for X...', Sender='Half Baked <ideas@mail.gethalfbaked.com>'
+[Sync] Thread 1991697495f3eff5: Generating embedding for 15245 chars
+[Sync] Thread 1991697495f3eff5: Generated embedding with 384 dimensions
+[Sync] Thread 1991697495f3eff5: Upserting to Supabase...
+[Sync] Thread 1991697495f3eff5: Successfully indexed (49/50)
+[Sync] Processing thread 50/50: 199165cf69918bad
+[Sync] Thread 199165cf69918bad: Fetched full thread data
+[Sync] Thread 199165cf69918bad: Extracted content (1381 chars)
+[Sync] Thread 199165cf69918bad: Subject='First ever image model & more...', Sender='OpenRouter Team <welcome@openrouter.ai>'
+[Sync] Thread 199165cf69918bad: Generating embedding for 1412 chars
+[Sync] Thread 199165cf69918bad: Generated embedding with 384 dimensions
+[Sync] Thread 199165cf69918bad: Upserting to Supabase...
+[Sync] Thread 199165cf69918bad: Successfully indexed (50/50)
+[Sync] Completed: 50/50 threads indexed successfully
+INFO:     127.0.0.1:63420 - "POST /sync-inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63802 - "GET /auth/status HTTP/1.1" 200 OK
+[Search] Query: 'job opportunities', embedding shape: (384,)
+[Search] Found 2 matching emails
+INFO:     127.0.0.1:63802 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'news', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:63894 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'news', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:63894 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'new york times', embedding shape: (384,)
+[Search] Found 1 matching emails
+INFO:     127.0.0.1:63966 - "POST /search HTTP/1.1" 200 OK
