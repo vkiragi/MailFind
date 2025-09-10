@@ -5,6 +5,10 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [authStatus, setAuthStatus] = useState<any>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
 
   // Check authentication status on component mount
   const checkAuthStatus = async () => {
@@ -141,6 +145,70 @@ function App() {
     }
   }
 
+  const handleSyncInbox = async () => {
+    setSyncLoading(true)
+    console.log('📥 [Sync] Starting inbox sync...');
+    
+    try {
+      const response = await fetch('http://localhost:8000/sync-inbox', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ [Sync] Sync successful:', result);
+        alert(`✅ Synced ${result.indexed_count} emails successfully!`);
+      } else {
+        console.error(`❌ [Sync] Backend error: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to sync: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('💥 [Sync] Sync failed:', error);
+      alert('Failed to sync inbox. Please try again.');
+    } finally {
+      setSyncLoading(false);
+      console.log('🏁 [Sync] Sync flow completed');
+    }
+  }
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true)
+    console.log('🔍 [Search] Starting search for:', searchQuery);
+    
+    try {
+      const response = await fetch('http://localhost:8000/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: searchQuery }),
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ [Search] Search successful:', result);
+        setSearchResults(result.results || []);
+      } else {
+        console.error(`❌ [Search] Backend error: ${response.status} ${response.statusText}`);
+        throw new Error(`Search failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('💥 [Search] Search failed:', error);
+      alert('Search failed. Please try again.');
+    } finally {
+      setIsSearching(false);
+      console.log('🏁 [Search] Search flow completed');
+    }
+  }
+
   return (
     <div className="w-80 p-4 bg-white">
       <div className="text-center mb-6">
@@ -168,6 +236,65 @@ function App() {
                      ✅ Connected to Gmail
                    </p>
                  </div>
+                 
+                 {/* Sync Inbox Section */}
+                 <div className="space-y-2">
+                   <h3 className="text-sm font-medium text-gray-700">📥 Sync Inbox</h3>
+                   <p className="text-xs text-gray-600">Index your emails for semantic search</p>
+                   <button
+                     onClick={handleSyncInbox}
+                     disabled={syncLoading}
+                     className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                   >
+                     {syncLoading ? 'Syncing...' : '📥 Sync Inbox'}
+                   </button>
+                 </div>
+
+                 {/* Search Section */}
+                 <div className="space-y-2">
+                   <h3 className="text-sm font-medium text-gray-700">🔍 Search Emails</h3>
+                   <div className="flex space-x-2">
+                     <input
+                       type="text"
+                       value={searchQuery}
+                       onChange={(e) => setSearchQuery(e.target.value)}
+                       onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                       placeholder="Search your emails..."
+                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     />
+                     <button
+                       onClick={handleSearch}
+                       disabled={isSearching || !searchQuery.trim()}
+                       className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium px-4 py-2 rounded-md transition-colors"
+                     >
+                       {isSearching ? '...' : '🔍'}
+                     </button>
+                   </div>
+                 </div>
+
+                 {/* Search Results */}
+                 {searchResults.length > 0 && (
+                   <div className="space-y-2">
+                     <h4 className="text-sm font-medium text-gray-700">Search Results ({searchResults.length})</h4>
+                     <div className="max-h-60 overflow-y-auto space-y-2">
+                       {searchResults.map((result, index) => (
+                         <div key={index} className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                           <div className="text-xs font-medium text-gray-800 mb-1">
+                             {result.sender || 'Unknown Sender'}
+                           </div>
+                           <div className="text-xs text-gray-700 mb-2">
+                             {result.subject || 'No Subject'}
+                           </div>
+                           {result.similarity && (
+                             <div className="text-xs text-blue-600">
+                               Similarity: {Math.round(result.similarity * 100)}%
+                             </div>
+                           )}
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
                  
                  <button
                    onClick={handleLogout}

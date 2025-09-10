@@ -1,40 +1,127 @@
 INFO:     Will watch for changes in these directories: ['/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend']
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [46632] using StatReload
+INFO:     Started reloader process [84610] using StatReload
 /Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
   warnings.warn(
-INFO:     Started server process [46703]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-Received summarization request for thread ID: test-thread-123
-INFO:     127.0.0.1:62358 - "POST /summarize HTTP/1.1" 200 OK
-WARNING:  StatReload detected changes in 'main.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [46703]
-/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
-  warnings.warn(
-INFO:     Started server process [46974]
+INFO:     Started server process [84614]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 WARNING:  StatReload detected changes in 'main.py'. Reloading...
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [46974]
+INFO:     Finished server process [84614]
 /Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
   warnings.warn(
-INFO:     Started server process [46990]
+INFO:     Started server process [84711]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     127.0.0.1:62404 - "OPTIONS /summarize HTTP/1.1" 200 OK
-Received summarization request for thread ID: fallback-thread-id
-Received summarization request for thread ID: fallback-thread-id
-INFO:     127.0.0.1:62406 - "POST /summarize HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62411 - "POST /summarize HTTP/1.1" 200 OK
-Received summarization request for thread ID: fallback-thread-id
-Received summarization request for thread ID: #thread-f:1842373303871637709
-INFO:     127.0.0.1:62706 - "POST /summarize HTTP/1.1" 200 OK
-Received summarization request for thread ID: fallback-thread-id
-INFO:     127.0.0.1:62865 - "POST /summarize HTTP/1.1" 200 OK
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:60446 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60446 - "POST /sync-inbox HTTP/1.1" 500 Internal Server Error
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84711]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Started server process [84913]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Started server process [84922]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [84929]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:60502 - "GET /auth/status HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 647, in sync_inbox
+    threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/_helpers.py", line 130, in positional_wrapper
+    return wrapped(*args, **kwargs)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/http.py", line 923, in execute
+    resp, content = _retry_request(
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/http.py", line 191, in _retry_request
+    resp, content = http.request(uri, method, *args, **kwargs)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/google_auth_httplib2.py", line 245, in request
+    self.credentials.refresh(self._request)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/google/oauth2/credentials.py", line 397, in refresh
+    raise exceptions.RefreshError(
+google.auth.exceptions.RefreshError: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+[ERROR] Exception in /sync-inbox: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+INFO:     127.0.0.1:60502 - "POST /sync-inbox HTTP/1.1" 500 Internal Server Error
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84929]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [85064]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85064]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [85083]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85083]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [85138]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:60770 - "GET /auth/status HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 650, in sync_inbox
+    threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/_helpers.py", line 130, in positional_wrapper
+    return wrapped(*args, **kwargs)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/http.py", line 923, in execute
+    resp, content = _retry_request(
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/http.py", line 191, in _retry_request
+    resp, content = http.request(uri, method, *args, **kwargs)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/google_auth_httplib2.py", line 245, in request
+    self.credentials.refresh(self._request)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/google/oauth2/credentials.py", line 397, in refresh
+    raise exceptions.RefreshError(
+google.auth.exceptions.RefreshError: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+[ERROR] Exception in /sync-inbox: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+INFO:     127.0.0.1:60770 - "POST /sync-inbox HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60991 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61016 - "GET /auth/status HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/main.py", line 650, in sync_inbox
+    threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/_helpers.py", line 130, in positional_wrapper
+    return wrapped(*args, **kwargs)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/http.py", line 923, in execute
+    resp, content = _retry_request(
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/googleapiclient/http.py", line 191, in _retry_request
+    resp, content = http.request(uri, method, *args, **kwargs)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/google_auth_httplib2.py", line 245, in request
+    self.credentials.refresh(self._request)
+  File "/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/google/oauth2/credentials.py", line 397, in refresh
+    raise exceptions.RefreshError(
+google.auth.exceptions.RefreshError: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+[ERROR] Exception in /sync-inbox: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+INFO:     127.0.0.1:61016 - "POST /sync-inbox HTTP/1.1" 500 Internal Server Error

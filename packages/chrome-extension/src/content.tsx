@@ -52,7 +52,7 @@ function hideToast(toast: HTMLElement, delayMs = 1200) {
 }
 
 // Inline summary card renderer
-function renderInlineSummary(summaryText: string) {
+function renderInlineSummary(summaryText: string): HTMLDivElement {
   const existing = document.getElementById('mailfind-summary-card');
   if (existing) existing.remove();
 
@@ -78,24 +78,58 @@ function renderInlineSummary(summaryText: string) {
   `;
 
   const header = document.createElement('div');
-  header.style.cssText = 'display:flex;align-items:center;margin-bottom:8px;';
+  header.style.cssText = 'display:flex;align-items:center;margin-bottom:8px;gap:6px;';
   const title = document.createElement('div');
   title.textContent = 'MailFind Summary';
   title.style.cssText = 'font-weight:600;font-size:14px;flex:1;';
+
+  // Minimize toggle button
+  const minimizeBtn = document.createElement('button');
+  minimizeBtn.textContent = '–';
+  minimizeBtn.setAttribute('aria-label', 'Minimize summary');
+  minimizeBtn.title = 'Minimize';
+  minimizeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:16px;line-height:16px;padding:0 4px;';
+
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
   closeBtn.setAttribute('aria-label', 'Close summary');
   closeBtn.title = 'Close';
-  closeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:18px;line-height:18px;';
+  closeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:18px;line-height:18px;padding:0 4px;';
   closeBtn.addEventListener('click', () => card.remove());
 
   header.appendChild(title);
+  header.appendChild(minimizeBtn);
   header.appendChild(closeBtn);
   const body = document.createElement('div');
   body.textContent = summaryText;
   card.appendChild(header);
   card.appendChild(body);
   document.body.appendChild(card);
+
+  // Minimize/expand behavior
+  let collapsed = false;
+  const applyCollapsed = () => {
+    if (collapsed) {
+      body.style.display = 'none';
+      card.style.width = '260px';
+      card.style.maxHeight = 'unset';
+      title.textContent = 'MailFind Summary (minimized)';
+      minimizeBtn.textContent = '+';
+      minimizeBtn.title = 'Expand';
+      minimizeBtn.setAttribute('aria-label', 'Expand summary');
+    } else {
+      body.style.display = '';
+      card.style.width = '420px';
+      card.style.maxHeight = '70vh';
+      title.textContent = 'MailFind Summary';
+      minimizeBtn.textContent = '–';
+      minimizeBtn.title = 'Minimize';
+      minimizeBtn.setAttribute('aria-label', 'Minimize summary');
+    }
+  };
+  minimizeBtn.addEventListener('click', () => { collapsed = !collapsed; applyCollapsed(); });
+  applyCollapsed();
+  return body as HTMLDivElement;
 }
 
 function isVisible(element: Element | null): boolean {
@@ -112,8 +146,7 @@ function isVisible(element: Element | null): boolean {
 
 function findToolbar(): Element | null {
   const candidates = Array.from(document.querySelectorAll(TOOLBAR_CANDIDATES));
-  console.log(`🔍 [Gmail] Toolbar candidates found: ${candidates.length}`);
-
+  
   // Prefer visible candidates
   const visible = candidates.filter(isVisible);
 
@@ -125,25 +158,37 @@ function findToolbar(): Element | null {
   });
 
   const chosen = threadFirst[0] || null;
-  console.log('🔍 [Gmail] Chosen toolbar:', chosen);
   return chosen;
 }
 
+// Global flag to prevent multiple rapid injections
+let isInjecting = false;
+let lastInjectedToolbar: Element | null = null;
+
 // Function to inject the summarize button into Gmail
 function injectSummarizeButton() {
+  if (isInjecting) return; // Prevent concurrent injections
+  
   const existing = document.getElementById('mailfind-summarize-btn');
   const toolbar = findToolbar();
 
   if (!toolbar) {
-    console.log('⚠️ [Gmail] No toolbar found; will retry on next mutation');
     return;
   }
 
-  if (existing && existing.parentElement !== toolbar) {
+  // If button exists in the current toolbar and toolbar hasn't changed, do nothing
+  if (existing && existing.parentElement === toolbar && lastInjectedToolbar === toolbar) {
+    return;
+  }
+
+  // Remove button if it's in wrong toolbar or toolbar changed
+  if (existing && (existing.parentElement !== toolbar || lastInjectedToolbar !== toolbar)) {
     existing.remove();
   }
 
+  // Only inject if no button exists and we have a toolbar
   if (toolbar && !document.getElementById('mailfind-summarize-btn')) {
+    isInjecting = true;
     // Find the "More" button (three dots) to position our button after it
     const moreButton = (toolbar as Element).querySelector('[data-tooltip="More"], [aria-label="More"]');
 
@@ -188,6 +233,10 @@ function injectSummarizeButton() {
       (toolbar as Element).appendChild(button);
     }
 
+    // Update tracking variables
+    lastInjectedToolbar = toolbar;
+    isInjecting = false;
+    
     console.log('✅ [Gmail] Summarize button injected');
   }
 }
@@ -207,26 +256,35 @@ async function handleSummarizeClick() {
       threadId = threadIdElement.getAttribute('data-thread-id');
       console.log('✅ [Gmail] Found thread ID from data-thread-id:', threadId);
     } else {
-      // Fallback: look for thread ID in URL or other common locations
+      // Fallbacks: URL param th=, then list view legacy id, then page content
       const url = window.location.href;
-      const threadMatch = url.match(/th=([a-f0-9]+)/);
+      const threadMatch = url.match(/[#&?]th=([a-f0-9]+)/i);
       if (threadMatch) {
         threadId = threadMatch[1];
         console.log('✅ [Gmail] Found thread ID from URL:', threadId);
       } else {
-        // Look for thread ID in page content
-        const pageContent = document.body.innerHTML;
-        const contentMatch = pageContent.match(/thread_id["\s]*[:=]["\s]*([a-f0-9]+)/i);
-        if (contentMatch) {
-          threadId = contentMatch[1];
-          console.log('✅ [Gmail] Found thread ID from page content:', threadId);
+        const row = document.querySelector('[data-legacy-thread-id]');
+        const legacyId = row && (row as HTMLElement).getAttribute('data-legacy-thread-id');
+        if (legacyId) {
+          threadId = legacyId;
+          console.log('✅ [Gmail] Found legacy thread ID from list row:', threadId);
+        } else {
+          // Look for thread ID in page content
+          const pageContent = document.body.innerHTML;
+          const contentMatch = pageContent.match(/thread_id["\s]*[:=]["\s]*([a-f0-9]+)/i);
+          if (contentMatch) {
+            threadId = contentMatch[1];
+            console.log('✅ [Gmail] Found thread ID from page content:', threadId);
+          }
         }
       }
     }
 
     if (!threadId) {
-      console.warn('⚠️ [Gmail] Could not find thread ID, using fallback');
-      threadId = 'fallback-thread-id';
+      console.warn('⚠️ [Gmail] Could not find thread ID. Open a conversation and retry.');
+      const t = showToast('MailFind: Open a conversation to summarize.');
+      hideToast(t, 1800);
+      return;
     }
 
     console.log('📤 [Gmail] Sending thread ID to backend:', threadId);
@@ -243,14 +301,49 @@ async function handleSummarizeClick() {
     });
 
     if (response.ok) {
-      const result = await response.json();
-      console.log('✅ [Gmail] Backend response:', result);
-      updateToast(toast, 'Summary ready.');
-      hideToast(toast, 800);
-      const summary = (result && (result.summary || result.message)) || 'Summary generated.';
-      renderInlineSummary(summary);
+      // Stream text chunks and update UI live
+      const bodyEl = renderInlineSummary('');
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let aggregated = '';
+      if (!reader) {
+        bodyEl.textContent = 'No stream available.';
+        updateToast(toast, 'Summary ready.');
+        hideToast(toast, 800);
+        return;
+      }
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            aggregated += chunk;
+            bodyEl.textContent = aggregated;
+          }
+        }
+        updateToast(toast, 'Summary ready.');
+        hideToast(toast, 800);
+      } catch (e) {
+        console.error('❌ [Gmail] Stream read error', e);
+        bodyEl.textContent = aggregated || 'Failed to read stream.';
+        updateToast(toast, 'Stream ended with error.');
+        hideToast(toast, 1200);
+      }
     } else {
       console.error(`❌ [Gmail] Backend error: ${response.status} ${response.statusText}`);
+      if (response.status === 401) {
+        updateToast(toast, 'Login required. Opening login page…');
+        try {
+          window.open('http://localhost:8000/login', '_blank', 'noopener');
+        } catch (_) {}
+      } else if (response.status === 404) {
+        updateToast(toast, 'Thread not found. Open a conversation and try again.');
+      } else if (response.status === 400) {
+        updateToast(toast, 'Invalid request. Refresh Gmail and try again.');
+      } else {
+        updateToast(toast, 'Server error. Check backend logs.');
+      }
       throw new Error(`Backend error: ${response.status}`);
     }
   } catch (error) {
@@ -264,15 +357,37 @@ async function handleSummarizeClick() {
 // Watch for Gmail navigation and inject button
 function observeGmailChanges() {
   let debounceId: number | null = null;
+  let lastUrl = window.location.href;
+  
   const trigger = () => {
     if (debounceId) clearTimeout(debounceId);
     debounceId = window.setTimeout(() => {
       injectSummarizeButton();
-    }, 400);
+    }, 800); // Increased debounce time
   };
 
-  const observer = new MutationObserver(() => {
-    trigger();
+  const observer = new MutationObserver((mutations) => {
+    // Only trigger if URL changed or if there are significant DOM changes
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      trigger();
+      return;
+    }
+    
+    // Only trigger for significant changes (avoid infinite loops)
+    const hasSignificantChange = mutations.some(mutation => 
+      mutation.type === 'childList' && 
+      mutation.addedNodes.length > 0 &&
+      Array.from(mutation.addedNodes).some(node => 
+        node.nodeType === Node.ELEMENT_NODE && 
+        (node as Element).matches('[gh="mtb"], [gh="tm"], [role="toolbar"]')
+      )
+    );
+    
+    if (hasSignificantChange) {
+      trigger();
+    }
   });
 
   observer.observe(document.body, {
