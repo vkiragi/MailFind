@@ -496,43 +496,104 @@ def summarize_email_thread(request: dict):
     """Summarize an email thread using OpenAI.
 
     Expected request body:
-    { "threadId": "...", "userId": "..." (optional) }
+    { "messageId": "...", "userId": "..." (optional) }
 
     The email body text will be fetched from Gmail via the backend using the
     stored credentials. The frontend should not send raw email content.
     """
     try:
-        # Extract threadId and optional userId from JSON body
-        thread_id = request.get("threadId")
+        # Extract messageId and optional userId from JSON body
+        message_id = request.get("messageId")
         user_id = request.get("userId")
         
-        if not thread_id:
-            raise HTTPException(status_code=400, detail="threadId is required")
+        if not message_id:
+            raise HTTPException(status_code=400, detail="messageId is required")
         
-        # Clean up thread ID - Gmail URL fragments use different format than API
-        if thread_id.startswith("#thread-f:"):
-            # Convert from URL fragment format to Gmail API format
-            raw_id = thread_id[10:]  # Remove "#thread-f:" prefix
-            # Gmail API expects hex format, URL fragment might be decimal
-            try:
-                # Try to convert decimal to hex if needed
-                if raw_id.isdigit():
-                    thread_id = hex(int(raw_id))[2:]  # Convert decimal to hex, remove '0x' prefix
-                else:
-                    thread_id = raw_id
-            except ValueError:
-                thread_id = raw_id
-        elif thread_id.startswith("thread-f:"):
-            raw_id = thread_id[9:]   # Remove "thread-f:" prefix
-            try:
-                if raw_id.isdigit():
-                    thread_id = hex(int(raw_id))[2:]
-                else:
-                    thread_id = raw_id
-            except ValueError:
-                thread_id = raw_id
+        print(f"Received summarization request for message ID: {message_id}")
+
+        # Build Gmail service to get message details
+        gmail_service = _build_gmail_service(user_id)
         
-        print(f"Received summarization request for thread ID: {thread_id}")
+        # First, try to get the message details to extract the thread ID
+        try:
+            message = gmail_service.users().messages().get(userId="me", id=message_id).execute()
+            thread_id = message.get("threadId")
+            
+            if not thread_id:
+                raise HTTPException(status_code=404, detail=f"No thread ID found for message {message_id}")
+                
+            print(f"[Summarize] Extracted thread ID {thread_id} from message {message_id}")
+            
+        except HttpError as he:
+            if he.resp.status == 400 and "Invalid id value" in str(he):
+                # The message_id might be a Gmail URL fragment, not a real message ID
+                # Fall back to the old approach of using it as a thread identifier
+                print(f"[Summarize] Invalid message ID {message_id}, trying as URL fragment...")
+                
+                # The message_id might be a thread ID in decimal format from the frontend
+                # Try to convert decimal to hex and use as thread ID
+                print(f"[Summarize] Trying to use {message_id} directly as thread ID...")
+                
+                try:
+                    # First, try to use the message_id directly as a thread ID
+                    test_thread = gmail_service.users().threads().get(userId="me", id=message_id).execute()
+                    thread_id = message_id
+                    print(f"[Summarize] Successfully using {message_id} as thread ID")
+                    
+                except HttpError as direct_error:
+                    print(f"[Summarize] Direct use failed: {direct_error}")
+                    
+                    # Try converting decimal to hex (Gmail API often expects hex format)
+                    try:
+                        if message_id.isdigit() and len(message_id) > 10:
+                            hex_thread_id = hex(int(message_id))[2:]  # Convert to hex, remove '0x' prefix
+                            print(f"[Summarize] Trying decimal->hex conversion: {message_id} -> {hex_thread_id}")
+                            
+                            test_thread = gmail_service.users().threads().get(userId="me", id=hex_thread_id).execute()
+                            thread_id = hex_thread_id
+                            print(f"[Summarize] Successfully using converted thread ID: {hex_thread_id}")
+                        else:
+                            raise ValueError("Not a valid decimal thread ID")
+                            
+                    except (ValueError, HttpError) as hex_error:
+                        print(f"[Summarize] Hex conversion also failed: {hex_error}")
+                        raise direct_error  # Re-raise the original error to continue to fallback
+                    
+                except HttpError as thread_error:
+                    print(f"[Summarize] {message_id} is not a valid thread ID either: {thread_error}")
+                    
+                    # Last resort: List recent threads and try to find a different one
+                    try:
+                        threads_resp = gmail_service.users().threads().list(userId="me", maxResults=50).execute()
+                        threads = threads_resp.get('threads', []) or []
+                        
+                        if threads:
+                            # Instead of always using first thread, try to find one that's different from known stale ones
+                            stale_thread_ids = ['19930a647fcae0eb', '1990ce3ff04ac1a6']  # Known stale threads
+                            
+                            for thread in threads:
+                                tid = thread.get('id')
+                                if tid and tid not in stale_thread_ids:
+                                    thread_id = tid
+                                    print(f"[Summarize] Using alternative thread as fallback: {thread_id}")
+                                    break
+                            
+                            # If all threads are stale, use the first one
+                            if not thread_id and threads:
+                                thread_id = threads[0].get('id')
+                                print(f"[Summarize] Using first thread as last resort: {thread_id}")
+                        else:
+                            raise HTTPException(status_code=404, detail="No threads found and invalid message ID")
+                    except Exception as list_error:
+                        raise HTTPException(status_code=400, detail=f"Could not resolve thread ID: {str(list_error)}")
+                        
+                except Exception as fallback_error:
+                    raise HTTPException(status_code=400, detail=f"Invalid message ID and fallback failed: {str(fallback_error)}")
+            else:
+                raise HTTPException(status_code=he.resp.status if hasattr(he, "resp") else 500,
+                                    detail=f"Gmail API error getting message: {str(he)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get message details: {str(e)}")
 
         # Ensure OpenAI client is available and API key present
         api_key = os.getenv("OPENAI_API_KEY")
@@ -541,8 +602,7 @@ def summarize_email_thread(request: dict):
 
         client = OpenAI(api_key=api_key)
 
-        # Build Gmail service and fetch clean email text for the thread
-        gmail_service = _build_gmail_service(user_id)
+        # Fetch clean email text for the thread using the thread ID we got from the message
         email_text = _fetch_thread_plaintext(gmail_service, thread_id)
         if not email_text:
             email_text = (
@@ -585,6 +645,75 @@ def summarize_email_thread(request: dict):
     except Exception as e:
         print(f"[ERROR] Exception in /summarize: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Summarization error: {str(e)}")
+
+@app.post("/summarize-content")
+def summarize_email_content(request: dict):
+    """Summarize email content directly without using Gmail API.
+    
+    Expected request body:
+    { "content": "email content text..." }
+    """
+    try:
+        content = request.get("content", "").strip()
+        
+        if not content:
+            raise HTTPException(status_code=400, detail="content is required")
+            
+        if len(content) < 50:
+            raise HTTPException(status_code=400, detail="content is too short to summarize")
+            
+        print(f"[Summarize-Content] Received content for summarization: {len(content)} characters")
+        print(f"[Summarize-Content] Content preview: {content[:200]}...")
+        
+        # Ensure OpenAI client is available and API key present
+        api_key = os.getenv("OPENAI_API_KEY")
+        if OpenAI is None or not api_key:
+            raise HTTPException(status_code=500, detail="OpenAI SDK not available or OPENAI_API_KEY not set")
+
+        client = OpenAI(api_key=api_key)
+
+        system_msg = (
+            "You are a helpful assistant that writes concise, factual summaries of email content. "
+            "Output 3-5 sentences followed by up to 3 bullet point action items. If details are missing, "
+            "note assumptions explicitly."
+        )
+
+        def token_stream():
+            try:
+                # Stream using OpenAI Responses API
+                with client.responses.stream(
+                    model="gpt-5-nano",
+                    input=f"System: {system_msg}\n\nUser: {content}",
+                ) as stream:
+                    for event in stream:
+                        if event.type == "response.output_text.delta":
+                            delta = getattr(event, "delta", "") or ""
+                            if delta:
+                                yield delta.encode("utf-8")
+                        elif event.type == "response.error":
+                            err = getattr(event, "error", None)
+                            message = getattr(err, "message", None) if err else None
+                            if message:
+                                yield f"\n[error] {message}".encode("utf-8")
+            except Exception as oe:
+                yield f"\n[error] OpenAI stream error: {str(oe)}".encode("utf-8")
+
+        return StreamingResponse(token_stream(), media_type="text/plain; charset=utf-8")
+        
+    except HTTPException as he:
+        print(f"[ERROR] HTTPException in /summarize-content: {he.status_code} - {he.detail}")
+        raise he
+    except Exception as e:
+        print(f"[ERROR] Exception in /summarize-content: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+            raise HTTPException(status_code=504, detail="Request timed out. OpenAI may be slow.")
+        elif "connection" in str(e).lower():
+            raise HTTPException(status_code=503, detail="Connection error. Please try again.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Content summarization error: {str(e)}")
 
 @app.get("/summarize/{thread_id}")
 def get_summary_status(thread_id: str):

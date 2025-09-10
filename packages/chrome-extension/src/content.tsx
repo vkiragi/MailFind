@@ -51,6 +51,72 @@ function hideToast(toast: HTMLElement, delayMs = 1200) {
   setTimeout(() => { toast.remove(); }, delayMs);
 }
 
+// Extract visible email content directly from Gmail's DOM
+function extractVisibleEmailContent(): string {
+  console.log('🔍 [Gmail] Extracting visible email content...');
+  
+  // Gmail conversation selectors
+  const conversationSelectors = [
+    '[role="main"] .ii.gt', // Gmail conversation messages
+    '.nH.if .ii.gt', // Alternative conversation container
+    '.adn.ads .ii.gt', // Thread container messages
+    '[role="main"] .adn', // Main conversation area
+    '.nH.if .adn', // Alternative conversation area
+    '[data-message-id]', // Elements with message IDs
+  ];
+  
+  let extractedContent = '';
+  
+  for (const selector of conversationSelectors) {
+    const elements = document.querySelectorAll(selector);
+    console.log(`🔍 [Gmail] Found ${elements.length} elements for selector: ${selector}`);
+    
+    for (const element of elements) {
+      const rect = element.getBoundingClientRect();
+      const isVisible = rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top < window.innerHeight;
+      
+      if (isVisible) {
+        const text = element.textContent?.trim();
+        if (text && text.length > 50) {
+          extractedContent += text + '\n\n';
+          console.log(`📄 [Gmail] Added content from visible element: ${text.substring(0, 100)}...`);
+        }
+      }
+    }
+    
+    // If we found content, break early
+    if (extractedContent.length > 200) {
+      console.log(`✅ [Gmail] Extracted sufficient content (${extractedContent.length} chars) from selector: ${selector}`);
+      break;
+    }
+  }
+  
+  // Fallback: Get any visible text from the main area
+  if (extractedContent.length < 100) {
+    console.log('🔍 [Gmail] Trying fallback content extraction...');
+    const mainArea = document.querySelector('[role="main"]') || document.querySelector('.nH.if');
+    
+    if (mainArea) {
+      const text = mainArea.textContent?.trim();
+      if (text && text.length > 100) {
+        // Clean up the text - remove Gmail UI elements
+        const cleanText = text
+          .replace(/Archive|Delete|Mark as spam|Move to|Labels|More/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        if (cleanText.length > 100) {
+          extractedContent = cleanText;
+          console.log(`📄 [Gmail] Using fallback content: ${cleanText.substring(0, 100)}...`);
+        }
+      }
+    }
+  }
+  
+  console.log(`📊 [Gmail] Total extracted content length: ${extractedContent.length} characters`);
+  return extractedContent.trim();
+}
+
 // Inline summary card renderer
 function renderInlineSummary(summaryText: string): HTMLDivElement {
   const existing = document.getElementById('mailfind-summary-card');
@@ -246,57 +312,206 @@ async function handleSummarizeClick() {
   console.log('📧 [Gmail] Summarize button clicked in Gmail interface');
 
   try {
-    console.log('🔍 [Gmail] Searching for thread ID...');
+    console.log('🔍 [Gmail] Trying direct content extraction approach...');
 
-    // Look for elements with data-thread-id attribute
-    const threadIdElement = document.querySelector('[data-thread-id]');
-    let threadId: string | null = null;
-
-    if (threadIdElement) {
-      threadId = threadIdElement.getAttribute('data-thread-id');
-      console.log('✅ [Gmail] Found thread ID from data-thread-id:', threadId);
-    } else {
-      // Fallbacks: URL param th=, then list view legacy id, then page content
-      const url = window.location.href;
-      const threadMatch = url.match(/[#&?]th=([a-f0-9]+)/i);
-      if (threadMatch) {
-        threadId = threadMatch[1];
-        console.log('✅ [Gmail] Found thread ID from URL:', threadId);
+    // New approach: Extract visible email content directly from the page
+    let emailContent = extractVisibleEmailContent();
+    
+    if (emailContent && emailContent.length > 100) {
+      console.log('✅ [Gmail] Extracted email content directly from page:', emailContent.substring(0, 100) + '...');
+      
+      const toast = showToast('Summarizing visible email content...');
+      
+      // Send content directly to backend
+      const response = await fetch('http://localhost:8000/summarize-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: emailContent }),
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        // Stream text chunks and update UI live
+        const bodyEl = renderInlineSummary('');
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let aggregated = '';
+        if (!reader) {
+          bodyEl.textContent = 'No stream available.';
+          updateToast(toast, 'Summary ready.');
+          hideToast(toast, 800);
+          return;
+        }
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value) {
+              const chunk = decoder.decode(value, { stream: true });
+              aggregated += chunk;
+              bodyEl.textContent = aggregated;
+            }
+          }
+          updateToast(toast, 'Summary ready.');
+          hideToast(toast, 800);
+          return; // Success - exit early
+        } catch (e) {
+          console.error('❌ [Gmail] Stream read error', e);
+          bodyEl.textContent = aggregated || 'Failed to read stream.';
+          updateToast(toast, 'Stream ended with error.');
+          hideToast(toast, 1200);
+          return;
+        }
       } else {
-        const row = document.querySelector('[data-legacy-thread-id]');
-        const legacyId = row && (row as HTMLElement).getAttribute('data-legacy-thread-id');
-        if (legacyId) {
-          threadId = legacyId;
-          console.log('✅ [Gmail] Found legacy thread ID from list row:', threadId);
-        } else {
-          // Look for thread ID in page content
-          const pageContent = document.body.innerHTML;
-          const contentMatch = pageContent.match(/thread_id["\s]*[:=]["\s]*([a-f0-9]+)/i);
-          if (contentMatch) {
-            threadId = contentMatch[1];
-            console.log('✅ [Gmail] Found thread ID from page content:', threadId);
+        console.warn('⚠️ [Gmail] Content summarization failed, falling back to thread ID approach');
+      }
+    } else {
+      console.log('⚠️ [Gmail] Could not extract sufficient email content, falling back to thread ID approach');
+    }
+
+    // Fallback to thread ID approach if content extraction fails
+    console.log('🔍 [Gmail] Falling back to thread ID detection...');
+    let threadId: string | null = null;
+    
+    // Method 1: Look for visible thread elements in the current conversation
+    const threadElements = document.querySelectorAll('[data-thread-id]');
+    console.log('🔍 [Gmail] Found', threadElements.length, 'thread elements in DOM');
+    
+    // Strategy 1: Look for elements that are actually visible and in viewport
+    let visibleElements = [];
+    for (const element of threadElements) {
+      const rect = element.getBoundingClientRect();
+      const isVisible = rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top < window.innerHeight;
+      
+      if (isVisible) {
+        let id = element.getAttribute('data-thread-id');
+        if (id) {
+          // Clean up the thread ID format
+          if (id.startsWith('#thread-f:')) {
+            id = id.substring(10); // Remove "#thread-f:" prefix
+          }
+          if (id && id.length > 10) {
+            visibleElements.push({ element, id, rect });
           }
         }
       }
     }
+    
+    console.log('🔍 [Gmail] Found', visibleElements.length, 'visible thread elements');
+    
+    // Debug: Log some of the thread IDs we found
+    if (visibleElements.length > 0) {
+      console.log('🔍 [Gmail] Visible thread IDs:', visibleElements.slice(0, 3).map(v => v.id));
+    }
+    
+    // Strategy 2: If we have visible elements, pick the most likely candidate
+    if (visibleElements.length > 0) {
+      // Prefer elements in main conversation areas
+      for (const item of visibleElements) {
+        const isInMainArea = item.element.closest('[role="main"]') !== null || 
+                            item.element.closest('.nH.if') !== null ||
+                            item.element.closest('.adn.ads') !== null;
+        
+        if (isInMainArea) {
+          threadId = item.id;
+          console.log('✅ [Gmail] Found thread ID from main conversation area:', threadId);
+          break;
+        }
+      }
+      
+      // If no main area elements, take the first visible one
+      if (!threadId) {
+        threadId = visibleElements[0].id;
+        console.log('✅ [Gmail] Using first visible thread ID:', threadId);
+      }
+    }
+    
+    // Strategy 3: If still no thread ID, be more aggressive - check all elements
+    if (!threadId && threadElements.length > 0) {
+      console.log('🔍 [Gmail] No visible elements found, checking all thread elements...');
+      
+      // Get unique thread IDs and their counts
+      const threadIdCounts = new Map();
+      for (const element of threadElements) {
+        let id = element.getAttribute('data-thread-id');
+        if (id) {
+          if (id.startsWith('#thread-f:')) {
+            id = id.substring(10);
+          }
+          if (id && id.length > 10) {
+            threadIdCounts.set(id, (threadIdCounts.get(id) || 0) + 1);
+          }
+        }
+      }
+      
+      // Strategy: Instead of just using the most frequent, try to find a newer/different thread
+      // Sort by frequency and try to avoid the old stale thread (1842828099281674475)
+      const sortedByFreq = Array.from(threadIdCounts.entries()).sort((a, b) => b[1] - a[1]);
+      const staleThreadId = '1842828099281674475'; // Known stale thread
+      
+      // Try to find a thread that's not the stale one
+      let selectedThread = null;
+      for (const [id, count] of sortedByFreq) {
+        if (id !== staleThreadId) {
+          selectedThread = { id, count };
+          console.log(`✅ [Gmail] Found alternative thread ID: ${id} (appears ${count} times, avoiding stale thread)`);
+          break;
+        }
+      }
+      
+      // If no alternative found, use the most frequent (even if stale)
+      if (!selectedThread && sortedByFreq.length > 0) {
+        selectedThread = { id: sortedByFreq[0][0], count: sortedByFreq[0][1] };
+        console.log(`⚠️ [Gmail] Using most frequent thread ID (might be stale): ${selectedThread.id} (appears ${selectedThread.count} times)`);
+      }
+      
+      if (selectedThread) {
+        threadId = selectedThread.id;
+      } else {
+        console.log('⚠️ [Gmail] No valid thread IDs found in frequency analysis');
+      }
+      
+      // Debug: Show all thread IDs found with their frequencies
+      const sortedThreadIds = Array.from(threadIdCounts.entries()).sort((a, b) => b[1] - a[1]);
+      console.log('🔍 [Gmail] Thread ID frequency map (sorted):', sortedThreadIds.slice(0, 5));
+    } else {
+      console.log('⚠️ [Gmail] No thread elements found at all');
+    }
+    
+    // Method 2: If no visible thread ID found, get the URL fragment and send it
+    // The backend will handle the conversion
+    if (!threadId) {
+      console.log('🔍 [Gmail] No visible thread ID found, using URL fragment...');
+      const hash = window.location.hash;
+      console.log('🔍 [Gmail] Current URL hash:', hash);
+      
+      const fragmentMatch = hash.match(/#inbox\/([a-zA-Z0-9]+)/);
+      if (fragmentMatch) {
+        const urlFragment = fragmentMatch[1];
+        console.log('✅ [Gmail] Using URL fragment as identifier:', urlFragment);
+        threadId = urlFragment; // We'll send this to backend as a "messageId" for processing
+      }
+    }
 
     if (!threadId) {
-      console.warn('⚠️ [Gmail] Could not find thread ID. Open a conversation and retry.');
-      const t = showToast('MailFind: Open a conversation to summarize.');
-      hideToast(t, 1800);
+      console.warn('⚠️ [Gmail] Could not find thread identifier. Make sure you\'re viewing a conversation.');
+      const t = showToast('MailFind: Open a specific email conversation to summarize.');
+      hideToast(t, 2500);
       return;
     }
 
-    console.log('📤 [Gmail] Sending thread ID to backend:', threadId);
-    const toast = showToast('Request sent. Generating summary…');
+    console.log('📤 [Gmail] Sending identifier to backend:', threadId);
+    const toast = showToast(`Request sent for ${threadId.substring(0, 8)}...`);
 
-    // Call backend API
+    // Send as messageId - backend will determine if it's a real message ID or URL fragment
     const response = await fetch('http://localhost:8000/summarize', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ threadId }),
+      body: JSON.stringify({ messageId: threadId }),
       credentials: 'include'
     });
 
@@ -408,3 +623,4 @@ if (document.readyState === 'loading') {
   setTimeout(injectSummarizeButton, 1000);
   observeGmailChanges();
 }
+

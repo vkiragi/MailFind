@@ -2070,3 +2070,608 @@ INFO:     127.0.0.1:63894 - "POST /search HTTP/1.1" 200 OK
 [Search] Query: 'new york times', embedding shape: (384,)
 [Search] Found 1 matching emails
 INFO:     127.0.0.1:63966 - "POST /search HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64252 - "GET /auth/status HTTP/1.1" 200 OK
+[Search] Query: 'clerk', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64252 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'clerk', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64252 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'new york times', embedding shape: (384,)
+[Search] Found 1 matching emails
+INFO:     127.0.0.1:64257 - "POST /search HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64269 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64271 - "POST /summarize HTTP/1.1" 200 OK
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
+To disable this warning, you can either:
+	- Avoid using `tokenizers` before the fork if possible
+	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+INFO:     127.0.0.1:64281 - "GET /auth/status HTTP/1.1" 200 OK
+[Search] Query: 'jobs', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64284 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'jobs', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64284 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'job', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64284 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'new york times', embedding shape: (384,)
+[Search] Found 1 matching emails
+INFO:     127.0.0.1:64289 - "POST /search HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64309 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64323 - "GET /auth/status HTTP/1.1" 200 OK
+[Search] Query: 'sale', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64330 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'sale', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64330 - "POST /search HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64402 - "GET /auth/status HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64412 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64420 - "GET /auth/status HTTP/1.1" 200 OK
+[Search] Query: 'news', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64425 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'news', embedding shape: (384,)
+[Search] Found 0 matching emails
+INFO:     127.0.0.1:64425 - "POST /search HTTP/1.1" 200 OK
+[Search] Query: 'the new york times', embedding shape: (384,)
+[Search] Found 1 matching emails
+INFO:     127.0.0.1:64425 - "POST /search HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64437 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64445 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 1992e5bdf4a9e7a7
+INFO:     127.0.0.1:64455 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 1992e5bdf4a9e7a7
+INFO:     127.0.0.1:64465 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64473 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64634 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64640 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64642 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64682 - "GET /auth/status HTTP/1.1" 200 OK
+Received summarization request for thread ID: f5d2d15df40228d131c077757f2e5597
+[ERROR] HTTPException in /summarize: 400 - Gmail API error: <HttpError 400 when requesting https://gmail.googleapis.com/gmail/v1/users/me/threads/f5d2d15df40228d131c077757f2e5597?format=full&alt=json returned "Invalid id value". Details: "[{'message': 'Invalid id value', 'domain': 'global', 'reason': 'invalidArgument'}]">
+INFO:     127.0.0.1:64687 - "POST /summarize HTTP/1.1" 400 Bad Request
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:64776 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50488 - "GET /auth/status HTTP/1.1" 200 OK
+Received summarization request for thread ID: 1842828099281674475
+[ERROR] HTTPException in /summarize: 400 - Gmail API error: <HttpError 400 when requesting https://gmail.googleapis.com/gmail/v1/users/me/threads/1842828099281674475?format=full&alt=json returned "Invalid id value". Details: "[{'message': 'Invalid id value', 'domain': 'global', 'reason': 'invalidArgument'}]">
+INFO:     127.0.0.1:50521 - "POST /summarize HTTP/1.1" 400 Bad Request
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [89710]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [92285]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92285]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [92315]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92315]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [92325]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:50968 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51005 - "OPTIONS /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842828099281674475 to hex: 19930a647fcae0eb
+Received summarization request for thread ID: 19930a647fcae0eb
+[ERROR] Exception in /summarize: [Errno 60] Operation timed out
+INFO:     127.0.0.1:51007 - "POST /summarize HTTP/1.1" 500 Internal Server Error
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92325]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [92391]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92391]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [92405]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+[Summarize] Converted decimal thread ID 1842828099281674475 to hex: 19930a647fcae0eb
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:52128 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842828099281674475 to hex: 19930a647fcae0eb
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:52472 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842828099281674475 to hex: 19930a647fcae0eb
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:53164 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842828099281674475 to hex: 19930a647fcae0eb
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:53421 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53924 - "OPTIONS /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842828099281674475 to hex: 19930a647fcae0eb
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:53926 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54865 - "GET /auth/status HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:54870 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:54882 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:54892 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:54909 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:55016 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55745 - "OPTIONS /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:55747 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:55763 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57288 - "GET /auth/status HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+INFO:     127.0.0.1:57296 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58186 - "OPTIONS /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842723986983226354 to hex: 1992abb3f73a0bf2
+Received summarization request for thread ID: 1992abb3f73a0bf2
+INFO:     127.0.0.1:58188 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92405]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [95335]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95335]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Started server process [95356]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [95364]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95364]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [95380]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+[Summarize] Converted decimal thread ID 1842794744387828901 to hex: 1992ec0e75317ca5
+Received summarization request for thread ID: 1992ec0e75317ca5
+[Debug] Thread 1992ec0e75317ca5: Found 1 messages
+[Debug] Message 1: Found 1 text parts, mimeType: multipart/alternative
+[Debug] Thread 1992ec0e75317ca5: Final text length: 2754
+INFO:     127.0.0.1:58264 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842701138013298671 to hex: 199296ec067d9fef
+Received summarization request for thread ID: 199296ec067d9fef
+[Debug] Thread 199296ec067d9fef: Found 1 messages
+[Debug] Message 1: Found 1 text parts, mimeType: multipart/alternative
+[Debug] Thread 199296ec067d9fef: Final text length: 13197
+INFO:     127.0.0.1:58351 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842691994497636842 to hex: 19928e9b227cd9ea
+Received summarization request for thread ID: 19928e9b227cd9ea
+[Debug] Thread 19928e9b227cd9ea: Found 1 messages
+[Debug] Message 1: Found 0 text parts, mimeType: text/html
+[Debug] Thread 19928e9b227cd9ea: Final text length: 0
+INFO:     127.0.0.1:59515 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95380]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [95645]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95645]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Started server process [95667]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [95671]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95671]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [95683]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95683]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [95707]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:59602 - "OPTIONS /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842723986983226354 to hex: 1992abb3f73a0bf2
+Received summarization request for thread ID: 1992abb3f73a0bf2
+[Debug] Thread 1992abb3f73a0bf2: Found 1 messages
+[Debug] Message 1: Found 1 text parts, mimeType: text/html
+[Debug] Thread 1992abb3f73a0bf2: Final text length: 1527
+INFO:     127.0.0.1:59604 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842528495960770569 to hex: 1991f9e7aa46c809
+Received summarization request for thread ID: 1991f9e7aa46c809
+[Debug] Thread 1991f9e7aa46c809: Found 1 messages
+[Debug] Message 1: Found 2 text parts, mimeType: multipart/alternative
+[Debug] Thread 1991f9e7aa46c809: Final text length: 10477
+INFO:     127.0.0.1:59676 - "POST /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842452232256291988 to hex: 1991b48b23430494
+Received summarization request for thread ID: 1991b48b23430494
+[Debug] Thread 1991b48b23430494: Found 1 messages
+[Debug] Message 1: Found 1 text parts, mimeType: text/html
+[Debug] Thread 1991b48b23430494: Final text length: 1480
+INFO:     127.0.0.1:59749 - "POST /summarize HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60093 - "OPTIONS /summarize HTTP/1.1" 200 OK
+[Summarize] Converted decimal thread ID 1842393890107676895 to hex: 19917f7b4c37d8df
+Received summarization request for thread ID: 19917f7b4c37d8df
+[Debug] Thread 19917f7b4c37d8df: Found 1 messages
+[Debug] Message 1: Found 2 text parts, mimeType: multipart/alternative
+[Debug] Thread 19917f7b4c37d8df: Final text length: 11787
+INFO:     127.0.0.1:60095 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95707]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [97685]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [97685]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [97720]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [97720]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [97726]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+[Summarize] Converted decimal thread ID 1842199021604225446 to hex: 1990ce3ff04ac1a6
+Received summarization request for thread ID: 1990ce3ff04ac1a6
+[Debug] Thread 1990ce3ff04ac1a6: Found 1 messages
+[Debug] Message 1: Found 2 text parts, mimeType: multipart/alternative
+[Debug] Thread 1990ce3ff04ac1a6: Final text length: 10315
+[Debug] Thread 1990ce3ff04ac1a6: Content preview: Hello Varun,New jobs for March 28, 2024 Results based on search: Most relevant and most recently posted jobs are shown on top. For each job search, we send you a job only once.    Senior Software Engi...
+INFO:     127.0.0.1:60447 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [97726]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [99084]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:62906 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62909 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:62911 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:62918 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:62927 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99084]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [99572]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99572]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [99602]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99602]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [99628]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99628]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [99652]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99652]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [99982]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99982]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [163]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+Received summarization request for message ID: FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph
+[ERROR] HTTPException in /summarize: 400 - Gmail API error getting message: <HttpError 400 when requesting https://gmail.googleapis.com/gmail/v1/users/me/messages/FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph?alt=json returned "Invalid id value". Details: "[{'message': 'Invalid id value', 'domain': 'global', 'reason': 'invalidArgument'}]">
+INFO:     127.0.0.1:63171 - "POST /summarize HTTP/1.1" 400 Bad Request
+Received summarization request for message ID: FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph
+[ERROR] HTTPException in /summarize: 400 - Gmail API error getting message: <HttpError 400 when requesting https://gmail.googleapis.com/gmail/v1/users/me/messages/FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph?alt=json returned "Invalid id value". Details: "[{'message': 'Invalid id value', 'domain': 'global', 'reason': 'invalidArgument'}]">
+INFO:     127.0.0.1:63176 - "POST /summarize HTTP/1.1" 400 Bad Request
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [163]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [508]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [508]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [1354]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1354]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [1438]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:65423 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for message ID: FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph
+[Summarize] Invalid message ID FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph, trying as URL fragment...
+[Summarize] Using first available thread as fallback: 19930a647fcae0eb
+INFO:     127.0.0.1:65425 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for message ID: FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph
+[Summarize] Invalid message ID FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph, trying as URL fragment...
+[Summarize] Using first available thread as fallback: 19930a647fcae0eb
+INFO:     127.0.0.1:65450 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for message ID: FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph
+[Summarize] Invalid message ID FMfcgzQcpdqmQgTLPPrBNzJgJFlkGhph, trying as URL fragment...
+[Summarize] Using first available thread as fallback: 19930a647fcae0eb
+INFO:     127.0.0.1:49599 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for message ID: 1842828099281674475
+[Summarize] Invalid message ID 1842828099281674475, trying as URL fragment...
+[Summarize] Using first available thread as fallback: 19930a647fcae0eb
+INFO:     127.0.0.1:50203 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for message ID: 1842819887725512226
+[Summarize] Invalid message ID 1842819887725512226, trying as URL fragment...
+[Summarize] Using first available thread as fallback: 19930a647fcae0eb
+INFO:     127.0.0.1:50643 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for message ID: 1842819887725512226
+[Summarize] Invalid message ID 1842819887725512226, trying as URL fragment...
+[Summarize] Using first available thread as fallback: 19930a647fcae0eb
+INFO:     127.0.0.1:50748 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1438]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [2681]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2681]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [2715]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2715]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [2725]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:52175 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for message ID: 1842819887725512226
+[Summarize] Invalid message ID 1842819887725512226, trying as URL fragment...
+[Summarize] Trying to use 1842819887725512226 directly as thread ID...
+[Summarize] 1842819887725512226 is not a valid thread ID either: <HttpError 400 when requesting https://gmail.googleapis.com/gmail/v1/users/me/threads/1842819887725512226?alt=json returned "Invalid id value". Details: "[{'message': 'Invalid id value', 'domain': 'global', 'reason': 'invalidArgument'}]">
+[Summarize] Using alternative thread as fallback: 199302ec98e78622
+INFO:     127.0.0.1:52177 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2725]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [2986]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2986]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [3012]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3012]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [3082]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+Received summarization request for message ID: 1842819887725512226
+[Summarize] Invalid message ID 1842819887725512226, trying as URL fragment...
+[Summarize] Trying to use 1842819887725512226 directly as thread ID...
+[Summarize] Direct use failed: <HttpError 400 when requesting https://gmail.googleapis.com/gmail/v1/users/me/threads/1842819887725512226?alt=json returned "Invalid id value". Details: "[{'message': 'Invalid id value', 'domain': 'global', 'reason': 'invalidArgument'}]">
+[Summarize] Trying decimal->hex conversion: 1842819887725512226 -> 199302ec98e78622
+[Summarize] Successfully using converted thread ID: 199302ec98e78622
+INFO:     127.0.0.1:53259 - "POST /summarize HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3082]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [3411]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3411]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [3647]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3647]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [3662]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:55174 - "OPTIONS /summarize-content HTTP/1.1" 200 OK
+[Summarize-Content] Received content for summarization: 1272 characters
+[Summarize-Content] Content preview: A Times investigation found that the bank ignored red flags, suspicious activity and the concerns of executives.View in browser|nytimes.comDownloadSeptember 9, 2025JPMorgan spent years supporting — an...
+INFO:     127.0.0.1:55176 - "POST /summarize-content HTTP/1.1" 200 OK
