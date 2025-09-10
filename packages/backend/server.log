@@ -2675,3 +2675,91 @@ INFO:     127.0.0.1:55174 - "OPTIONS /summarize-content HTTP/1.1" 200 OK
 [Summarize-Content] Received content for summarization: 1272 characters
 [Summarize-Content] Content preview: A Times investigation found that the bank ignored red flags, suspicious activity and the concerns of executives.View in browser|nytimes.comDownloadSeptember 9, 2025JPMorgan spent years supporting — an...
 INFO:     127.0.0.1:55176 - "POST /summarize-content HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58309 - "OPTIONS /summarize-content HTTP/1.1" 200 OK
+[Summarize-Content] Received content for summarization: 1262 characters
+[Summarize-Content] Content preview: Robert F. Kennedy Jr. challenged Pete Hegseth to do 50 pull-ups and 100 push-ups in 10 minutes.View in browser|nytimes.comDownloadSeptember 5, 2025Robert F. Kennedy Jr., the health secretary, challeng...
+INFO:     127.0.0.1:58311 - "POST /summarize-content HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3662]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [6288]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6288]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [6909]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6909]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [6917]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:58681 - "GET /auth/status HTTP/1.1" 200 OK
+[Search] Original query: 'news'
+[Search] Expanding query with OpenAI...
+[Search] OpenAI response: news, current events, breaking news, news updates, news articles, news headlines
+[Search] Expanded keywords: ['news', 'current events', 'breaking news', 'news updates', 'news articles', 'news headlines']
+[Search] Generated 6 embeddings for expanded search
+[Search] Keyword 'news': found 1 matches
+[Search] Keyword 'current events': found 0 matches
+[Search] Keyword 'breaking news': found 1 matches
+[Search] Keyword 'news updates': found 1 matches
+[Search] Keyword 'news articles': found 1 matches
+[Search] Keyword 'news headlines': found 1 matches
+[Search] Combined results: 1 unique emails from 6 expanded terms
+INFO:     127.0.0.1:58681 - "POST /search HTTP/1.1" 200 OK
+[Search] Original query: 'jobs'
+[Search] Expanding query with OpenAI...
+[Search] OpenAI response: jobs, employment opportunities, career openings, job listings, work positions, job vacancies
+[Search] Expanded keywords: ['jobs', 'employment opportunities', 'career openings', 'job listings', 'work positions', 'job vacancies']
+[Search] Generated 6 embeddings for expanded search
+[Search] Keyword 'jobs': found 8 matches
+[Search] Keyword 'employment opportunities': found 7 matches
+[Search] Keyword 'career openings': found 8 matches
+[Search] Keyword 'job listings': found 5 matches
+[Search] Keyword 'work positions': found 2 matches
+[Search] Keyword 'job vacancies': found 7 matches
+[Search] Combined results: 10 unique emails from 6 expanded terms
+INFO:     127.0.0.1:58691 - "POST /search HTTP/1.1" 200 OK
+[Search] Original query: 'new york times'
+[Search] Expanding query with OpenAI...
+[Search] OpenAI response: new york times, nyt, newspaper, journalism, media outlet, news publication
+[Search] Expanded keywords: ['new york times', 'nyt', 'newspaper', 'journalism', 'media outlet', 'news publication']
+[Search] Generated 6 embeddings for expanded search
+[Search] Keyword 'new york times': found 3 matches
+[Search] Keyword 'nyt': found 0 matches
+[Search] Keyword 'newspaper': found 1 matches
+[Search] Keyword 'journalism': found 1 matches
+[Search] Keyword 'media outlet': found 0 matches
+[Search] Keyword 'news publication': found 1 matches
+[Search] Combined results: 3 unique emails from 6 expanded terms
+INFO:     127.0.0.1:58697 - "POST /search HTTP/1.1" 200 OK
+[Search] Original query: 'quant'
+[Search] Expanding query with OpenAI...
+[Search] OpenAI response: quantitative, quantitative analysis, quantitative research, quant finance, quant trading, quant modeling
+[Search] Expanded keywords: ['quant', 'quantitative', 'quantitative analysis', 'quantitative research', 'quant finance', 'quant trading']
+[Search] Generated 6 embeddings for expanded search
+[Search] Keyword 'quant': found 1 matches
+[Search] Keyword 'quantitative': found 0 matches
+[Search] Keyword 'quantitative analysis': found 0 matches
+[Search] Keyword 'quantitative research': found 0 matches
+[Search] Keyword 'quant finance': found 1 matches
+[Search] Keyword 'quant trading': found 1 matches
+[Search] Combined results: 1 unique emails from 6 expanded terms
+INFO:     127.0.0.1:58838 - "POST /search HTTP/1.1" 200 OK

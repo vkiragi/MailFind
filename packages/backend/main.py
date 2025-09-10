@@ -728,7 +728,7 @@ def get_summary_status(thread_id: str):
 
 @app.post("/search")
 async def search_emails(request: dict):
-    """Semantic search through indexed emails using vector similarity.
+    """Semantic search through indexed emails using AI Query Expansion and vector similarity.
 
     Expected request body: { "query": "search terms", "userId": "..." (optional) }
     """
@@ -741,34 +741,140 @@ async def search_emails(request: dict):
         
         user_id = request.get("userId")
         
-        # Load embedding model and generate query embedding
+        print(f"[Search] Original query: '{query}'")
+        
+        # Step 1: AI Query Expansion using OpenAI
+        expanded_keywords = await _expand_query_with_ai(query)
+        print(f"[Search] Expanded keywords: {expanded_keywords}")
+        
+        # Step 2: Generate embeddings for all expanded keywords
         model = _get_embedding_model()
-        query_embedding = model.encode(query, normalize_embeddings=True)
+        query_embeddings = []
         
-        print(f"[Search] Query: '{query}', embedding shape: {query_embedding.shape}")
+        for keyword in expanded_keywords:
+            embedding = model.encode(keyword, normalize_embeddings=True)
+            query_embeddings.append({
+                'keyword': keyword,
+                'embedding': embedding.tolist()
+            })
         
-        # Call Supabase RPC function for semantic search
-        results = sb.rpc('match_emails', {
-            'query_embedding': query_embedding.tolist(),
-            'match_threshold': 0.5,
-            'match_count': 10
-        }).execute()
+        print(f"[Search] Generated {len(query_embeddings)} embeddings for expanded search")
         
-        search_results = getattr(results, "data", []) or []
+        # Step 3: Search with each embedding and combine results
+        all_results = []
+        seen_thread_ids = set()
         
-        print(f"[Search] Found {len(search_results)} matching emails")
+        for query_emb in query_embeddings:
+            keyword = query_emb['keyword']
+            embedding = query_emb['embedding']
+            
+            try:
+                results = sb.rpc('match_emails', {
+                    'query_embedding': embedding,
+                    'match_threshold': 0.4,  # Slightly lower threshold for expanded terms
+                    'match_count': 8  # Fewer per query to avoid overwhelming results
+                }).execute()
+                
+                keyword_results = getattr(results, "data", []) or []
+                print(f"[Search] Keyword '{keyword}': found {len(keyword_results)} matches")
+                
+                # Add results, avoiding duplicates based on thread_id
+                for result in keyword_results:
+                    thread_id = result.get('thread_id')
+                    if thread_id and thread_id not in seen_thread_ids:
+                        result['matched_keyword'] = keyword  # Track which keyword matched
+                        all_results.append(result)
+                        seen_thread_ids.add(thread_id)
+                        
+            except Exception as e:
+                print(f"[Search] Error searching for keyword '{keyword}': {str(e)}")
+                continue
+        
+        # Step 4: Sort results by similarity score (highest first)
+        all_results.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+        
+        # Limit final results to top 15
+        final_results = all_results[:15]
+        
+        print(f"[Search] Combined results: {len(final_results)} unique emails from {len(expanded_keywords)} expanded terms")
         
         return {
             "status": "success",
             "query": query,
-            "results": search_results,
-            "count": len(search_results)
+            "expanded_keywords": expanded_keywords,
+            "results": final_results,
+            "count": len(final_results),
+            "total_found": len(all_results)
         }
         
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
+
+
+async def _expand_query_with_ai(original_query: str) -> list[str]:
+    """Use OpenAI to expand the search query with related terms."""
+    try:
+        # Ensure OpenAI client is available
+        api_key = os.getenv("OPENAI_API_KEY")
+        if OpenAI is None or not api_key:
+            print("[Search] OpenAI not available, using original query only")
+            return [original_query]
+
+        client = OpenAI(api_key=api_key)
+        
+        expansion_prompt = f"""Given the search query: "{original_query}"
+
+Generate 4-6 related search terms that would help find relevant emails. Include:
+- Synonyms and alternative phrasings
+- Related concepts and topics
+- Common variations and abbreviations
+- Context-specific terms
+
+Return ONLY a comma-separated list of terms, no explanations.
+
+Example:
+Query: "meeting schedule"
+Response: meeting schedule, appointment, calendar, meeting time, scheduled meeting, conference call
+
+Query: "{original_query}"
+Response:"""
+
+        print(f"[Search] Expanding query with OpenAI...")
+        
+        # Use chat completion for query expansion
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # Using a more reliable model for this task
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that expands search queries with related terms."},
+                {"role": "user", "content": expansion_prompt}
+            ],
+            max_tokens=100,
+            temperature=0.3  # Lower temperature for more consistent results
+        )
+        
+        expanded_text = response.choices[0].message.content.strip()
+        print(f"[Search] OpenAI response: {expanded_text}")
+        
+        # Parse the comma-separated terms
+        expanded_terms = [term.strip() for term in expanded_text.split(',') if term.strip()]
+        
+        # Always include the original query first
+        final_keywords = [original_query]
+        
+        # Add expanded terms, avoiding duplicates
+        for term in expanded_terms:
+            if term.lower() != original_query.lower() and term not in final_keywords:
+                final_keywords.append(term)
+        
+        # Limit to maximum 6 keywords to avoid too many API calls
+        return final_keywords[:6]
+        
+    except Exception as e:
+        print(f"[Search] Error in AI query expansion: {str(e)}")
+        # Fallback to original query if expansion fails
+        return [original_query]
 
 
 @app.post("/sync-inbox")
