@@ -462,10 +462,20 @@ def auth_status():
 
 @app.post("/logout")
 def logout():
-    """Logout clears pending oauth states (token revocation not implemented)."""
+    """Logout clears pending oauth states and stored credentials."""
     try:
         global oauth_states
         oauth_states.clear()
+        
+        # Clear all stored credentials from Supabase
+        try:
+            sb = _get_supabase()
+            # Delete all users (this will clear incomplete credentials)
+            sb.table("users").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+            print("[Logout] Cleared all stored credentials from Supabase")
+        except Exception as e:
+            print(f"[Logout] Error clearing credentials: {e}")
+        
         users_count = 0
         try:
             sb = _get_supabase()
@@ -474,7 +484,7 @@ def logout():
         except Exception:
             users_count = 0
         return {
-            "message": "Logout state cleared",
+            "message": "Logout completed - cleared session and stored credentials",
             "authenticated_users": users_count,
             "active_states": 0
         }

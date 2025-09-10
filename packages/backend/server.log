@@ -125,3 +125,66 @@ Traceback (most recent call last):
 google.auth.exceptions.RefreshError: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
 [ERROR] Exception in /sync-inbox: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
 INFO:     127.0.0.1:61016 - "POST /sync-inbox HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61657 - "OPTIONS /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+[ERROR] HTTPException in /summarize: 500 - Failed to fetch thread: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+INFO:     127.0.0.1:61659 - "POST /summarize HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61663 - "GET /auth/status HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+[ERROR] HTTPException in /summarize: 500 - Failed to fetch thread: The credentials do not contain the necessary fields need to refresh the access token. You must specify refresh_token, token_uri, client_id, and client_secret.
+INFO:     127.0.0.1:61667 - "POST /summarize HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61753 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61757 - "POST /logout HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85138]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [88244]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [88244]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [88260]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+[Logout] Cleared all stored credentials from Supabase
+INFO:     127.0.0.1:61792 - "POST /logout HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [88260]
+/Users/varunkiragi/Documents/Workspace/MailFind/packages/backend/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+INFO:     Started server process [88433]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[Config] Init Supabase at startup: url=https://dtcvlkzrizdgqkpndfit.supabase.co, key_len=219
+INFO:     127.0.0.1:61804 - "GET /login HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+[OAuth] Storing credentials: token=True, refresh_token=True, client_id=True, client_secret=True
+INFO:     127.0.0.1:61806 - "GET /callback?state=1idIdyt-l6V36zPe0ejKad1vBOQkebrmga1dcstDkRo&code=4/0AVMBsJiVHSliKFjv09xXLNBwjzO741LvTBdC1k3BAMq-jeN3NiBWbSNxWHQt5zrcj_nqlg&scope=email%20https://www.googleapis.com/auth/gmail.readonly%20https://www.googleapis.com/auth/userinfo.email%20openid&authuser=0&prompt=consent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61799 - "GET /auth/status HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:61822 - "POST /summarize HTTP/1.1" 200 OK
+Received summarization request for thread ID: 19930a647fcae0eb
+INFO:     127.0.0.1:61827 - "POST /summarize HTTP/1.1" 200 OK
