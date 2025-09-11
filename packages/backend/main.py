@@ -1101,3 +1101,15 @@ async def sync_inbox(request: dict):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Sync error: {str(e)}")
+
+@app.get("/debug-env")
+def debug_env():
+    """Debug endpoint to check environment variables"""
+    import os
+    return {
+        "GOOGLE_CLIENT_ID": bool(os.getenv("GOOGLE_CLIENT_ID")),
+        "GOOGLE_CLIENT_SECRET": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
+        "GOOGLE_CLIENT_ID_VALUE": os.getenv("GOOGLE_CLIENT_ID"),
+        "working_directory": os.getcwd(),
+        "env_file_exists": os.path.exists(".env")
+    }
