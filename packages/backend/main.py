@@ -20,7 +20,7 @@ from google.oauth2.credentials import Credentials
 
 # Supabase + Encryption
 from supabase import create_client, Client  # type: ignore
-from cryptography.fernet import Fernet  # type: ignore
+from cryptography.fernet import Fernet, InvalidToken  # type: ignore
 import requests
 from sentence_transformers import SentenceTransformer  # type: ignore
 
@@ -133,7 +133,11 @@ def _encrypt_dict(data: dict) -> str:
 
 def _decrypt_to_dict(token_str: str) -> dict:
     f = _get_fernet()
-    raw = f.decrypt(token_str.encode("utf-8"))
+    try:
+        raw = f.decrypt(token_str.encode("utf-8"))
+    except InvalidToken:
+        # Likely ENCRYPTION_KEY changed or stored credentials are corrupted/expired
+        raise HTTPException(status_code=401, detail="Stored credentials invalid. Please login again.")
     return json.loads(raw.decode("utf-8"))
 
 
@@ -1113,3 +1117,15 @@ def debug_env():
         "working_directory": os.getcwd(),
         "env_file_exists": os.path.exists(".env")
     }
+
+
+@app.get("/debug-emails-count")
+def debug_emails_count():
+    """Count emails rows in Supabase for verification."""
+    try:
+        sb = _get_supabase()
+        res = sb.table("emails").select("thread_id", count="exact").execute()  # type: ignore[attr-defined]
+        count = getattr(res, "count", 0) or 0
+        return {"emails_count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Emails count error: {str(e)}")

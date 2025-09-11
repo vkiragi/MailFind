@@ -165,6 +165,20 @@ function App() {
         alert(`✅ Synced ${result.indexed_count} emails successfully!`);
       } else {
         console.error(`❌ [Sync] Backend error: ${response.status} ${response.statusText}`);
+        if (response.status === 401) {
+          try {
+            const body = await response.json().catch(() => ({} as any));
+            const msg = body?.detail || 'Authentication required. Please log in again.';
+            console.warn('⚠️ [Sync] 401 received:', msg);
+          } catch (_) {}
+          alert('Login required. Opening Google sign-in...');
+          window.open('http://localhost:8000/login', '_blank', 'width=600,height=600');
+          // Re-check auth shortly after to update UI
+          setTimeout(() => {
+            checkAuthStatus();
+          }, 3000);
+          return;
+        }
         throw new Error(`Failed to sync: ${response.status}`);
       }
     } catch (error) {
