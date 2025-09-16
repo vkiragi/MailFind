@@ -334,16 +334,40 @@ def _extract_headers(payload: dict) -> dict:
 
 
 def _parse_thread_metadata(thread: dict) -> dict:
-    # Try to derive a consistent subject and sender from the last message
+    # Try to derive a consistent subject, sender, and timestamp from the last message
     messages = thread.get('messages', [])
     if not messages:
-        return {"subject": "", "from": ""}
+        return {"subject": "", "from": "", "timestamp": None}
     last = messages[-1]
     payload = last.get('payload', {})
     headers = _extract_headers(payload)
     subject = headers.get('subject', '')
     sender = headers.get('from', '')
-    return {"subject": subject, "from": sender}
+    
+    # Extract timestamp from the message
+    timestamp = None
+    try:
+        # Gmail API provides internalDate as milliseconds since epoch
+        internal_date = last.get('internalDate')
+        if internal_date:
+            from datetime import datetime, timezone
+            timestamp = datetime.fromtimestamp(int(internal_date) / 1000, tz=timezone.utc).isoformat()
+        else:
+            # Fallback: try to parse Date header
+            date_header = headers.get('date', '')
+            if date_header:
+                from email.utils import parsedate_to_datetime
+                try:
+                    parsed_date = parsedate_to_datetime(date_header)
+                    if parsed_date.tzinfo is None:
+                        parsed_date = parsed_date.replace(tzinfo=timezone.utc)
+                    timestamp = parsed_date.isoformat()
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[Metadata] Error parsing timestamp: {e}")
+    
+    return {"subject": subject, "from": sender, "timestamp": timestamp}
 
 @app.get("/")
 def health_check():
@@ -828,6 +852,12 @@ async def search_emails(request: dict):
         # Execute the structured query to get filtered emails
         try:
             print(f"[Search] Executing structured query with filters: {applied_filters}")
+            
+            # Add ordering by created_at for recency queries
+            if parsed_entities.get('recency_priority'):
+                base_query = base_query.order('created_at', desc=True)
+                print(f"[Search] Added recency ordering (created_at DESC)")
+            
             structured_results = base_query.limit(200).execute()  # Increased limit for better results
             filtered_emails = getattr(structured_results, "data", []) or []
             print(f"[Search] Structured filtering found {len(filtered_emails)} emails")
@@ -949,6 +979,60 @@ async def search_emails(request: dict):
         # Limit final results
         final_results = semantic_results[:20]  # Increased limit for better user experience
         
+        # If no good results found and we have a sender filter, try a broader search
+        # Also trigger if we have sender-specific query but no sender matches in top results
+        needs_broad_search = False
+        if not final_results:
+            needs_broad_search = True
+        elif final_results:
+            max_relevance = max(r.get('enhanced_relevance', 0) for r in final_results)
+            # Check if any of the top results match the sender we're looking for
+            sender_in_results = any(
+                parsed_entities.get('sender', '').lower() in r.get('sender', '').lower() 
+                for r in final_results[:3]
+            ) if parsed_entities.get('sender') else True
+            
+            # Trigger broad search if low relevance OR no sender match in top results
+            if max_relevance < 100 or not sender_in_results:
+                needs_broad_search = True
+                print(f"[Search] Triggering broad search: max_relevance={max_relevance:.1f}, sender_in_results={sender_in_results}")
+        
+        if needs_broad_search:
+            if parsed_entities.get('sender'):
+                print(f"[Search] Low relevance results, trying broader sender search...")
+                try:
+                    # Try a broader sender search without other filters
+                    broad_query = sb.table("emails").select("*").filter("sender", "ilike", f"%{parsed_entities['sender']}%")
+                    
+                    # Add recency ordering for recency queries
+                    if parsed_entities.get('recency_priority'):
+                        broad_query = broad_query.order('created_at', desc=True)
+                        print(f"[Search] Added recency ordering to broad search")
+                    
+                    broad_results = getattr(broad_query.limit(10).execute(), "data", []) or []
+                    
+                    if broad_results:
+                        print(f"[Search] Found {len(broad_results)} emails in broader sender search")
+                        # Add these and calculate proper enhanced relevance scores
+                        for result in broad_results:
+                            if result.get('thread_id') not in seen_thread_ids:
+                                result['similarity'] = 0.6  # Moderate similarity
+                                result['search_type'] = 'broad_sender_search'
+                                result['matched_term'] = parsed_entities['sender']
+                                
+                                # Calculate proper enhanced relevance score for broad search results
+                                relevance_score = _calculate_enhanced_relevance_score(result, parsed_entities, query)
+                                result['enhanced_relevance'] = relevance_score
+                                
+                                final_results.append(result)
+                                
+                        # Re-sort and limit
+                        final_results.sort(key=lambda x: x.get('enhanced_relevance', 0), reverse=True)
+                        final_results = final_results[:20]
+                        
+                except Exception as e:
+                    print(f"[Search] Broader search failed: {str(e)}")
+        
         print(f"[Search] Final ranked results: {len(final_results)} emails")
         
         # Step 5: Prepare enhanced response with detailed metadata
@@ -1004,7 +1088,7 @@ Current date: {today.strftime('%Y-%m-%d')} (for relative date parsing)
 
 Extract these entities:
 - 'search_terms': List of ALL relevant keywords/phrases for semantic search (include names, topics, and content-specific terms)
-- 'sender': Sender name/email (can be partial, e.g., "Bob", "accounting", "new york times")  
+- 'sender': Sender name/email (can be partial, e.g., "Bob", "accounting", "wellfound", "linkedin")  
 - 'recipient': Recipient name/email (if specified)
 - 'subject_keywords': Keywords that should appear in email subject (prioritize specific content terms over generic words)
 - 'date_range': Object with 'start' and 'end' in YYYY-MM-DD format
@@ -1012,8 +1096,12 @@ Extract these entities:
 - 'attachment_required': Boolean - true if query specifically mentions attachments
 - 'priority': String - "high", "urgent", "important" if mentioned
 - 'email_type': String - "meeting", "invoice", "receipt", "report", etc.
+- 'recency_priority': Boolean - true if query mentions "newest", "latest", "recent", "new", "last" (without specific timeframe)
 
-IMPORTANT: For content-specific queries (e.g., "about charlie kirk"), extract the specific content terms as the primary search_terms and subject_keywords. These content terms should take priority over generic terms.
+IMPORTANT: 
+1. For content-specific queries (e.g., "about charlie kirk"), extract the specific content terms as the primary search_terms and subject_keywords.
+2. For recency queries (e.g., "newest wellfound email"), set recency_priority to true and focus on the sender/service name.
+3. Company/service names should be extracted as both search_terms and sender (e.g., "wellfound", "linkedin", "github").
 
 Date parsing examples:
 - "last week" → {{"start": "{(today - timedelta(weeks=1)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}
@@ -1034,6 +1122,12 @@ Response: {{"search_terms": ["meeting", "invite", "appointment"], "sender": "Sar
 
 Query: "find the email from new york times about charlie kirk"
 Response: {{"search_terms": ["charlie kirk", "charlie", "kirk"], "sender": "new york times", "subject_keywords": ["charlie kirk", "charlie", "kirk"]}}
+
+Query: "newest wellfound email"
+Response: {{"search_terms": ["wellfound"], "sender": "wellfound", "recency_priority": true, "subject_keywords": ["wellfound"]}}
+
+Query: "latest email from linkedin"
+Response: {{"search_terms": ["linkedin"], "sender": "linkedin", "recency_priority": true}}
 
 Query: "Excel reports with quarterly data"
 Response: {{"search_terms": ["quarterly", "data", "report"], "file_type": "xlsx", "attachment_required": true, "email_type": "report", "subject_keywords": ["quarterly", "report"]}}
@@ -1226,11 +1320,20 @@ def _calculate_enhanced_relevance_score(result: dict, parsed_entities: dict, ori
                 score += 35  # Higher boost for subject matches
                 print(f"[Ranking] Boosted score by 35 for keyword '{term}' in subject")
         
-        # Sender matching bonus (lower priority than content)
-        if parsed_entities.get('sender') and result.get('matched_filters'):
-            sender_bonus = 10  # Reduced from previous implicit high priority
-            score += sender_bonus
-            print(f"[Ranking] Added sender bonus: {sender_bonus}")
+        # Sender matching bonus (higher priority for sender-specific queries)
+        if parsed_entities.get('sender'):
+            sender_name = parsed_entities['sender'].lower()
+            result_sender = result.get('sender', '').lower()
+            
+            # Strong match if sender name appears in email sender
+            if sender_name in result_sender:
+                sender_bonus = 50  # High bonus for direct sender matches
+                score += sender_bonus
+                print(f"[Ranking] Added strong sender bonus: {sender_bonus} ('{sender_name}' found in '{result_sender}')")
+            elif result.get('matched_filters'):
+                sender_bonus = 15  # Moderate bonus for filter matches
+                score += sender_bonus
+                print(f"[Ranking] Added sender filter bonus: {sender_bonus}")
         
         # Penalty for promotional/marketing emails (common patterns)
         promotional_keywords = [
@@ -1243,6 +1346,71 @@ def _calculate_enhanced_relevance_score(result: dict, parsed_entities: dict, ori
             penalty = min(promotional_count * 5, 30)  # Cap penalty at 30
             score -= penalty
             print(f"[Ranking] Applied promotional penalty: -{penalty} (found {promotional_count} promotional keywords)")
+        
+        # Recency priority boost (for "newest", "latest" queries)
+        if parsed_entities.get('recency_priority'):
+            try:
+                # Use actual created_at timestamp for proper recency scoring
+                created_at = result.get('created_at')
+                if created_at:
+                    from datetime import datetime, timezone
+                    try:
+                        # Parse the timestamp
+                        if isinstance(created_at, str):
+                            # Handle different timestamp formats
+                            if 'T' in created_at:
+                                email_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                            else:
+                                email_time = datetime.fromisoformat(created_at)
+                        else:
+                            email_time = created_at
+                        
+                        # Calculate days since email
+                        now = datetime.now(timezone.utc)
+                        if email_time.tzinfo is None:
+                            email_time = email_time.replace(tzinfo=timezone.utc)
+                        
+                        days_ago = (now - email_time).total_seconds() / 86400  # Convert to days
+                        
+                        # Higher bonus for more recent emails (max 50 points for today, decreasing)
+                        if days_ago <= 1:
+                            recency_bonus = 50  # Today
+                        elif days_ago <= 7:
+                            recency_bonus = 40 - (days_ago * 5)  # This week, decreasing
+                        elif days_ago <= 30:
+                            recency_bonus = 15 - (days_ago * 0.3)  # This month, decreasing
+                        else:
+                            recency_bonus = 5  # Older emails get small bonus
+                        
+                        recency_bonus = max(5, recency_bonus)  # Minimum 5 points
+                        score += recency_bonus
+                        print(f"[Ranking] Added recency bonus: {recency_bonus:.1f} ({days_ago:.1f} days ago)")
+                        
+                    except (ValueError, TypeError) as e:
+                        print(f"[Ranking] Error parsing created_at '{created_at}': {e}")
+                        # Fallback: give small bonus for recency queries even if we can't parse date
+                        score += 10
+                else:
+                    # Fallback: Use thread_id as rough recency indicator when no timestamp available
+                    thread_id = result.get('thread_id', '')
+                    if thread_id and len(thread_id) > 10:
+                        try:
+                            # Convert hex thread_id to int for rough recency scoring
+                            thread_num = int(thread_id, 16)
+                            # Newer thread_ids tend to be higher (rough heuristic)
+                            # Normalize to 0-25 range
+                            recency_bonus = min(25, (thread_num % 10000) / 400)
+                            score += recency_bonus
+                            print(f"[Ranking] Added thread-based recency bonus: {recency_bonus:.1f} (thread_id: {thread_id})")
+                        except ValueError:
+                            score += 10  # Small fallback bonus
+                    else:
+                        score += 10  # Small fallback bonus
+                        
+            except Exception as e:
+                print(f"[Ranking] Error in recency calculation: {e}")
+                # Fallback: give small bonus for recency queries
+                score += 10
         
         # Boost for breaking news or important content
         important_keywords = ['breaking', 'urgent', 'important', 'alert', 'update']
@@ -1336,31 +1504,54 @@ Response:"""
 
 @app.post("/sync-inbox")
 async def sync_inbox(request: dict):
-    """Fetch last 50 Gmail threads, embed content, and upsert into Supabase emails table.
+    """Fetch Gmail threads with optional time-based filtering, embed content, and upsert into Supabase emails table.
 
-    Expected request body: { "userId": "..." (optional) }
+    Expected request body: { 
+        "userId": "..." (optional),
+        "time_range_days": int (optional) - number of days to look back (e.g., 1, 7, 30)
+    }
     """
     try:
         print(f"[Sync] Starting inbox sync with request: {request}")
         sb = _get_supabase()
 
         user_id = request.get("userId")
+        time_range_days = request.get("time_range_days")
+        
         print(f"[Sync] User ID: {user_id}")
+        print(f"[Sync] Time range: {time_range_days} days" if time_range_days else "[Sync] Time range: default (last 50 messages)")
 
         # Build Gmail service
         print("[Sync] Building Gmail service...")
         service = _build_gmail_service(user_id)
         print("[Sync] Gmail service built successfully")
 
-        # List last 50 threads
+        # Build query parameters for Gmail API
+        query_params = {"userId": "me"}
+        
+        if time_range_days:
+            # Use Gmail search query to filter by time range
+            query_params["q"] = f"in:inbox newer_than:{time_range_days}d"
+            query_params["maxResults"] = 200  # Increase limit for time-based searches
+            print(f"[Sync] Using Gmail query: {query_params['q']}")
+        else:
+            # Default behavior - last 50 messages
+            query_params["maxResults"] = 50
+        
+        # List threads with time filtering
         print("[Sync] Fetching threads list...")
-        threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
+        threads_resp = service.users().threads().list(**query_params).execute()
         threads = threads_resp.get('threads', []) or []
         print(f"[Sync] Found {len(threads)} threads")
 
         if not threads:
             print("[Sync] No threads found, returning 0")
-            return {"status": "success", "indexed_count": 0}
+            return {
+                "status": "success", 
+                "indexed_count": 0,
+                "time_range_days": time_range_days,
+                "query_used": query_params.get("q", "default")
+            }
 
         print("[Sync] Loading embedding model...")
         model = _get_embedding_model()
@@ -1384,7 +1575,8 @@ async def sync_inbox(request: dict):
                 meta = _parse_thread_metadata(thread_full)
                 subject = meta.get('subject', '')
                 sender = meta.get('from', '')
-                print(f"[Sync] Thread {tid}: Subject='{subject[:50]}...', Sender='{sender}'")
+                email_timestamp = meta.get('timestamp')
+                print(f"[Sync] Thread {tid}: Subject='{subject[:50]}...', Sender='{sender}', Timestamp='{email_timestamp}'")
 
                 text_for_embedding = (subject + "\n\n" + content).strip() or content
                 print(f"[Sync] Thread {tid}: Generating embedding for {len(text_for_embedding)} chars")
@@ -1392,6 +1584,7 @@ async def sync_inbox(request: dict):
                 print(f"[Sync] Thread {tid}: Generated embedding with {len(emb)} dimensions")
 
                 # Upsert into Supabase emails table
+                from datetime import datetime, timezone
                 payload = {
                     "google_user_id": user_id,  # may be None; acceptable if you use RLS appropriately
                     "thread_id": tid,
@@ -1399,6 +1592,7 @@ async def sync_inbox(request: dict):
                     "sender": sender,
                     "content": content,
                     "embedding": emb,
+                    "created_at": email_timestamp or datetime.now(timezone.utc).isoformat(),  # Use actual email time or fallback
                 }
                 print(f"[Sync] Thread {tid}: Upserting to Supabase...")
                 sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
@@ -1411,7 +1605,13 @@ async def sync_inbox(request: dict):
                 continue
 
         print(f"[Sync] Completed: {indexed}/{len(threads)} threads indexed successfully")
-        return {"status": "success", "indexed_count": indexed}
+        return {
+            "status": "success", 
+            "indexed_count": indexed,
+            "total_threads_found": len(threads),
+            "time_range_days": time_range_days,
+            "query_used": query_params.get("q", "default")
+        }
     except HTTPException as he:
         print(f"[ERROR] HTTPException in /sync-inbox: {he.status_code} - {he.detail}")
         raise he
@@ -1444,3 +1644,68 @@ def debug_emails_count():
         return {"emails_count": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Emails count error: {str(e)}")
+
+@app.post("/clear-emails")
+def clear_emails():
+    """Clear all emails from the database. Use with caution!"""
+    try:
+        sb = _get_supabase()
+        print("[Clear] Starting to clear all emails from database...")
+        
+        # Delete all emails
+        result = sb.table("emails").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()  # type: ignore[attr-defined]
+        
+        # Count remaining emails
+        count_res = sb.table("emails").select("thread_id", count="exact").execute()  # type: ignore[attr-defined]
+        remaining_count = getattr(count_res, "count", 0) or 0
+        
+        print(f"[Clear] Cleared emails. Remaining count: {remaining_count}")
+        
+        return {
+            "status": "success", 
+            "message": "All emails cleared from database",
+            "remaining_count": remaining_count
+        }
+    except Exception as e:
+        print(f"[Clear] Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Clear emails error: {str(e)}")
+
+@app.post("/add-created-at-column")
+def add_created_at_column():
+    """Add created_at timestamp column to emails table."""
+    try:
+        sb = _get_supabase()
+        print("[Schema] Adding created_at column to emails table...")
+        
+        # Execute SQL to add the column
+        # Note: Supabase Python client doesn't have direct DDL support,
+        # so we'll use the rpc() method to execute raw SQL
+        sql_query = """
+        ALTER TABLE emails 
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+        """
+        
+        result = sb.rpc('exec_sql', {'sql': sql_query}).execute()
+        
+        print("[Schema] Successfully added created_at column")
+        
+        return {
+            "status": "success",
+            "message": "created_at column added to emails table"
+        }
+    except Exception as e:
+        print(f"[Schema] Error adding column: {str(e)}")
+        # Try alternative approach using direct SQL execution
+        try:
+            # Alternative: Use PostgREST's direct SQL execution if available
+            result = sb.postgrest.rpc('exec_sql', {'sql': sql_query}).execute()
+            return {
+                "status": "success",
+                "message": "created_at column added to emails table (alternative method)"
+            }
+        except Exception as e2:
+            print(f"[Schema] Alternative method also failed: {str(e2)}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Could not add column. You may need to add it manually in Supabase dashboard: ALTER TABLE emails ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();"
+            )

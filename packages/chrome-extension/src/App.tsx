@@ -145,24 +145,33 @@ function App() {
     }
   }
 
-  const handleSyncInbox = async () => {
+  const handleSyncInbox = async (timeRangeDays: number) => {
     setSyncLoading(true)
-    console.log('📥 [Sync] Starting inbox sync...');
+    const timeLabel = `last ${timeRangeDays} day${timeRangeDays > 1 ? 's' : ''}`;
+    console.log(`📥 [Sync] Starting inbox sync (${timeLabel})...`);
     
     try {
+      const requestBody = { time_range_days: timeRangeDays };
+      
       const response = await fetch('http://localhost:8000/sync-inbox', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify(requestBody),
         credentials: 'include'
       });
       
       if (response.ok) {
         const result = await response.json();
         console.log('✅ [Sync] Sync successful:', result);
-        alert(`✅ Synced ${result.indexed_count} emails successfully!`);
+        
+        // Create more informative success message
+        const timeInfo = ` from the last ${result.time_range_days} day${result.time_range_days > 1 ? 's' : ''}`;
+        const queryInfo = result.query_used !== 'default' ? 
+          `\nQuery: ${result.query_used}` : '';
+        
+        alert(`✅ Synced ${result.indexed_count} emails successfully${timeInfo}!${queryInfo}`);
       } else {
         console.error(`❌ [Sync] Backend error: ${response.status} ${response.statusText}`);
         if (response.status === 401) {
@@ -252,15 +261,35 @@ function App() {
                  </div>
                  
                  {/* Sync Inbox Section */}
-                 <div className="space-y-2">
+                 <div className="space-y-3">
                    <h3 className="text-sm font-medium text-gray-700">📥 Sync Inbox</h3>
                    <p className="text-xs text-gray-600">Index your emails for semantic search</p>
+                   
+                   {/* Time-based Indexing Buttons */}
+                   <div className="grid grid-cols-2 gap-2">
+                     <button
+                       onClick={() => handleSyncInbox(1)}
+                       disabled={syncLoading}
+                       className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-3 rounded-md transition-colors text-xs"
+                     >
+                       {syncLoading ? '⏳' : '📅 Last 24h'}
+                     </button>
+                     <button
+                       onClick={() => handleSyncInbox(7)}
+                       disabled={syncLoading}
+                       className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-medium py-2 px-3 rounded-md transition-colors text-xs"
+                     >
+                       {syncLoading ? '⏳' : '📅 Last 7d'}
+                     </button>
+                   </div>
+                   
+                   {/* 30-day sync button */}
                    <button
-                     onClick={handleSyncInbox}
+                     onClick={() => handleSyncInbox(30)}
                      disabled={syncLoading}
-                     className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                     className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors text-sm"
                    >
-                     {syncLoading ? 'Syncing...' : '📥 Sync Inbox'}
+                     {syncLoading ? 'Syncing...' : '📅 Last 30 Days'}
                    </button>
                  </div>
 
