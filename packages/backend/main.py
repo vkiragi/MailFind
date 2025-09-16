@@ -66,7 +66,7 @@ app.add_middleware(
 )
 
 # In-memory storage for OAuth states (temporary)
-oauth_states = {}
+oauth_states = {}\
 
 # OAuth configuration
 # Include userinfo scopes to fetch email/subject identifiers for Supabase records
@@ -732,15 +732,16 @@ def get_summary_status(thread_id: str):
 
 @app.post("/search")
 async def search_emails(request: dict):
-    """Advanced semantic search with AI query parsing and structured filtering.
+    """Advanced semantic search with AI query parsing and sophisticated multi-step filtering.
 
     Expected request body: { "query": "search terms", "userId": "..." (optional) }
     
     Process:
-    1. Parse query with OpenAI to extract entities (sender, date_range, file_type, search_terms)
-    2. Build dynamic Supabase query with structured filters
+    1. Parse complex natural language query with GPT-5-nano to extract entities
+    2. Build dynamic, multi-step Supabase query with structured filters  
     3. Perform semantic vector search on filtered results
-    4. Return highly accurate, contextually relevant results
+    4. Apply additional post-processing filters and ranking
+    5. Return highly accurate, contextually relevant results
     """
     try:
         sb = _get_supabase()
@@ -751,114 +752,225 @@ async def search_emails(request: dict):
         
         user_id = request.get("userId")
         
-        print(f"[Search] Processing query: '{query}'")
+        print(f"[Search] Processing natural language query: '{query}'")
         
-        # Step 1: Parse query with AI to extract structured entities
+        # Step 1: Parse query with GPT-5-nano to extract comprehensive entities
         parsed_entities = await _parse_query_with_ai(query)
-        print(f"[Search] Parsed entities: {parsed_entities}")
+        print(f"[Search] Raw extracted entities: {parsed_entities}")
         
-        # Step 2: Build dynamic Supabase query with filters
+        # Step 1.5: Validate and enhance parsed entities
+        parsed_entities = _validate_and_enhance_parsed_entities(parsed_entities)
+        print(f"[Search] Enhanced entities: {parsed_entities}")
+        
+        # Step 2: Build sophisticated dynamic Supabase query with multiple filters
         base_query = sb.table("emails").select("*")
+        applied_filters = []
         
-        # Apply sender filter if specified
+        # Apply sender filter with flexible matching
         if parsed_entities.get("sender"):
             sender = parsed_entities["sender"]
-            base_query = base_query.filter("sender", "ilike", f"%{sender}%")
-            print(f"[Search] Applied sender filter: {sender}")
+            sender_variations = parsed_entities.get("sender_variations", [sender])
+            
+            # Use the most specific sender variation for the primary filter
+            primary_sender = sender_variations[0] if sender_variations else sender
+            base_query = base_query.filter("sender", "ilike", f"%{primary_sender}%")
+            applied_filters.append(f"sender contains '{primary_sender}'")
+            print(f"[Search] Applied sender filter: {primary_sender}")
+            
+            # Store variations for later use in semantic search boosting
+            parsed_entities["_sender_boost_terms"] = sender_variations
         
-        # Apply date range filter if specified
+        # Apply recipient filter if specified  
+        if parsed_entities.get("recipient"):
+            recipient = parsed_entities["recipient"]
+            # Note: This would require a recipient column in the emails table
+            # base_query = base_query.filter("recipient", "ilike", f"%{recipient}%")
+            applied_filters.append(f"recipient contains '{recipient}'")
+            print(f"[Search] Recipient filter noted (requires schema update): {recipient}")
+        
+        # Apply sophisticated date range filtering
         if parsed_entities.get("date_range"):
             date_range = parsed_entities["date_range"]
             if date_range.get("start"):
-                base_query = base_query.filter("created_at", "gte", date_range["start"])
+                base_query = base_query.filter("created_at", "gte", f"{date_range['start']}T00:00:00Z")
+                applied_filters.append(f"date >= {date_range['start']}")
                 print(f"[Search] Applied start date filter: {date_range['start']}")
             if date_range.get("end"):
-                base_query = base_query.filter("created_at", "lte", date_range["end"])
+                base_query = base_query.filter("created_at", "lte", f"{date_range['end']}T23:59:59Z")
+                applied_filters.append(f"date <= {date_range['end']}")
                 print(f"[Search] Applied end date filter: {date_range['end']}")
         
-        # Apply file type filter if specified (assuming we have a file_type column)
+        # Apply file type and attachment filters
         if parsed_entities.get("file_type"):
-            file_type = parsed_entities["file_type"]
+            file_type = parsed_entities["file_type"].lower()
+            # Search for file extensions in content
             base_query = base_query.filter("content", "ilike", f"%.{file_type}%")
+            applied_filters.append(f"contains .{file_type} files")
             print(f"[Search] Applied file type filter: {file_type}")
+        
+        # Apply subject keyword filters
+        if parsed_entities.get("subject_keywords"):
+            subject_keywords = parsed_entities["subject_keywords"]
+            for keyword in subject_keywords:
+                base_query = base_query.filter("subject", "ilike", f"%{keyword}%")
+                applied_filters.append(f"subject contains '{keyword}'")
+            print(f"[Search] Applied subject filters: {subject_keywords}")
+        
+        # Apply priority filters (search in content for priority indicators)
+        if parsed_entities.get("priority"):
+            priority = parsed_entities["priority"]
+            priority_terms = ["urgent", "important", "high priority", "asap"]
+            if priority.lower() in priority_terms:
+                base_query = base_query.filter("content", "ilike", f"%{priority}%")
+                applied_filters.append(f"priority: {priority}")
+                print(f"[Search] Applied priority filter: {priority}")
         
         # Execute the structured query to get filtered emails
         try:
-            structured_results = base_query.limit(100).execute()  # Limit to avoid too many results
+            print(f"[Search] Executing structured query with filters: {applied_filters}")
+            structured_results = base_query.limit(200).execute()  # Increased limit for better results
             filtered_emails = getattr(structured_results, "data", []) or []
             print(f"[Search] Structured filtering found {len(filtered_emails)} emails")
         except Exception as e:
-            print(f"[Search] Structured query failed, using full dataset: {str(e)}")
-            # Fallback to full dataset if structured query fails
-            filtered_emails = []
+            print(f"[Search] Structured query failed, using fallback: {str(e)}")
+            # Fallback to basic query if complex filtering fails
+            try:
+                fallback_query = sb.table("emails").select("*")
+                if parsed_entities.get("sender"):
+                    fallback_query = fallback_query.filter("sender", "ilike", f"%{parsed_entities['sender']}%")
+                structured_results = fallback_query.limit(100).execute()
+                filtered_emails = getattr(structured_results, "data", []) or []
+                print(f"[Search] Fallback query found {len(filtered_emails)} emails")
+            except Exception as fallback_error:
+                print(f"[Search] Fallback also failed: {fallback_error}")
+                filtered_emails = []
         
-        # Step 3: Perform semantic search on filtered results (or full dataset if no filters)
-        search_terms = parsed_entities.get("search_terms", [query])  # Use original query as fallback
+        # Step 3: Perform enhanced semantic search 
+        search_terms = parsed_entities.get("search_terms", [query])
         if not search_terms:
             search_terms = [query]
         
+        # Add email type to search terms if specified
+        if parsed_entities.get("email_type"):
+            search_terms.append(parsed_entities["email_type"])
+        
         print(f"[Search] Performing semantic search for terms: {search_terms}")
         
-        # Generate embeddings for search terms
+        # Generate embeddings and perform vector search
         model = _get_embedding_model()
         semantic_results = []
         seen_thread_ids = set()
         
-        for term in search_terms:
+        # Combine original query with extracted search terms for better semantic matching
+        all_search_terms = list(set([query] + search_terms))  # Remove duplicates
+        
+        for term in all_search_terms:
             try:
                 embedding = model.encode(term, normalize_embeddings=True)
                 
-                # If we have filtered emails, perform vector similarity on them
-                if filtered_emails:
-                    # For filtered results, we need to compute similarity manually
-                    # This is a simplified approach - in production you'd want more sophisticated vector search
-                    term_results = []
-                    for email in filtered_emails:
-                        if email.get('thread_id') not in seen_thread_ids:
-                            # Add basic similarity score (this could be enhanced)
-                            email['similarity'] = 0.8  # Placeholder - filtered results get high score
-                            email['matched_term'] = term
-                            term_results.append(email)
-                            seen_thread_ids.add(email.get('thread_id'))
-                    
-                    semantic_results.extend(term_results[:10])  # Limit per term
-                    print(f"[Search] Term '{term}' matched {len(term_results)} filtered emails")
-                else:
-                    # Use full vector search if no structured filters applied
+                # Perform vector search - prefer RPC function for better performance
+                try:
                     vector_results = sb.rpc('match_emails', {
                         'query_embedding': embedding.tolist(),
-                        'match_threshold': 0.5,
-                        'match_count': 10
+                        'match_threshold': 0.4,  # Lowered threshold for more results
+                        'match_count': 20  # Increased count
                     }).execute()
                     
                     term_results = getattr(vector_results, "data", []) or []
+                    
+                    # If we have structured filters, prioritize results that match them
+                    if filtered_emails:
+                        filtered_thread_ids = {email.get('thread_id') for email in filtered_emails}
+                        # Boost similarity score for emails that match structured filters
+                        for result in term_results:
+                            if result.get('thread_id') in filtered_thread_ids:
+                                result['similarity'] = min(1.0, result.get('similarity', 0) + 0.3)  # Boost score
+                                result['matched_filters'] = True
+                            else:
+                                result['matched_filters'] = False
+                    
+                    # Add results, avoiding duplicates
                     for result in term_results:
-                        if result.get('thread_id') not in seen_thread_ids:
+                        thread_id = result.get('thread_id')
+                        if thread_id not in seen_thread_ids:
                             result['matched_term'] = term
+                            result['search_type'] = 'vector_search'
                             semantic_results.append(result)
-                            seen_thread_ids.add(result.get('thread_id'))
+                            seen_thread_ids.add(thread_id)
                     
                     print(f"[Search] Term '{term}' found {len(term_results)} vector matches")
+                    
+                except Exception as vector_error:
+                    print(f"[Search] Vector search failed for term '{term}': {vector_error}")
+                    
+                    # Manual similarity calculation fallback for filtered emails
+                    if filtered_emails:
+                        for email in filtered_emails:
+                            thread_id = email.get('thread_id')
+                            if thread_id not in seen_thread_ids:
+                                # Simple keyword matching as fallback
+                                content = (email.get('content', '') + ' ' + email.get('subject', '')).lower()
+                                term_lower = term.lower()
+                                if term_lower in content:
+                                    email['similarity'] = 0.7  # High score for exact matches
+                                    email['matched_term'] = term
+                                    email['search_type'] = 'keyword_match'
+                                    email['matched_filters'] = True
+                                    semantic_results.append(email)
+                                    seen_thread_ids.add(thread_id)
+                        
+                        print(f"[Search] Fallback keyword matching for '{term}' on filtered emails")
                     
             except Exception as e:
                 print(f"[Search] Error processing search term '{term}': {str(e)}")
                 continue
         
-        # Step 4: Sort and limit final results
-        semantic_results.sort(key=lambda x: x.get('similarity', 0), reverse=True)
-        final_results = semantic_results[:15]
+        # Step 4: Advanced post-processing and ranking
+        print(f"[Search] Post-processing {len(semantic_results)} results")
         
-        print(f"[Search] Final results: {len(final_results)} emails")
+        # Apply additional filters based on parsed entities
+        if parsed_entities.get("attachment_required"):
+            # Filter for emails likely to have attachments
+            attachment_keywords = ['attachment', 'attached', 'please find', 'pdf', 'doc', 'file']
+            semantic_results = [
+                result for result in semantic_results
+                if any(keyword in result.get('content', '').lower() for keyword in attachment_keywords)
+            ]
+            print(f"[Search] Filtered for attachments: {len(semantic_results)} results remain")
         
-        return {
+        # Calculate enhanced relevance scores for better ranking
+        for result in semantic_results:
+            relevance_score = _calculate_enhanced_relevance_score(result, parsed_entities, query)
+            result['enhanced_relevance'] = relevance_score
+        
+        # Sort by enhanced relevance score (content relevance prioritized over sender matching)
+        semantic_results.sort(key=lambda x: x.get('enhanced_relevance', 0), reverse=True)
+        
+        # Limit final results
+        final_results = semantic_results[:20]  # Increased limit for better user experience
+        
+        print(f"[Search] Final ranked results: {len(final_results)} emails")
+        
+        # Step 5: Prepare enhanced response with detailed metadata
+        response_data = {
             "status": "success",
             "query": query,
             "parsed_entities": parsed_entities,
+            "applied_filters": applied_filters,
             "structured_filter_count": len(filtered_emails) if filtered_emails else 0,
             "search_terms": search_terms,
+            "total_candidates": len(semantic_results),
             "results": final_results,
-            "count": len(final_results)
+            "count": len(final_results),
+            "search_metadata": {
+                "ai_parsing": "gpt-5-nano",
+                "vector_search": True,
+                "structured_filters": len(applied_filters),
+                "semantic_terms": len(all_search_terms)
+            }
         }
+        
+        return response_data
         
     except HTTPException:
         raise
@@ -866,11 +978,11 @@ async def search_emails(request: dict):
         print(f"[Search] Error: {str(e)}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Advanced search error: {str(e)}")
 
 
 async def _parse_query_with_ai(query: str) -> dict:
-    """Use OpenAI gpt-5-nano to parse query and extract structured entities."""
+    """Use OpenAI gpt-5-nano to parse complex natural language queries and extract structured entities."""
     try:
         # Ensure OpenAI client is available
         api_key = os.getenv("OPENAI_API_KEY")
@@ -880,25 +992,57 @@ async def _parse_query_with_ai(query: str) -> dict:
 
         client = OpenAI(api_key=api_key)
         
-        system_prompt = """
-You are an expert email search query parser. Analyze the user's query and extract key entities into a JSON object.
-The possible entities are: 'search_terms' (list of strings), 'sender' (string), 'date_range' (object with 'start' and 'end' in YYYY-MM-DD format), and 'file_type' (string, e.g., 'pdf', 'docx').
-If an entity is not found, omit it from the JSON. Today's date is 2025-09-09.
+        # Get current date for relative date parsing
+        from datetime import datetime, timedelta
+        today = datetime.now()
+        current_year = today.year
+        current_month = today.month
+        
+        system_prompt = f"""You are an expert email search query parser. Analyze the user's natural language query and extract key entities into a structured JSON object.
+
+Current date: {today.strftime('%Y-%m-%d')} (for relative date parsing)
+
+Extract these entities:
+- 'search_terms': List of ALL relevant keywords/phrases for semantic search (include names, topics, and content-specific terms)
+- 'sender': Sender name/email (can be partial, e.g., "Bob", "accounting", "new york times")  
+- 'recipient': Recipient name/email (if specified)
+- 'subject_keywords': Keywords that should appear in email subject (prioritize specific content terms over generic words)
+- 'date_range': Object with 'start' and 'end' in YYYY-MM-DD format
+- 'file_type': File extension (pdf, docx, xlsx, pptx, etc.)
+- 'attachment_required': Boolean - true if query specifically mentions attachments
+- 'priority': String - "high", "urgent", "important" if mentioned
+- 'email_type': String - "meeting", "invoice", "receipt", "report", etc.
+
+IMPORTANT: For content-specific queries (e.g., "about charlie kirk"), extract the specific content terms as the primary search_terms and subject_keywords. These content terms should take priority over generic terms.
+
+Date parsing examples:
+- "last week" → {{"start": "{(today - timedelta(weeks=1)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}
+- "last month" → {{"start": "{(today.replace(day=1) - timedelta(days=1)).replace(day=1).strftime('%Y-%m-%d')}", "end": "{(today.replace(day=1) - timedelta(days=1)).strftime('%Y-%m-%d')}"}}
+- "last September" → {{"start": "{current_year-1 if current_month < 9 else current_year}-09-01", "end": "{current_year-1 if current_month < 9 else current_year}-09-30"}}
+- "yesterday" → {{"start": "{(today - timedelta(days=1)).strftime('%Y-%m-%d')}", "end": "{(today - timedelta(days=1)).strftime('%Y-%m-%d')}"}}
+- "this year" → {{"start": "{current_year}-01-01", "end": "{current_year}-12-31"}}
 
 Examples:
-Query: "emails from john about meetings last week"
-Response: {"search_terms": ["meetings"], "sender": "john", "date_range": {"start": "2025-09-02", "end": "2025-09-08"}}
+Query: "Find the PDF from Bob last September"
+Response: {{"search_terms": ["PDF", "document"], "sender": "Bob", "date_range": {{"start": "2024-09-01", "end": "2024-09-30"}}, "file_type": "pdf", "attachment_required": true}}
 
-Query: "pdf invoices from accounting"
-Response: {"search_terms": ["invoices"], "sender": "accounting", "file_type": "pdf"}
+Query: "urgent emails from accounting about invoices this month"  
+Response: {{"search_terms": ["invoices", "billing"], "sender": "accounting", "priority": "urgent", "email_type": "invoice", "date_range": {{"start": "{today.replace(day=1).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
 
-Query: "travel bookings"
-Response: {"search_terms": ["travel", "bookings"]}
-"""
+Query: "meeting invites from Sarah last week"
+Response: {{"search_terms": ["meeting", "invite", "appointment"], "sender": "Sarah", "email_type": "meeting", "subject_keywords": ["meeting", "invite"], "date_range": {{"start": "{(today - timedelta(weeks=1)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
+
+Query: "find the email from new york times about charlie kirk"
+Response: {{"search_terms": ["charlie kirk", "charlie", "kirk"], "sender": "new york times", "subject_keywords": ["charlie kirk", "charlie", "kirk"]}}
+
+Query: "Excel reports with quarterly data"
+Response: {{"search_terms": ["quarterly", "data", "report"], "file_type": "xlsx", "attachment_required": true, "email_type": "report", "subject_keywords": ["quarterly", "report"]}}
+
+Only include entities that are clearly mentioned or strongly implied. Return valid JSON only."""
         
-        user_prompt = f"Parse the following query: '{query}'"
+        user_prompt = f"Parse this email search query: '{query}'"
         
-        print(f"[Search] Parsing query with OpenAI gpt-5-nano...")
+        print(f"[Search] Parsing complex query with GPT-5-nano: '{query}'")
         
         # Use Responses API with gpt-5-nano for structured parsing
         try:
@@ -913,29 +1057,39 @@ Response: {"search_terms": ["travel", "bookings"]}
                         if delta:
                             response_text += delta
                 
-                print(f"[Search] OpenAI response: {response_text}")
+                print(f"[Search] GPT-5-nano response: {response_text}")
                 
                 # Parse JSON response
                 try:
                     import json
-                    parsed_entities = json.loads(response_text.strip())
+                    # Clean response text - remove any markdown formatting
+                    clean_response = response_text.strip()
+                    if clean_response.startswith("```json"):
+                        clean_response = clean_response[7:]
+                    if clean_response.endswith("```"):
+                        clean_response = clean_response[:-3]
+                    clean_response = clean_response.strip()
+                    
+                    parsed_entities = json.loads(clean_response)
+                    print(f"[Search] Successfully parsed entities: {parsed_entities}")
                     return parsed_entities
                 except json.JSONDecodeError as je:
                     print(f"[Search] JSON parse error: {je}")
+                    print(f"[Search] Raw response: {response_text}")
                     # Fallback to basic parsing
                     return {"search_terms": [query]}
                     
         except Exception as api_error:
-            print(f"[Search] OpenAI API error: {api_error}")
+            print(f"[Search] GPT-5-nano API error: {api_error}")
             # Try fallback with chat completion if Responses API fails
             try:
                 response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o-mini",  # More reliable model for fallback
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    max_tokens=200,
+                    max_tokens=300,
                     temperature=0.1
                 )
                 
@@ -943,7 +1097,16 @@ Response: {"search_terms": ["travel", "bookings"]}
                 print(f"[Search] Fallback response: {response_text}")
                 
                 import json
-                parsed_entities = json.loads(response_text)
+                # Clean response text
+                clean_response = response_text.strip()
+                if clean_response.startswith("```json"):
+                    clean_response = clean_response[7:]
+                if clean_response.endswith("```"):
+                    clean_response = clean_response[:-3]
+                clean_response = clean_response.strip()
+                
+                parsed_entities = json.loads(clean_response)
+                print(f"[Search] Fallback parsing successful: {parsed_entities}")
                 return parsed_entities
                 
             except Exception as fallback_error:
@@ -952,7 +1115,159 @@ Response: {"search_terms": ["travel", "bookings"]}
         
     except Exception as e:
         print(f"[Search] Error in query parsing: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"search_terms": [query]}
+
+
+def _validate_and_enhance_parsed_entities(entities: dict) -> dict:
+    """Validate and enhance parsed entities with additional logic."""
+    try:
+        from datetime import datetime, timedelta
+        
+        # Validate and fix date ranges
+        if entities.get("date_range"):
+            date_range = entities["date_range"]
+            today = datetime.now()
+            
+            # Handle common date parsing issues
+            if date_range.get("start") and date_range.get("end"):
+                try:
+                    start_date = datetime.fromisoformat(date_range["start"])
+                    end_date = datetime.fromisoformat(date_range["end"])
+                    
+                    # Ensure start is before end
+                    if start_date > end_date:
+                        date_range["start"], date_range["end"] = date_range["end"], date_range["start"]
+                        print(f"[Search] Fixed date range order: {date_range}")
+                        
+                    # Ensure dates are not in the future (unless explicitly specified)
+                    if start_date > today:
+                        print(f"[Search] Warning: Start date {date_range['start']} is in the future")
+                        
+                except ValueError as ve:
+                    print(f"[Search] Invalid date format in range: {ve}")
+                    # Remove invalid date range
+                    del entities["date_range"]
+        
+        # Enhance search terms based on email type
+        if entities.get("email_type") and entities.get("search_terms"):
+            email_type = entities["email_type"].lower()
+            search_terms = entities["search_terms"]
+            
+            # Add related terms based on email type
+            type_mappings = {
+                "meeting": ["appointment", "calendar", "schedule", "zoom", "teams"],
+                "invoice": ["billing", "payment", "amount", "due", "receipt"],
+                "report": ["analysis", "summary", "data", "metrics", "quarterly"],
+                "receipt": ["purchase", "transaction", "payment", "confirmation"],
+            }
+            
+            if email_type in type_mappings:
+                additional_terms = type_mappings[email_type]
+                # Add terms that aren't already present
+                for term in additional_terms:
+                    if term not in [t.lower() for t in search_terms]:
+                        search_terms.append(term)
+                
+                entities["search_terms"] = search_terms
+                print(f"[Search] Enhanced search terms for {email_type}: {search_terms}")
+        
+        # Normalize sender names (handle common variations)
+        if entities.get("sender"):
+            sender = entities["sender"].strip()
+            # Handle common name variations
+            if len(sender.split()) == 1 and sender.isalpha():
+                # Single name - could be first name, add common email patterns
+                entities["sender_variations"] = [
+                    sender,
+                    f"{sender.lower()}@",  # Start of email
+                    f"{sender.title()}",   # Title case
+                ]
+                print(f"[Search] Added sender variations: {entities['sender_variations']}")
+        
+        return entities
+        
+    except Exception as e:
+        print(f"[Search] Error validating entities: {str(e)}")
+        return entities
+
+
+def _calculate_enhanced_relevance_score(result: dict, parsed_entities: dict, original_query: str) -> float:
+    """Calculate enhanced relevance score that prioritizes content relevance over sender matching."""
+    try:
+        score = 0.0
+        
+        # Base semantic similarity (most important factor)
+        base_similarity = result.get('similarity', 0)
+        score += base_similarity * 100  # Scale to 0-100 range
+        
+        # Content relevance boost - check if search terms appear in content/subject
+        search_terms = parsed_entities.get('search_terms', [])
+        content = (result.get('content', '') + ' ' + result.get('subject', '')).lower()
+        
+        # Boost for exact keyword matches in content
+        for term in search_terms:
+            if term.lower() in content:
+                score += 25  # Significant boost for keyword matches
+                print(f"[Ranking] Boosted score by 25 for keyword '{term}' in content")
+        
+        # Boost for original query terms in content (handles cases where parsing might miss terms)
+        original_words = original_query.lower().split()
+        for word in original_words:
+            if len(word) > 3 and word in content:  # Skip short words like "the", "and"
+                score += 15
+                print(f"[Ranking] Boosted score by 15 for original word '{word}' in content")
+        
+        # Subject line relevance (higher weight than general content)
+        subject = result.get('subject', '').lower()
+        for term in search_terms:
+            if term.lower() in subject:
+                score += 35  # Higher boost for subject matches
+                print(f"[Ranking] Boosted score by 35 for keyword '{term}' in subject")
+        
+        # Sender matching bonus (lower priority than content)
+        if parsed_entities.get('sender') and result.get('matched_filters'):
+            sender_bonus = 10  # Reduced from previous implicit high priority
+            score += sender_bonus
+            print(f"[Ranking] Added sender bonus: {sender_bonus}")
+        
+        # Penalty for promotional/marketing emails (common patterns)
+        promotional_keywords = [
+            'sale', 'offer', 'discount', 'save', 'deal', 'limited time', 
+            'subscribe', 'unsubscribe', 'newsletter', 'promotion', '$',
+            'free', 'buy now', 'click here'
+        ]
+        promotional_count = sum(1 for keyword in promotional_keywords if keyword in content)
+        if promotional_count >= 3:  # Multiple promotional indicators
+            penalty = min(promotional_count * 5, 30)  # Cap penalty at 30
+            score -= penalty
+            print(f"[Ranking] Applied promotional penalty: -{penalty} (found {promotional_count} promotional keywords)")
+        
+        # Boost for breaking news or important content
+        important_keywords = ['breaking', 'urgent', 'important', 'alert', 'update']
+        for keyword in important_keywords:
+            if keyword in subject:
+                score += 20
+                print(f"[Ranking] Boosted score by 20 for important keyword '{keyword}' in subject")
+        
+        # Length penalty for very short content (likely promotional)
+        content_length = len(result.get('content', ''))
+        if content_length < 200:
+            length_penalty = (200 - content_length) / 10  # Gradual penalty
+            score -= min(length_penalty, 20)  # Cap penalty
+            print(f"[Ranking] Applied length penalty: -{min(length_penalty, 20)} (content length: {content_length})")
+        
+        # Ensure score is non-negative
+        final_score = max(score, 0)
+        
+        print(f"[Ranking] Email '{result.get('subject', '')[:50]}...' - Final relevance score: {final_score:.2f}")
+        return final_score
+        
+    except Exception as e:
+        print(f"[Ranking] Error calculating relevance score: {str(e)}")
+        # Fallback to base similarity
+        return result.get('similarity', 0) * 100
 
 
 async def _expand_query_with_ai(original_query: str) -> list[str]:
