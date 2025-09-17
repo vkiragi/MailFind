@@ -21,22 +21,40 @@ function showToast(message: string) {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'mailfind-toast';
+
+    // Check for dark mode
+    const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
     toast.style.cssText = `
       position: fixed;
-      top: 16px;
-      right: 16px;
+      top: 20px;
+      right: 20px;
       z-index: 2147483647;
-      background: rgba(32,33,36,0.98);
+      background: ${isDarkMode ?
+        'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))' :
+        'linear-gradient(135deg, rgba(30, 58, 138, 0.95), rgba(79, 70, 229, 0.95))'};
+      backdrop-filter: blur(12px);
       color: #fff;
-      padding: 10px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-      max-width: 360px;
-      line-height: 1.4;
+      padding: 16px 20px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15), 0 4px 10px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      max-width: 380px;
+      line-height: 1.5;
       pointer-events: none;
+      transform: translateY(-10px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     `;
     document.body.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      toast!.style.transform = 'translateY(0)';
+      toast!.style.opacity = '1';
+    });
   }
   toast.textContent = message;
   return toast;
@@ -48,7 +66,17 @@ function updateToast(toast: HTMLElement, message: string) {
 
 function hideToast(toast: HTMLElement, delayMs = 1200) {
   if (!toast) return;
-  setTimeout(() => { toast.remove(); }, delayMs);
+  setTimeout(() => {
+    if (toast) {
+      toast.style.transform = 'translateY(-10px)';
+      toast.style.opacity = '0';
+      setTimeout(() => {
+        if (toast && toast.parentNode) {
+          toast.remove();
+        }
+      }, 300);
+    }
+  }, delayMs);
 }
 
 // Extract visible email content directly from Gmail's DOM
@@ -124,76 +152,297 @@ function renderInlineSummary(summaryText: string): HTMLDivElement {
 
   const card = document.createElement('div');
   card.id = 'mailfind-summary-card';
+
+  // Check for dark mode
+  const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
   card.style.cssText = `
     position: fixed;
-    top: 72px;
-    right: 16px;
+    top: 80px;
+    right: 20px;
     z-index: 2147483647;
-    width: 420px;
-    max-height: 70vh;
-    overflow: auto;
-    background: #fff;
-    color: #202124;
-    border-radius: 12px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.2);
-    border: 1px solid rgba(0,0,0,0.08);
-    padding: 16px;
-    font-size: 14px;
-    line-height: 1.5;
-    white-space: pre-wrap;
+    width: 440px;
+    max-height: 75vh;
+    overflow: hidden;
+    background: ${isDarkMode ?
+      'linear-gradient(135deg, #1f2937 0%, #111827 100%)' :
+      'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'};
+    color: ${isDarkMode ? '#f9fafb' : '#1f2937'};
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.08);
+    border: 1px solid ${isDarkMode ? 'rgba(75, 85, 99, 0.3)' : 'rgba(148, 163, 184, 0.2)'};
+    backdrop-filter: blur(12px);
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   `;
 
+  // Animate in
+  document.body.appendChild(card);
+  requestAnimationFrame(() => {
+    card.style.transform = 'translateY(0) scale(1)';
+    card.style.opacity = '1';
+  });
+
+  const headerIsDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
   const header = document.createElement('div');
-  header.style.cssText = 'display:flex;align-items:center;margin-bottom:8px;gap:6px;';
+  header.style.cssText = `
+    display: flex;
+    align-items: center;
+    padding: 20px 20px 16px 20px;
+    background: ${headerIsDarkMode ?
+      'linear-gradient(135deg, #475569 0%, #334155 100%)' :
+      'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)'};
+    border-radius: 24px 24px 0 0;
+    margin: 0;
+    gap: 8px;
+    cursor: move;
+    user-select: none;
+  `;
+
+  const iconContainer = document.createElement('div');
+  iconContainer.style.cssText = `
+    width: 32px;
+    height: 32px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+
+  // Add mail icon SVG instead of emoji
+  iconContainer.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 7.89a2 2 0 002.83 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  `;
+
+  const titleContainer = document.createElement('div');
+  titleContainer.style.cssText = 'flex: 1;';
+
   const title = document.createElement('div');
   title.textContent = 'MailFind Summary';
-  title.style.cssText = 'font-weight:600;font-size:14px;flex:1;';
+  title.style.cssText = 'font-weight: 600; font-size: 15px; color: white; margin-bottom: 2px;';
+
+  const subtitle = document.createElement('div');
+  subtitle.textContent = 'AI-powered email insights';
+  subtitle.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.8);';
+
+  titleContainer.appendChild(title);
+  titleContainer.appendChild(subtitle);
 
   // Minimize toggle button
   const minimizeBtn = document.createElement('button');
-  minimizeBtn.textContent = '–';
+  minimizeBtn.innerHTML = '−';
   minimizeBtn.setAttribute('aria-label', 'Minimize summary');
   minimizeBtn.title = 'Minimize';
-  minimizeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:16px;line-height:16px;padding:0 4px;';
+  minimizeBtn.style.cssText = `
+    border: none;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+  `;
+  minimizeBtn.addEventListener('mouseenter', () => {
+    minimizeBtn.style.background = 'rgba(255,255,255,0.3)';
+  });
+  minimizeBtn.addEventListener('mouseleave', () => {
+    minimizeBtn.style.background = 'rgba(255,255,255,0.2)';
+  });
 
   const closeBtn = document.createElement('button');
-  closeBtn.textContent = '×';
+  closeBtn.innerHTML = '×';
   closeBtn.setAttribute('aria-label', 'Close summary');
   closeBtn.title = 'Close';
-  closeBtn.style.cssText = 'border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:18px;line-height:18px;padding:0 4px;';
-  closeBtn.addEventListener('click', () => card.remove());
+  closeBtn.style.cssText = `
+    border: none;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+  `;
+  closeBtn.addEventListener('mouseenter', () => {
+    closeBtn.style.background = 'rgba(255,255,255,0.3)';
+  });
+  closeBtn.addEventListener('mouseleave', () => {
+    closeBtn.style.background = 'rgba(255,255,255,0.2)';
+  });
+  closeBtn.addEventListener('click', () => {
+    card.style.transform = 'translateY(-20px) scale(0.95)';
+    card.style.opacity = '0';
+    setTimeout(() => card.remove(), 300);
+  });
 
-  header.appendChild(title);
+  header.appendChild(iconContainer);
+  header.appendChild(titleContainer);
   header.appendChild(minimizeBtn);
   header.appendChild(closeBtn);
+
+  // Add drag functionality - with enhanced debugging
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+
+  // Add visual indicator for debugging
+  console.log('🖱️ [Drag] Setting up drag functionality for header');
+  
+  // Make entire header clickable area more obvious
+  header.style.minHeight = '60px';
+  
+  header.addEventListener('mousedown', (e) => {
+    console.log('🖱️ [Drag] Mouse down on header', e.target);
+    
+    // Don't start drag if clicking on buttons
+    if ((e.target as Element).closest('button')) {
+      console.log('🖱️ [Drag] Clicked on button, ignoring');
+      return;
+    }
+    
+    console.log('🖱️ [Drag] Starting drag operation');
+    isDragging = true;
+    const rect = card.getBoundingClientRect();
+    dragOffset.x = e.clientX - rect.left;
+    dragOffset.y = e.clientY - rect.top;
+    
+    // Add visual feedback
+    card.style.transition = 'none';
+    card.style.transform = 'scale(1.02)';
+    card.style.boxShadow = '0 25px 50px rgba(0,0,0,0.25), 0 12px 24px rgba(0,0,0,0.15)';
+    header.style.cursor = 'grabbing';
+    document.body.style.cursor = 'grabbing';
+    
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  // Use a more specific event handler to avoid conflicts
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    console.log('🖱️ [Drag] Moving card to', e.clientX, e.clientY);
+    const x = e.clientX - dragOffset.x;
+    const y = e.clientY - dragOffset.y;
+    
+    // Keep card within viewport bounds
+    const maxX = window.innerWidth - card.offsetWidth;
+    const maxY = window.innerHeight - card.offsetHeight;
+    
+    const clampedX = Math.max(0, Math.min(x, maxX));
+    const clampedY = Math.max(0, Math.min(y, maxY));
+    
+    card.style.left = `${clampedX}px`;
+    card.style.top = `${clampedY}px`;
+    card.style.right = 'auto';
+    
+    e.preventDefault();
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    
+    console.log('🖱️ [Drag] Ending drag operation');
+    isDragging = false;
+    
+    // Restore visual state
+    card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+    card.style.transform = 'scale(1)';
+    card.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.08)';
+    header.style.cursor = 'move';
+    document.body.style.cursor = '';
+  };
+
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+  
+  // Clean up event listeners when card is removed
+  const originalRemove = card.remove;
+  card.remove = function() {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    originalRemove.call(this);
+  };
+
   const body = document.createElement('div');
+  body.style.cssText = `
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: ${headerIsDarkMode ? '#f3f4f6' : '#374151'};
+    white-space: pre-wrap;
+    max-height: calc(75vh - 80px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: ${headerIsDarkMode ? '#4b5563 #374151' : '#d1d5db #f3f4f6'};
+  `;
+
+  // Custom scrollbar styles for webkit browsers
+  const style = document.createElement('style');
+  style.textContent = `
+    #mailfind-summary-card .summary-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    #mailfind-summary-card .summary-body::-webkit-scrollbar-track {
+      background: #f3f4f6;
+      border-radius: 3px;
+    }
+    #mailfind-summary-card .summary-body::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 3px;
+    }
+    #mailfind-summary-card .summary-body::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+  `;
+  document.head.appendChild(style);
+
+  body.className = 'summary-body';
   body.textContent = summaryText;
+
   card.appendChild(header);
   card.appendChild(body);
-  document.body.appendChild(card);
 
   // Minimize/expand behavior
   let collapsed = false;
   const applyCollapsed = () => {
     if (collapsed) {
       body.style.display = 'none';
-      card.style.width = '260px';
-      card.style.maxHeight = 'unset';
-      title.textContent = 'MailFind Summary (minimized)';
-      minimizeBtn.textContent = '+';
+      card.style.width = '280px';
+      card.style.maxHeight = 'auto';
+      title.textContent = 'MailFind Summary';
+      subtitle.textContent = 'Minimized - click to expand';
+      minimizeBtn.innerHTML = '+';
       minimizeBtn.title = 'Expand';
       minimizeBtn.setAttribute('aria-label', 'Expand summary');
     } else {
       body.style.display = '';
-      card.style.width = '420px';
-      card.style.maxHeight = '70vh';
+      card.style.width = '440px';
+      card.style.maxHeight = '75vh';
       title.textContent = 'MailFind Summary';
-      minimizeBtn.textContent = '–';
+      subtitle.textContent = 'AI-powered email insights';
+      minimizeBtn.innerHTML = '−';
       minimizeBtn.title = 'Minimize';
       minimizeBtn.setAttribute('aria-label', 'Minimize summary');
     }
   };
-  minimizeBtn.addEventListener('click', () => { collapsed = !collapsed; applyCollapsed(); });
+  minimizeBtn.addEventListener('click', () => {
+    collapsed = !collapsed;
+    applyCollapsed();
+  });
   applyCollapsed();
   return body as HTMLDivElement;
 }
@@ -261,34 +510,67 @@ function injectSummarizeButton() {
     const button = document.createElement('button');
     button.id = 'mailfind-summarize-btn';
     button.className = 'mailfind-btn';
-    button.innerHTML = '📧 Summarize';
+
+    // Check for dark mode in Gmail
+    const gmailIsDarkMode = document.documentElement.getAttribute('data-color-scheme') === 'dark' ||
+                           document.querySelector('[data-color-scheme="dark"]') !== null;
+
+    button.innerHTML = `
+      <svg style="margin-right: 6px; width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 7.89a2 2 0 002.83 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+      <span>Summarize</span>
+    `;
+
     button.style.cssText = `
-      background: #1a73e8;
+      background: ${gmailIsDarkMode ?
+        'linear-gradient(135deg, #475569 0%, #334155 100%)' :
+        'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)'};
       color: white;
       border: none;
-      border-radius: 12px;
-      height: 24px;
-      line-height: 24px;
-      padding: 0 10px;
-      margin-left: 6px;
+      border-radius: 20px;
+      height: 32px;
+      padding: 0 14px;
+      margin-left: 8px;
       cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
+      font-size: 13px;
+      font-weight: 600;
       z-index: 1000;
       position: relative;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       box-sizing: border-box;
       vertical-align: middle;
       white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: scale(1);
     `;
 
-    // Hover effect
+    // Hover and interaction effects
+    const originalBg = gmailIsDarkMode ?
+      'linear-gradient(135deg, #475569 0%, #334155 100%)' :
+      'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)';
+    const hoverBg = gmailIsDarkMode ?
+      'linear-gradient(135deg, #374151 0%, #1f2937 100%)' :
+      'linear-gradient(135deg, #2563eb 0%, #5b21b6 100%)';
+
     button.addEventListener('mouseenter', () => {
-      button.style.background = '#1557b0';
+      button.style.background = hoverBg;
+      button.style.transform = 'scale(1.05)';
+      button.style.boxShadow = '0 4px 8px rgba(59, 130, 246, 0.4)';
     });
     button.addEventListener('mouseleave', () => {
-      button.style.background = '#1a73e8';
+      button.style.background = originalBg;
+      button.style.transform = 'scale(1)';
+      button.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
+    });
+    button.addEventListener('mousedown', () => {
+      button.style.transform = 'scale(0.98)';
+    });
+    button.addEventListener('mouseup', () => {
+      button.style.transform = 'scale(1.05)';
     });
 
     button.addEventListener('click', handleSummarizeClick);
@@ -315,7 +597,7 @@ async function handleSummarizeClick() {
     console.log('🔍 [Gmail] Trying direct content extraction approach...');
 
     // New approach: Extract visible email content directly from the page
-    let emailContent = extractVisibleEmailContent();
+    const emailContent = extractVisibleEmailContent();
     
     if (emailContent && emailContent.length > 100) {
       console.log('✅ [Gmail] Extracted email content directly from page:', emailContent.substring(0, 100) + '...');
@@ -380,7 +662,7 @@ async function handleSummarizeClick() {
     console.log('🔍 [Gmail] Found', threadElements.length, 'thread elements in DOM');
     
     // Strategy 1: Look for elements that are actually visible and in viewport
-    let visibleElements = [];
+    const visibleElements = [];
     for (const element of threadElements) {
       const rect = element.getBoundingClientRect();
       const isVisible = rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top < window.innerHeight;
@@ -551,7 +833,9 @@ async function handleSummarizeClick() {
         updateToast(toast, 'Login required. Opening login page…');
         try {
           window.open('http://localhost:8000/login', '_blank', 'noopener');
-        } catch (_) {}
+        } catch {
+          // Ignore popup errors
+        }
       } else if (response.status === 404) {
         updateToast(toast, 'Thread not found. Open a conversation and try again.');
       } else if (response.status === 400) {
