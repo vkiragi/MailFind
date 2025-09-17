@@ -8,6 +8,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [searchSummary, setSearchSummary] = useState<string>('')
+  const [searchAction, setSearchAction] = useState<string>('')
   const [syncLoading, setSyncLoading] = useState(false)
 
   // Check authentication status on component mount
@@ -218,7 +220,19 @@ function App() {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ [Search] Search successful:', result);
-        setSearchResults(result.results || []);
+        
+        // Handle different response types
+        if (result.action === 'summarize') {
+          // Summarization response
+          setSearchAction('summarize');
+          setSearchSummary(result.summary || 'No summary available');
+          setSearchResults([]); // Clear search results
+        } else {
+          // Regular search response
+          setSearchAction('search');
+          setSearchResults(result.results || []);
+          setSearchSummary(''); // Clear summary
+        }
       } else {
         console.error(`❌ [Search] Backend error: ${response.status} ${response.statusText}`);
         throw new Error(`Search failed: ${response.status}`);
@@ -315,29 +329,40 @@ function App() {
                    </div>
                  </div>
 
-                 {/* Search Results */}
-                 {searchResults.length > 0 && (
-                   <div className="space-y-2">
-                     <h4 className="text-sm font-medium text-gray-700">Search Results ({searchResults.length})</h4>
-                     <div className="max-h-60 overflow-y-auto space-y-2">
-                       {searchResults.map((result, index) => (
-                         <div key={index} className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                           <div className="text-xs font-medium text-gray-800 mb-1">
-                             {result.sender || 'Unknown Sender'}
-                           </div>
-                           <div className="text-xs text-gray-700 mb-2">
-                             {result.subject || 'No Subject'}
-                           </div>
-                           {result.similarity && (
-                             <div className="text-xs text-blue-600">
-                               Similarity: {Math.round(result.similarity * 100)}%
-                             </div>
-                           )}
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 )}
+                {/* Search Results or Summary */}
+                {searchAction === 'summarize' && searchSummary && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700">📄 Email Summary</h4>
+                    <div className="max-h-60 overflow-y-auto bg-blue-50 border border-blue-200 rounded-md p-3">
+                      <div className="text-xs text-gray-800 whitespace-pre-wrap">
+                        {searchSummary}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {searchAction === 'search' && searchResults.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700">🔍 Search Results ({searchResults.length})</h4>
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {searchResults.map((result, index) => (
+                        <div key={index} className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                          <div className="text-xs font-medium text-gray-800 mb-1">
+                            {result.sender || 'Unknown Sender'}
+                          </div>
+                          <div className="text-xs text-gray-700 mb-2">
+                            {result.subject || 'No Subject'}
+                          </div>
+                          {result.similarity && (
+                            <div className="text-xs text-blue-600">
+                              Similarity: {Math.round(result.similarity * 100)}%
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                  
                  <button
                    onClick={handleLogout}

@@ -754,6 +754,231 @@ def get_summary_status(thread_id: str):
     }
 
 
+def _build_gmail_query_string(parsed_entities: dict) -> str:
+    """Build clean, simple Gmail API query string from parsed entities."""
+    query_parts = []
+    
+    # Add sender filter - clean format
+    if parsed_entities.get("sender"):
+        sender = parsed_entities["sender"]
+        # Clean sender format - remove extra spaces and variations
+        clean_sender = sender.strip().lower()
+        query_parts.append(f"from:{clean_sender}")
+    
+    # Add recipient filter - clean format  
+    if parsed_entities.get("recipient"):
+        recipient = parsed_entities["recipient"].strip().lower()
+        query_parts.append(f"to:{recipient}")
+    
+    # Add date range filter - use Gmail's preferred format
+    if parsed_entities.get("date_range"):
+        date_range = parsed_entities["date_range"]
+        start_date = date_range.get("start")
+        end_date = date_range.get("end")
+        
+        if start_date:
+            # Convert YYYY-MM-DD to YYYY/MM/DD for Gmail
+            gmail_start = start_date.replace("-", "/")
+            query_parts.append(f"after:{gmail_start}")
+        if end_date:
+            gmail_end = end_date.replace("-", "/")
+            query_parts.append(f"before:{gmail_end}")
+    
+    # Add status filter - clean format
+    if parsed_entities.get("status"):
+        status = parsed_entities["status"].lower()
+        if status == "unread":
+            query_parts.append("is:unread")
+        elif status == "read":
+            query_parts.append("is:read")
+        elif status == "starred":
+            query_parts.append("is:starred")
+    
+    # Add priority filter
+    if parsed_entities.get("priority"):
+        priority = parsed_entities["priority"].lower()
+        if priority in ["high", "urgent", "important"]:
+            query_parts.append("is:important")
+    
+    # Add search terms - simple format without redundant OR logic
+    search_terms = parsed_entities.get("search_terms", [])
+    if search_terms:
+        # Simple space-separated terms in quotes
+        for term in search_terms:
+            if term.strip():  # Only add non-empty terms
+                query_parts.append(f'"{term.strip()}"')
+    
+    # Default to inbox if no filters (not "all" which can be too broad)
+    if not query_parts:
+        query_parts.append("in:inbox")
+    
+    # Build final clean query
+    gmail_query = " ".join(query_parts)
+    print(f"[Gmail Query] Built clean query: '{gmail_query}'")
+    return gmail_query
+
+
+async def _fetch_emails_for_summarization(parsed_entities: dict, user_id: str = None) -> list:
+    """Fetch email content from Gmail API for summarization."""
+    try:
+        gmail_service = _build_gmail_service(user_id)
+        if not gmail_service:
+            raise HTTPException(status_code=401, detail="Gmail service not available")
+        
+        # Build Gmail query string
+        gmail_query = _build_gmail_query_string(parsed_entities)
+        print(f"[Summarize] Gmail query: {gmail_query}")
+        
+        # List messages matching the query
+        messages_result = gmail_service.users().messages().list(
+            userId="me",
+            q=gmail_query,
+            maxResults=50  # Limit for summarization performance
+        ).execute()
+        
+        messages = messages_result.get("messages", [])
+        if not messages:
+            return []
+        
+        print(f"[Summarize] Found {len(messages)} messages to summarize")
+        
+        # Fetch full content for each message
+        email_contents = []
+        for msg in messages[:20]:  # Limit to 20 emails for performance
+            try:
+                message = gmail_service.users().messages().get(
+                    userId="me", 
+                    id=msg["id"],
+                    format="full"
+                ).execute()
+                
+                # Extract email metadata and content
+                headers = _extract_headers(message.get("payload", {}))
+                subject = headers.get("subject", "No Subject")
+                sender = headers.get("from", "Unknown Sender")
+                date = headers.get("date", "Unknown Date")
+                
+                # Extract body content
+                content = _extract_email_content(message.get("payload", {}))
+                
+                if content.strip():  # Only include emails with content
+                    email_contents.append({
+                        "subject": subject,
+                        "sender": sender,
+                        "date": date,
+                        "content": content[:2000]  # Limit content length for API efficiency
+                    })
+                    
+            except Exception as e:
+                print(f"[Summarize] Error fetching message {msg['id']}: {e}")
+                continue
+        
+        print(f"[Summarize] Successfully fetched {len(email_contents)} emails for summarization")
+        return email_contents
+        
+    except Exception as e:
+        print(f"[Summarize] Error fetching emails: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch emails for summarization: {str(e)}")
+
+
+async def _generate_email_summary(email_contents: list, parsed_entities: dict) -> str:
+    """Generate a summary of multiple emails using GPT-5-nano."""
+    try:
+        # Ensure OpenAI client is available
+        api_key = os.getenv("OPENAI_API_KEY")
+        if OpenAI is None or not api_key:
+            raise HTTPException(status_code=500, detail="OpenAI API not available for summarization")
+        
+        client = OpenAI(api_key=api_key)
+        
+        # Prepare combined email text
+        combined_text = ""
+        for i, email in enumerate(email_contents, 1):
+            combined_text += f"\n--- EMAIL {i} ---\n"
+            combined_text += f"From: {email['sender']}\n"
+            combined_text += f"Subject: {email['subject']}\n"
+            combined_text += f"Date: {email['date']}\n"
+            combined_text += f"Content: {email['content']}\n"
+        
+        # Create specialized summarization prompt
+        system_prompt = """You are a world-class executive assistant with exceptional email management skills. 
+
+Your task is to review multiple emails and provide a concise, actionable summary that highlights:
+1. Most important updates and announcements
+2. Key decisions that were made
+3. Action items or tasks that require attention
+4. Deadlines or time-sensitive information
+5. Important communications from key people
+
+IGNORE:
+- Marketing emails and promotional content
+- Automated notifications with no actionable content
+- Spam or irrelevant messages
+
+FORMAT your response as:
+## Summary
+[Brief overview of the main themes and topics]
+
+## Key Updates
+- [Important update 1]
+- [Important update 2]
+
+## Action Items
+- [Action item 1 with deadline if mentioned]
+- [Action item 2 with deadline if mentioned]
+
+## Important Communications
+- [Key message from important sender]
+
+Keep the summary concise but comprehensive. Focus on what the user needs to know and act upon."""
+        
+        user_prompt = f"Please summarize the following {len(email_contents)} emails:\n\n{combined_text}"
+        
+        print(f"[Summarize] Generating summary for {len(email_contents)} emails using GPT-5-nano")
+        
+        # Use GPT-5-nano for summarization
+        try:
+            with client.responses.stream(
+                model="gpt-5-nano",
+                input=f"System: {system_prompt}\n\nUser: {user_prompt}",
+            ) as stream:
+                summary_text = ""
+                for event in stream:
+                    if event.type == "response.output_text.delta":
+                        delta = getattr(event, "delta", "") or ""
+                        if delta:
+                            summary_text += delta
+                
+                print(f"[Summarize] Generated summary: {len(summary_text)} characters")
+                return summary_text.strip()
+                
+        except Exception as api_error:
+            print(f"[Summarize] GPT-5-nano API error: {api_error}")
+            # Fallback to GPT-4o-mini
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    max_tokens=1000,
+                    temperature=0.3
+                )
+                
+                summary_text = response.choices[0].message.content
+                print(f"[Summarize] Fallback summary generated: {len(summary_text)} characters")
+                return summary_text.strip()
+                
+            except Exception as fallback_error:
+                print(f"[Summarize] Fallback summarization failed: {fallback_error}")
+                raise HTTPException(status_code=500, detail="Failed to generate email summary")
+        
+    except Exception as e:
+        print(f"[Summarize] Error generating summary: {e}")
+        raise HTTPException(status_code=500, detail=f"Summarization error: {str(e)}")
+
+
 @app.post("/search")
 async def search_emails(request: dict):
     """Advanced semantic search with AI query parsing and sophisticated multi-step filtering.
@@ -786,7 +1011,113 @@ async def search_emails(request: dict):
         parsed_entities = _validate_and_enhance_parsed_entities(parsed_entities)
         print(f"[Search] Enhanced entities: {parsed_entities}")
         
-        # Step 2: Build sophisticated dynamic Supabase query with multiple filters
+        # Step 1.7: Check if this is a summarization request
+        action = parsed_entities.get("action", "search")
+        if action == "summarize":
+            print("[Search] Detected summarization request - switching to summarization workflow")
+            
+            # Try to fetch emails from Gmail API based on parsed filters
+            try:
+                email_contents = await _fetch_emails_for_summarization(parsed_entities, user_id)
+                print(f"[Search] Gmail API returned {len(email_contents)} emails")
+                
+                # If Gmail API succeeded but found 0 emails, still try Supabase fallback
+                if not email_contents:
+                    print("[Search] Gmail API found 0 emails, trying Supabase fallback")
+                    raise Exception("Gmail API found no emails, trying fallback")
+                    
+            except Exception as gmail_error:
+                print(f"[Search] Gmail API failed for summarization: {gmail_error}")
+                # Fallback to Supabase data for summarization
+                print("[Search] Falling back to Supabase data for summarization")
+                
+                # REUSE THE EXACT SAME LOGIC AS REGULAR SEARCH
+                # Step 2: Build sophisticated dynamic Supabase query with multiple filters
+                base_query = sb.table("emails").select("*")
+                applied_filters = []
+                
+                # Apply sender filter with flexible matching (same as regular search)
+                if parsed_entities.get("sender"):
+                    sender = parsed_entities["sender"]
+                    sender_variations = parsed_entities.get("sender_variations", [sender])
+                    
+                    # Use the most specific sender variation for the primary filter
+                    primary_sender = sender_variations[0] if sender_variations else sender
+                    base_query = base_query.filter("sender", "ilike", f"%{primary_sender}%")
+                    applied_filters.append(f"sender contains '{primary_sender}'")
+                    print(f"[Summarize] Applied sender filter: {primary_sender}")
+                
+                # Apply date range filter (same as regular search)
+                if parsed_entities.get("date_range"):
+                    date_range = parsed_entities["date_range"]
+                    if date_range.get("start"):
+                        base_query = base_query.filter("created_at", "gte", date_range["start"])
+                        applied_filters.append(f"after {date_range['start']}")
+                    if date_range.get("end"):
+                        base_query = base_query.filter("created_at", "lte", date_range["end"])
+                        applied_filters.append(f"before {date_range['end']}")
+                    print(f"[Summarize] Applied date filter: {date_range}")
+                
+                # Apply recency ordering if specified
+                if parsed_entities.get("recency_priority"):
+                    base_query = base_query.order('created_at', desc=True)
+                    print("[Summarize] Applied recency ordering")
+                
+                # Execute the structured query (same as regular search)
+                print(f"[Summarize] Executing Supabase query with filters: {applied_filters}")
+                
+                # If no filters were applied, get recent emails broadly
+                if not applied_filters:
+                    print("[Summarize] No specific filters, getting recent emails broadly")
+                    # Don't order by created_at since many emails have null timestamps
+                    # Just get emails without any ordering
+                
+                filtered_result = base_query.limit(20).execute()
+                filtered_emails = filtered_result.data or []
+                print(f"[Summarize] Found {len(filtered_emails)} emails with structured filters")
+                
+                # Convert Supabase format to summarization format
+                email_contents = []
+                for email in filtered_emails:
+                    email_contents.append({
+                        "subject": email.get("subject", "No Subject"),
+                        "sender": email.get("sender", "Unknown Sender"), 
+                        "date": email.get("created_at", "Unknown Date"),
+                        "content": email.get("content", "")[:2000]
+                    })
+                
+                print(f"[Summarize] Prepared {len(email_contents)} emails for summarization")
+            
+            if not email_contents:
+                return {
+                    "status": "success",
+                    "action": "summarize",
+                    "query": query,
+                    "parsed_entities": parsed_entities,
+                    "summary": "No emails found matching your criteria.",
+                    "emails_found": 0
+                }
+            
+            # Generate summary using GPT-5-nano
+            summary = await _generate_email_summary(email_contents, parsed_entities)
+            
+            return {
+                "status": "success",
+                "action": "summarize",
+                "query": query,
+                "parsed_entities": parsed_entities,
+                "summary": summary,
+                "emails_found": len(email_contents),
+                "emails_summarized": [
+                    {
+                        "subject": email["subject"],
+                        "sender": email["sender"],
+                        "date": email["date"]
+                    } for email in email_contents
+                ]
+            }
+        
+        # Step 2: Build sophisticated dynamic Supabase query with multiple filters (for search action)
         base_query = sb.table("emails").select("*")
         applied_filters = []
         
@@ -1035,6 +1366,17 @@ async def search_emails(request: dict):
         
         print(f"[Search] Final ranked results: {len(final_results)} emails")
         
+        # Step 4.5: Apply result count limiting if specified
+        original_count = len(final_results)
+        requested_count = parsed_entities.get("result_count")
+        
+        if requested_count and isinstance(requested_count, int) and requested_count > 0:
+            if len(final_results) > requested_count:
+                final_results = final_results[:requested_count]
+                print(f"[Search] Limited results from {original_count} to {requested_count} as requested")
+            else:
+                print(f"[Search] User requested {requested_count} results, but only found {len(final_results)}")
+        
         # Step 5: Prepare enhanced response with detailed metadata
         response_data = {
             "status": "success",
@@ -1046,11 +1388,14 @@ async def search_emails(request: dict):
             "total_candidates": len(semantic_results),
             "results": final_results,
             "count": len(final_results),
+            "original_count": original_count,  # Show how many results were found before limiting
+            "requested_count": requested_count,  # Show what the user requested
             "search_metadata": {
                 "ai_parsing": "gpt-5-nano",
                 "vector_search": True,
                 "structured_filters": len(applied_filters),
-                "semantic_terms": len(all_search_terms)
+                "semantic_terms": len(all_search_terms),
+                "result_limiting": requested_count is not None
             }
         }
         
@@ -1087,6 +1432,7 @@ async def _parse_query_with_ai(query: str) -> dict:
 Current date: {today.strftime('%Y-%m-%d')} (for relative date parsing)
 
 Extract these entities:
+- 'action': String - "search" (default) or "summarize" (if user wants a summary/digest of emails)
 - 'search_terms': List of ALL relevant keywords/phrases for semantic search (include names, topics, and content-specific terms)
 - 'sender': Sender name/email (can be partial, e.g., "Bob", "accounting", "wellfound", "linkedin")  
 - 'recipient': Recipient name/email (if specified)
@@ -1096,7 +1442,9 @@ Extract these entities:
 - 'attachment_required': Boolean - true if query specifically mentions attachments
 - 'priority': String - "high", "urgent", "important" if mentioned
 - 'email_type': String - "meeting", "invoice", "receipt", "report", etc.
+- 'status': String - "unread", "read", "starred" if mentioned (for Gmail API filtering)
 - 'recency_priority': Boolean - true if query mentions "newest", "latest", "recent", "new", "last" (without specific timeframe)
+- 'result_count': Integer - specific number of results requested (e.g., "13", "top 5", "last 3", "first 10")
 
 IMPORTANT: 
 1. For content-specific queries (e.g., "about charlie kirk"), extract the specific content terms as the primary search_terms and subject_keywords.
@@ -1111,6 +1459,24 @@ Date parsing examples:
 - "this year" → {{"start": "{current_year}-01-01", "end": "{current_year}-12-31"}}
 
 Examples:
+Query: "Summarize my unread emails from this week"
+Response: {{"action": "summarize", "search_terms": ["unread"], "status": "unread", "date_range": {{"start": "{(today - timedelta(weeks=1)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
+
+Query: "Give me a digest of all emails from accounting this month"
+Response: {{"action": "summarize", "search_terms": ["accounting"], "sender": "accounting", "date_range": {{"start": "{today.replace(day=1).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
+
+Query: "Summarize important emails from the last 3 days"
+Response: {{"action": "summarize", "search_terms": ["important"], "priority": "important", "date_range": {{"start": "{(today - timedelta(days=3)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
+
+Query: "Give me my last 13 DoorDash orders"
+Response: {{"action": "search", "search_terms": ["DoorDash", "orders", "delivery"], "sender": "DoorDash", "email_type": "receipt", "recency_priority": true, "result_count": 13}}
+
+Query: "Show me top 5 emails from LinkedIn"
+Response: {{"action": "search", "search_terms": ["LinkedIn"], "sender": "LinkedIn", "result_count": 5}}
+
+Query: "Find my last 3 emails about meetings"
+Response: {{"action": "search", "search_terms": ["meeting", "appointment"], "email_type": "meeting", "subject_keywords": ["meeting"], "recency_priority": true, "result_count": 3}}
+
 Query: "Find the PDF from Bob last September"
 Response: {{"search_terms": ["PDF", "document"], "sender": "Bob", "date_range": {{"start": "2024-09-01", "end": "2024-09-30"}}, "file_type": "pdf", "attachment_required": true}}
 
