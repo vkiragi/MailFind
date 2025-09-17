@@ -490,19 +490,10 @@ def auth_status():
 
 @app.post("/logout")
 def logout():
-    """Logout clears pending oauth states and stored credentials."""
+    """Logout clears pending oauth states. User data is preserved."""
     try:
         global oauth_states
         oauth_states.clear()
-        
-        # Clear all stored credentials from Supabase
-        try:
-            sb = _get_supabase()
-            # Delete all users (this will clear incomplete credentials)
-            sb.table("users").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
-            print("[Logout] Cleared all stored credentials from Supabase")
-        except Exception as e:
-            print(f"[Logout] Error clearing credentials: {e}")
         
         users_count = 0
         try:
@@ -511,13 +502,39 @@ def logout():
             users_count = getattr(res, "count", 0) or 0
         except Exception:
             users_count = 0
+        
+        print("[Logout] Cleared OAuth states - user credentials preserved")
         return {
-            "message": "Logout completed - cleared session and stored credentials",
+            "message": "Logout completed - cleared active sessions (user data preserved)",
             "authenticated_users": users_count,
             "active_states": 0
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Logout error: {str(e)}")
+
+@app.post("/clear-all-users")
+def clear_all_users():
+    """Development endpoint: Clear all stored user credentials from database.
+    WARNING: This is destructive and removes all user data."""
+    try:
+        sb = _get_supabase()
+        # Delete all users (keeping the placeholder UUID if it exists)
+        sb.table("users").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+        print("[Clear Users] Cleared all stored user credentials from Supabase")
+        
+        users_count = 0
+        try:
+            res = sb.table("users").select("id", count="exact").execute()  # type: ignore[attr-defined]
+            users_count = getattr(res, "count", 0) or 0
+        except Exception:
+            users_count = 0
+            
+        return {
+            "message": "All user credentials cleared from database",
+            "authenticated_users": users_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Clear users error: {str(e)}")
 
 @app.post("/summarize")
 def summarize_email_thread(request: dict):
