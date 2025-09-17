@@ -4,7 +4,7 @@ import './App.css'
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [authStatus, setAuthStatus] = useState<any>(null)
+  // const [authStatus, setAuthStatus] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -21,7 +21,7 @@ function App() {
       if (response.ok) {
         const status = await response.json();
         console.log('📊 [Auth] Current auth status:', status);
-        setAuthStatus(status);
+        // setAuthStatus(status);
         // If there are authenticated users, consider user as authenticated
         const wasAuthenticated = status.authenticated_users > 0;
         setIsAuthenticated(wasAuthenticated);
@@ -126,7 +126,7 @@ function App() {
         
         // Update local state
         setIsAuthenticated(false);
-        setAuthStatus(null);
+        // setAuthStatus(null);
         
         // Refresh auth status
         await checkAuthStatus();
@@ -210,115 +210,128 @@ function App() {
   }
 
   return (
-    <div className="w-80 p-4 bg-white">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">📧 MailFind</h1>
-        <p className="text-sm text-gray-600">AI-powered email summarization</p>
+    <div className="w-96 bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans">
+      {/* Header Section */}
+      <div className="flex flex-col items-center">
+        <h1 className="text-2xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-500">
+          MailFind
+        </h1>
+        <p className="text-sm text-slate-400 text-center -mt-1">
+          AI-powered email assistant
+        </p>
       </div>
 
       {!isAuthenticated ? (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-700">
-            Connect your Gmail account to start summarizing emails
+        <div className="flex flex-col gap-y-4">
+          <p className="text-sm text-slate-300 text-center">
+            Connect your Gmail account to start using AI-powered email search
           </p>
           <button
             onClick={handleLogin}
             disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
+            className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
           >
             {isLoading ? 'Connecting...' : 'Connect with Google'}
           </button>
         </div>
-                   ) : (
-               <div className="space-y-4">
-                 <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                   <p className="text-sm text-green-800">
-                     ✅ Connected to Gmail
-                   </p>
-                 </div>
-                 
-                 {/* Sync Inbox Section */}
-                 <div className="space-y-2">
-                   <h3 className="text-sm font-medium text-gray-700">📥 Sync Inbox</h3>
-                   <p className="text-xs text-gray-600">Index your emails for semantic search</p>
-                   <button
-                     onClick={handleSyncInbox}
-                     disabled={syncLoading}
-                     className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
-                   >
-                     {syncLoading ? 'Syncing...' : '📥 Sync Inbox'}
-                   </button>
-                 </div>
-
-                 {/* Search Section */}
-                 <div className="space-y-2">
-                   <h3 className="text-sm font-medium text-gray-700">🔍 Search Emails</h3>
-                   <div className="flex space-x-2">
-                     <input
-                       type="text"
-                       value={searchQuery}
-                       onChange={(e) => setSearchQuery(e.target.value)}
-                       onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                       placeholder="Search your emails..."
-                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                     />
-                     <button
-                       onClick={handleSearch}
-                       disabled={isSearching || !searchQuery.trim()}
-                       className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium px-4 py-2 rounded-md transition-colors"
-                     >
-                       {isSearching ? '...' : '🔍'}
-                     </button>
-                   </div>
-                 </div>
-
-                 {/* Search Results */}
-                 {searchResults.length > 0 && (
-                   <div className="space-y-2">
-                     <h4 className="text-sm font-medium text-gray-700">Search Results ({searchResults.length})</h4>
-                     <div className="max-h-60 overflow-y-auto space-y-2">
-                       {searchResults.map((result, index) => (
-                         <div key={index} className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                           <div className="text-xs font-medium text-gray-800 mb-1">
-                             {result.sender || 'Unknown Sender'}
-                           </div>
-                           <div className="text-xs text-gray-700 mb-2">
-                             {result.subject || 'No Subject'}
-                           </div>
-                           {result.similarity && (
-                             <div className="text-xs text-blue-600">
-                               Similarity: {Math.round(result.similarity * 100)}%
-                             </div>
-                           )}
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 )}
-                 
-                 <button
-                   onClick={handleLogout}
-                   disabled={isLoading}
-                   className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
-                 >
-                   {isLoading ? 'Logging out...' : '🚪 Logout'}
-                 </button>
-               </div>
-             )}
-
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500 text-center">
-          ✅ Use the "📧 Summarize" button in Gmail to summarize email threads
-        </p>
-        
-        {authStatus && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-md">
-            <p className="text-xs text-gray-600 text-center">
-              Backend Status: {authStatus.authenticated_users} users, {authStatus.active_states} active states
-            </p>
+      ) : (
+        <div className="flex flex-col gap-y-5">
+          {/* Connection Status */}
+          <div className="flex items-center justify-center gap-x-2 text-sm text-green-400 bg-green-900/50 rounded-full px-3 py-1">
+            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+            Connected to Gmail
           </div>
-        )}
-      </div>
+          
+          {/* Sync Inbox Section */}
+          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
+            <div className="flex items-center gap-x-2 font-semibold">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+              </svg>
+              Sync Inbox
+            </div>
+            <div className="grid grid-cols-3 gap-x-2">
+              <button className="bg-slate-700 text-slate-300 text-xs font-semibold py-2 rounded-lg hover:bg-slate-600 transition-colors">
+                24h
+              </button>
+              <button className="bg-slate-700 text-slate-300 text-xs font-semibold py-2 rounded-lg hover:bg-slate-600 transition-colors">
+                7d
+              </button>
+              <button className="bg-slate-700 text-slate-300 text-xs font-semibold py-2 rounded-lg hover:bg-slate-600 transition-colors">
+                30d
+              </button>
+            </div>
+            <button
+              onClick={handleSyncInbox}
+              disabled={syncLoading}
+              className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+            >
+              {syncLoading ? 'Syncing...' : 'Sync Inbox'}
+            </button>
+          </div>
+
+          {/* AI Assistant (Search) Section */}
+          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
+            <div className="flex items-center gap-x-2 font-semibold">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              AI Email Assistant
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Ask about your emails..."
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            <button
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+            >
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
+              <div className="font-semibold">Search Results ({searchResults.length})</div>
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {searchResults.map((result, index) => (
+                  <div key={index} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+                    <div className="text-xs font-medium text-slate-200 mb-1">
+                      {result.sender || 'Unknown Sender'}
+                    </div>
+                    <div className="text-xs text-slate-300 mb-2">
+                      {result.subject || 'No Subject'}
+                    </div>
+                    {result.similarity && (
+                      <div className="text-xs text-violet-400">
+                        Similarity: {Math.round(result.similarity * 100)}%
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            disabled={isLoading}
+            className="flex items-center justify-center gap-x-2 text-slate-400 text-sm hover:text-white transition-colors disabled:text-slate-500"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            {isLoading ? 'Logging out...' : 'Logout'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
