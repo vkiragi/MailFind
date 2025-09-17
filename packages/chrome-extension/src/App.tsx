@@ -227,6 +227,11 @@ function App() {
           setSearchAction('summarize');
           setSearchSummary(result.summary || 'No summary available');
           setSearchResults([]); // Clear search results
+        } else if (result.action === 'answer') {
+          // Conversational answer response
+          setSearchAction('answer');
+          setSearchSummary(result.answer || 'No answer available');
+          setSearchResults([]); // Clear search results
         } else {
           // Regular search response
           setSearchAction('search');
@@ -307,34 +312,51 @@ function App() {
                    </button>
                  </div>
 
-                 {/* Search Section */}
+                 {/* AI Assistant Section */}
                  <div className="space-y-2">
-                   <h3 className="text-sm font-medium text-gray-700">🔍 Search Emails</h3>
+                   <h3 className="text-sm font-medium text-gray-700">🤖 AI Email Assistant</h3>
+                   <p className="text-xs text-gray-500">Ask me to search or summarize your emails</p>
                    <div className="flex space-x-2">
                      <input
                        type="text"
                        value={searchQuery}
                        onChange={(e) => setSearchQuery(e.target.value)}
                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                       placeholder="Search your emails..."
-                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="How can I help with your emails?"
+                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
                      />
                      <button
                        onClick={handleSearch}
                        disabled={isSearching || !searchQuery.trim()}
                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium px-4 py-2 rounded-md transition-colors"
                      >
-                       {isSearching ? '...' : '🔍'}
+                       {isSearching ? '⏳' : '✨'}
                      </button>
+                   </div>
+                   
+                   {/* Example queries */}
+                   <div className="text-xs text-gray-400 space-y-1">
+                     <div>💡 Try: "Find my DoorDash orders" or "Summarize this week's emails"</div>
                    </div>
                  </div>
 
-                {/* Search Results or Summary */}
+                {/* Search Results, Summary, or Conversational Answer */}
                 {searchAction === 'summarize' && searchSummary && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium text-gray-700">📄 Email Summary</h4>
                     <div className="max-h-60 overflow-y-auto bg-blue-50 border border-blue-200 rounded-md p-3">
                       <div className="text-xs text-gray-800 whitespace-pre-wrap">
+                        {searchSummary}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {searchAction === 'answer' && searchSummary && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700">🤖 AI Assistant</h4>
+                    <div className="max-h-60 overflow-y-auto bg-green-50 border border-green-200 rounded-md p-3">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap">
                         {searchSummary}
                       </div>
                     </div>

@@ -979,6 +979,106 @@ Keep the summary concise but comprehensive. Focus on what the user needs to know
         raise HTTPException(status_code=500, detail=f"Summarization error: {str(e)}")
 
 
+async def _generate_conversational_answer(search_results: list, parsed_entities: dict, original_query: str) -> str:
+    """Generate a conversational answer based on search results, like a chatbot."""
+    try:
+        # Ensure OpenAI client is available
+        api_key = os.getenv("OPENAI_API_KEY")
+        if OpenAI is None or not api_key:
+            # Fallback to simple response
+            if not search_results:
+                return "I didn't find any emails matching your query."
+            else:
+                return f"I found {len(search_results)} relevant emails for you."
+        
+        client = OpenAI(api_key=api_key)
+        
+        # Prepare context about the search results
+        if not search_results:
+            context = "No emails were found matching the user's query."
+        else:
+            context = f"Found {len(search_results)} relevant emails:\n\n"
+            for i, result in enumerate(search_results[:5], 1):  # Limit to top 5 for context
+                context += f"{i}. From: {result.get('sender', 'Unknown')}\n"
+                context += f"   Subject: {result.get('subject', 'No subject')}\n"
+                if result.get('created_at'):
+                    context += f"   Date: {result.get('created_at')}\n"
+                context += "\n"
+        
+        # Create conversational response prompt
+        system_prompt = """You are a helpful AI email assistant. Based on the user's query and the search results, provide a natural, conversational response as if you're a knowledgeable assistant.
+
+Guidelines:
+- Be conversational and friendly, like ChatGPT or Gemini
+- If emails were found, mention the key details (sender, subject, count)
+- If no emails were found, suggest why or offer alternatives
+- Keep responses concise but informative
+- Use natural language, not technical jargon
+- Focus on what's most relevant to the user's question
+
+Examples of good responses:
+- "I found 3 recent emails from MongoDB! The latest is about a webinar on queries and aggregation, plus a consultation offer."
+- "No MongoDB emails in the last 30 days, but I did find some from earlier this year about database optimization."
+- "Yes! You got 2 emails from your boss this week - one about the quarterly review and another about the team meeting."
+- "I don't see any recent updates from GitHub, but I found some older notifications about repository activity."
+"""
+        
+        user_prompt = f"""User asked: "{original_query}"
+
+Search results context:
+{context}
+
+Please provide a helpful, conversational response about what was found."""
+        
+        print(f"[Answer] Generating conversational response for: '{original_query}'")
+        
+        # Use GPT-5-nano for conversational response
+        try:
+            with client.responses.stream(
+                model="gpt-5-nano",
+                input=f"System: {system_prompt}\n\nUser: {user_prompt}",
+            ) as stream:
+                response_text = ""
+                for event in stream:
+                    if event.type == "response.output_text.delta":
+                        delta = getattr(event, "delta", "") or ""
+                        if delta:
+                            response_text += delta
+                
+                print(f"[Answer] Generated conversational response: {len(response_text)} characters")
+                return response_text.strip()
+                
+        except Exception as api_error:
+            print(f"[Answer] GPT-5-nano API error: {api_error}")
+            # Fallback to GPT-4o-mini
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    max_tokens=300,
+                    temperature=0.7
+                )
+                
+                response_text = response.choices[0].message.content
+                print(f"[Answer] Fallback conversational response: {len(response_text)} characters")
+                return response_text.strip()
+                
+            except Exception as fallback_error:
+                print(f"[Answer] Fallback also failed: {fallback_error}")
+                # Simple fallback
+                if not search_results:
+                    return f"I didn't find any emails about {parsed_entities.get('search_terms', ['your query'])[0] if parsed_entities.get('search_terms') else 'that topic'}."
+                else:
+                    return f"I found {len(search_results)} emails that might interest you! The most recent one is from {search_results[0].get('sender', 'an unknown sender')}."
+        
+    except Exception as e:
+        print(f"[Answer] Error generating conversational answer: {e}")
+        return "I had trouble processing your request, but I'm here to help with your emails!"
+
+
 @app.post("/search")
 async def search_emails(request: dict):
     """Advanced semantic search with AI query parsing and sophisticated multi-step filtering.
@@ -1117,7 +1217,15 @@ async def search_emails(request: dict):
                 ]
             }
         
-        # Step 2: Build sophisticated dynamic Supabase query with multiple filters (for search action)
+        # Step 1.8: Check if this is a conversational answer request
+        if action == "answer":
+            print("[Search] Detected conversational answer request - generating natural language response")
+            
+            # Perform regular search first to get relevant emails
+            # (Use the same logic as regular search but generate conversational response)
+            pass  # Will implement the search logic below and then generate conversational response
+        
+        # Step 2: Build sophisticated dynamic Supabase query with multiple filters (for search/answer actions)
         base_query = sb.table("emails").select("*")
         applied_filters = []
         
@@ -1377,7 +1485,26 @@ async def search_emails(request: dict):
             else:
                 print(f"[Search] User requested {requested_count} results, but only found {len(final_results)}")
         
-        # Step 5: Prepare enhanced response with detailed metadata
+        # Step 5.5: Generate conversational response if this is an "answer" action
+        if action == "answer":
+            print("[Search] Generating conversational answer based on search results")
+            conversational_answer = await _generate_conversational_answer(final_results, parsed_entities, query)
+            
+            return {
+                "status": "success",
+                "action": "answer",
+                "query": query,
+                "answer": conversational_answer,
+                "results_found": len(final_results),
+                "parsed_entities": parsed_entities,
+                "search_metadata": {
+                    "ai_parsing": "gpt-5-nano",
+                    "conversational_response": True,
+                    "emails_analyzed": len(final_results)
+                }
+            }
+        
+        # Step 5: Prepare enhanced response with detailed metadata (for regular search)
         response_data = {
             "status": "success",
             "query": query,
@@ -1432,7 +1559,7 @@ async def _parse_query_with_ai(query: str) -> dict:
 Current date: {today.strftime('%Y-%m-%d')} (for relative date parsing)
 
 Extract these entities:
-- 'action': String - "search" (default) or "summarize" (if user wants a summary/digest of emails)
+- 'action': String - "search" (default), "summarize" (if user wants a summary/digest), or "answer" (if user asks a question and wants a conversational response)
 - 'search_terms': List of ALL relevant keywords/phrases for semantic search (include names, topics, and content-specific terms)
 - 'sender': Sender name/email (can be partial, e.g., "Bob", "accounting", "wellfound", "linkedin")  
 - 'recipient': Recipient name/email (if specified)
@@ -1459,14 +1586,20 @@ Date parsing examples:
 - "this year" → {{"start": "{current_year}-01-01", "end": "{current_year}-12-31"}}
 
 Examples:
+Query: "Any news about MongoDB?"
+Response: {{"action": "answer", "search_terms": ["MongoDB", "news", "updates"], "sender": "MongoDB"}}
+
+Query: "What's the latest from GitHub?"
+Response: {{"action": "answer", "search_terms": ["GitHub", "latest", "updates"], "sender": "GitHub"}}
+
+Query: "Did I get any emails from my boss this week?"
+Response: {{"action": "answer", "search_terms": ["boss"], "sender": "boss", "date_range": {{"start": "{(today - timedelta(weeks=1)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
+
 Query: "Summarize my unread emails from this week"
 Response: {{"action": "summarize", "search_terms": ["unread"], "status": "unread", "date_range": {{"start": "{(today - timedelta(weeks=1)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
 
 Query: "Give me a digest of all emails from accounting this month"
 Response: {{"action": "summarize", "search_terms": ["accounting"], "sender": "accounting", "date_range": {{"start": "{today.replace(day=1).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
-
-Query: "Summarize important emails from the last 3 days"
-Response: {{"action": "summarize", "search_terms": ["important"], "priority": "important", "date_range": {{"start": "{(today - timedelta(days=3)).strftime('%Y-%m-%d')}", "end": "{today.strftime('%Y-%m-%d')}"}}}}
 
 Query: "Give me my last 13 DoorDash orders"
 Response: {{"action": "search", "search_terms": ["DoorDash", "orders", "delivery"], "sender": "DoorDash", "email_type": "receipt", "recency_priority": true, "result_count": 13}}
