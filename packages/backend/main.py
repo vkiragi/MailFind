@@ -926,10 +926,10 @@ async def sync_inbox(request: dict):
 
         # List recent threads (limit to 50 for popup use)
         print("[Sync] Fetching threads list...")
-        list_call = service.users().threads().list(userId="me", maxResults=50)
         if gmail_q:
-            list_call = list_call.q(gmail_q)
-        threads_resp = list_call.execute()
+            threads_resp = service.users().threads().list(userId="me", maxResults=50, q=gmail_q).execute()
+        else:
+            threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
         threads = threads_resp.get('threads', []) or []
         print(f"[Sync] Found {len(threads)} threads")
 
