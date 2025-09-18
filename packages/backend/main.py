@@ -907,6 +907,15 @@ async def sync_inbox(request: dict):
 
         user_id = request.get("userId")
         selected_range = (request.get("range") or "").strip().lower()
+        # Resolve a default google_user_id if one wasn't passed
+        if not user_id:
+            try:
+                res_uid = sb.table("users").select("google_user_id").limit(1).execute()  # type: ignore[attr-defined]
+                rows_uid = getattr(res_uid, "data", []) or []
+                if rows_uid:
+                    user_id = rows_uid[0].get("google_user_id") or None
+            except Exception as _e:
+                print(f"[Sync] Could not resolve default google_user_id: {_e}")
         print(f"[Sync] User ID: {user_id}")
         print(f"[Sync] Selected range: {selected_range!r}")
 
@@ -942,7 +951,10 @@ async def sync_inbox(request: dict):
         existing_ids: set[str] = set()
         if thread_ids:
             try:
-                existing = sb.table("emails").select("thread_id").in_("thread_id", thread_ids).execute()  # type: ignore[attr-defined]
+                query = sb.table("emails").select("thread_id")  # type: ignore[attr-defined]
+                if user_id:
+                    query = query.eq("google_user_id", user_id)
+                existing = query.in_("thread_id", thread_ids).execute()  # type: ignore[attr-defined]
                 rows = getattr(existing, "data", []) or []
                 existing_ids = {r.get("thread_id") for r in rows if r.get("thread_id")}
             except Exception as e:
@@ -985,7 +997,7 @@ async def sync_inbox(request: dict):
 
                 # Upsert into Supabase emails table
                 payload = {
-                    "google_user_id": user_id,  # may be None; acceptable if you use RLS appropriately
+                    "google_user_id": user_id,
                     "thread_id": tid,
                     "subject": subject,
                     "sender": sender,
@@ -993,7 +1005,10 @@ async def sync_inbox(request: dict):
                     "embedding": emb,
                 }
                 print(f"[Sync] Thread {tid}: Upserting to Supabase...")
-                sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
+                sb.table("emails").upsert(
+                    payload,
+                    on_conflict="google_user_id,thread_id",
+                ).execute()  # type: ignore[attr-defined]
                 indexed += 1
                 print(f"[Sync] Thread {tid}: Successfully indexed ({indexed}/{len(new_thread_ids)})")
             except Exception as e:
