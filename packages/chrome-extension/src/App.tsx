@@ -9,6 +9,7 @@ function App() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
+  const [searchInfo, setSearchInfo] = useState<any>(null)
 
   // Check authentication status on component mount
   const checkAuthStatus = async () => {
@@ -196,6 +197,7 @@ function App() {
         const result = await response.json();
         console.log('✅ [Search] Search successful:', result);
         setSearchResults(result.results || []);
+        setSearchInfo(result);
       } else {
         console.error(`❌ [Search] Backend error: ${response.status} ${response.statusText}`);
         throw new Error(`Search failed: ${response.status}`);
@@ -210,7 +212,7 @@ function App() {
   }
 
   return (
-    <div className="w-96 bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans">
+    <div className="w-full h-full bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans">
       {/* Header Section */}
       <div className="flex flex-col items-center">
         <h1 className="text-2xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-500">
@@ -298,7 +300,14 @@ function App() {
           {/* Search Results */}
           {searchResults.length > 0 && (
             <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
-              <div className="font-semibold">Search Results ({searchResults.length})</div>
+              <div className="flex justify-between items-center">
+                <div className="font-semibold">Search Results ({searchResults.length})</div>
+                {searchInfo?.search_type === 'news_optimized' && (
+                  <div className="text-xs bg-orange-900/50 text-orange-300 px-2 py-1 rounded">
+                    📰 News Mode
+                  </div>
+                )}
+              </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {searchResults.map((result, index) => (
                   <div key={index} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
@@ -308,11 +317,18 @@ function App() {
                     <div className="text-xs text-slate-300 mb-2">
                       {result.subject || 'No Subject'}
                     </div>
-                    {result.similarity && (
-                      <div className="text-xs text-violet-400">
-                        Similarity: {Math.round(result.similarity * 100)}%
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center">
+                      {result.similarity && (
+                        <div className="text-xs text-violet-400">
+                          Similarity: {Math.round(result.similarity * 100)}%
+                        </div>
+                      )}
+                      {result.recency_boost && result.recency_boost !== 'none' && (
+                        <div className="text-xs text-green-400">
+                          {result.recency_boost === 'week' ? '🔥 Recent' : '📅 This month'}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
