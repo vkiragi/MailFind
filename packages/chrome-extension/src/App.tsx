@@ -9,6 +9,7 @@ function App() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
+  const [syncRange, setSyncRange] = useState<'24h' | '7d' | '30d'>('24h')
   const [searchInfo, setSearchInfo] = useState<any>(null)
 
   // Check authentication status on component mount
@@ -156,14 +157,15 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ range: syncRange }),
         credentials: 'include'
       });
       
       if (response.ok) {
         const result = await response.json();
         console.log('✅ [Sync] Sync successful:', result);
-        alert(`✅ Synced ${result.indexed_count} emails successfully!`);
+        const skipped = typeof result.skipped_existing === 'number' ? result.skipped_existing : 0;
+        alert(`✅ Indexed ${result.indexed_count} new emails${skipped ? ` (skipped ${skipped} existing)` : ''}.`);
       } else {
         console.error(`❌ [Sync] Backend error: ${response.status} ${response.statusText}`);
         throw new Error(`Failed to sync: ${response.status}`);
@@ -253,13 +255,13 @@ function App() {
               Sync Inbox
             </div>
             <div className="grid grid-cols-3 gap-x-2">
-              <button className="bg-slate-700 text-slate-300 text-xs font-semibold py-2 rounded-lg hover:bg-slate-600 transition-colors">
+              <button onClick={() => setSyncRange('24h')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='24h' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
                 24h
               </button>
-              <button className="bg-slate-700 text-slate-300 text-xs font-semibold py-2 rounded-lg hover:bg-slate-600 transition-colors">
+              <button onClick={() => setSyncRange('7d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='7d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
                 7d
               </button>
-              <button className="bg-slate-700 text-slate-300 text-xs font-semibold py-2 rounded-lg hover:bg-slate-600 transition-colors">
+              <button onClick={() => setSyncRange('30d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='30d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
                 30d
               </button>
             </div>

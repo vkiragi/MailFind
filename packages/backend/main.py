@@ -341,6 +341,109 @@ def _parse_thread_metadata(thread: dict) -> dict:
     sender = headers.get('from', '')
     return {"subject": subject, "from": sender}
 
+
+def _enhance_search_query(query: str) -> str:
+    """Enhance search query with synonyms and related terms for better matching."""
+    query_lower = query.lower()
+    enhanced_terms = [query]
+    
+    # Add related terms for common topics
+    if 'yahoo fantasy' in query_lower:
+        enhanced_terms.extend(['yahoo sports', 'fantasy football', 'fantasy sports', 'yahoo ff'])
+    
+    if 'news' in query_lower:
+        enhanced_terms.extend(['update', 'announcement', 'breaking', 'latest'])
+    
+    if 'fantasy' in query_lower and 'football' in query_lower:
+        enhanced_terms.extend(['nfl', 'fantasy sports', 'football news'])
+    
+    # Join terms with the original query getting higher weight
+    return f"{query} {' '.join(set(enhanced_terms[1:]))}"
+
+
+def _boost_recent_emails(search_results: list) -> list:
+    """Boost the ranking of recent emails for news-related queries."""
+    from datetime import datetime, timezone, timedelta
+    
+    if not search_results:
+        return search_results
+    
+    now = datetime.now(timezone.utc)
+    one_week_ago = now - timedelta(days=7)
+    one_month_ago = now - timedelta(days=30)
+    
+    for result in search_results:
+        # Parse created_at timestamp if available
+        created_at_str = result.get('created_at')
+        if created_at_str:
+            try:
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                
+                # Boost recent emails
+                if created_at > one_week_ago:
+                    # Very recent - boost by 0.2
+                    result['similarity'] = min(1.0, result.get('similarity', 0) + 0.2)
+                    result['recency_boost'] = 'week'
+                elif created_at > one_month_ago:
+                    # Recent - boost by 0.1
+                    result['similarity'] = min(1.0, result.get('similarity', 0) + 0.1)
+                    result['recency_boost'] = 'month'
+                else:
+                    result['recency_boost'] = 'none'
+            except Exception:
+                result['recency_boost'] = 'unknown'
+        else:
+            result['recency_boost'] = 'no_date'
+    
+    # Re-sort by similarity after boosting
+    search_results.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+    
+    return search_results
+
+
+def _create_enhanced_embedding_text(subject: str, content: str, sender: str) -> str:
+    """Create enhanced text for embedding that includes context and keywords."""
+    # Extract domain from sender for context
+    sender_domain = ""
+    if sender and "@" in sender:
+        try:
+            sender_domain = sender.split("@")[-1].split(">")[0].strip()
+        except:
+            pass
+    
+    # Add context based on sender domain
+    context_keywords = []
+    if "yahoo" in sender_domain.lower():
+        context_keywords.extend(["yahoo", "yahoo sports", "fantasy sports"])
+    if "espn" in sender_domain.lower():
+        context_keywords.extend(["espn", "sports news", "fantasy"])
+    if "nfl" in sender_domain.lower():
+        context_keywords.extend(["nfl", "football", "fantasy football"])
+    
+    # Extract keywords from subject and content
+    subject_lower = subject.lower() if subject else ""
+    content_lower = content.lower() if content else ""
+    
+    if "fantasy" in subject_lower or "fantasy" in content_lower:
+        context_keywords.extend(["fantasy sports", "fantasy football", "fantasy news"])
+    if "update" in subject_lower or "news" in subject_lower:
+        context_keywords.extend(["news", "update", "announcement", "breaking"])
+    
+    # Build enhanced text
+    parts = []
+    if subject:
+        parts.append(f"Subject: {subject}")
+    if sender_domain:
+        parts.append(f"From: {sender_domain}")
+    if context_keywords:
+        parts.append(f"Keywords: {' '.join(set(context_keywords))}")
+    if content:
+        # Limit content to first 1000 chars to avoid token limits
+        content_truncated = content[:1000] + "..." if len(content) > 1000 else content
+        parts.append(f"Content: {content_truncated}")
+    
+    return "\n".join(parts)
+
 @app.get("/")
 def health_check():
     return {"status": "ok"}
@@ -728,7 +831,7 @@ def get_summary_status(thread_id: str):
 
 @app.post("/search")
 async def search_emails(request: dict):
-    """Semantic search through indexed emails using vector similarity.
+    """Enhanced semantic search through indexed emails with temporal relevance and query expansion.
 
     Expected request body: { "query": "search terms", "userId": "..." (optional) }
     """
@@ -743,26 +846,41 @@ async def search_emails(request: dict):
         
         # Load embedding model and generate query embedding
         model = _get_embedding_model()
-        query_embedding = model.encode(query, normalize_embeddings=True)
+        
+        # Enhanced query processing for better search results
+        enhanced_query = _enhance_search_query(query)
+        print(f"[Search] Original query: '{query}', Enhanced: '{enhanced_query}'")
+        
+        query_embedding = model.encode(enhanced_query, normalize_embeddings=True)
         
         print(f"[Search] Query: '{query}', embedding shape: {query_embedding.shape}")
         
-        # Call Supabase RPC function for semantic search
+        # Call Supabase RPC function for semantic search with lower threshold for news queries
+        is_news_query = any(term in query.lower() for term in ['news', 'update', 'recent', 'latest', 'announcement'])
+        match_threshold = 0.3 if is_news_query else 0.5
+        match_count = 15 if is_news_query else 10
+        
         results = sb.rpc('match_emails', {
             'query_embedding': query_embedding.tolist(),
-            'match_threshold': 0.5,
-            'match_count': 10
+            'match_threshold': match_threshold,
+            'match_count': match_count
         }).execute()
         
         search_results = getattr(results, "data", []) or []
         
-        print(f"[Search] Found {len(search_results)} matching emails")
+        # Post-process results to boost recent emails for news queries
+        if is_news_query and search_results:
+            search_results = _boost_recent_emails(search_results)
+        
+        print(f"[Search] Found {len(search_results)} matching emails (threshold: {match_threshold})")
         
         return {
             "status": "success",
             "query": query,
+            "enhanced_query": enhanced_query,
             "results": search_results,
-            "count": len(search_results)
+            "count": len(search_results),
+            "search_type": "news_optimized" if is_news_query else "standard"
         }
         
     except HTTPException:
@@ -773,25 +891,45 @@ async def search_emails(request: dict):
 
 @app.post("/sync-inbox")
 async def sync_inbox(request: dict):
-    """Fetch last 50 Gmail threads, embed content, and upsert into Supabase emails table.
+    """Fetch recent Gmail threads, embed content, and upsert into Supabase.
 
-    Expected request body: { "userId": "..." (optional) }
+    Expected request body:
+      { "userId": "..." (optional), "range": "24h|7d|30d" (optional) }
+
+    - When a range is provided, we filter Gmail threads using the search query
+      parameter (e.g., newer_than:1d) so we only fetch recent content.
+    - We deduplicate by skipping threads already present in the `emails` table
+      and only count newly indexed threads in the response.
     """
     try:
         print(f"[Sync] Starting inbox sync with request: {request}")
         sb = _get_supabase()
 
         user_id = request.get("userId")
+        selected_range = (request.get("range") or "").strip().lower()
         print(f"[Sync] User ID: {user_id}")
+        print(f"[Sync] Selected range: {selected_range!r}")
 
         # Build Gmail service
         print("[Sync] Building Gmail service...")
         service = _build_gmail_service(user_id)
         print("[Sync] Gmail service built successfully")
 
-        # List last 50 threads
+        # Build Gmail query from range selector
+        gmail_q = None
+        if selected_range in ("24h", "1d", "day"):
+            gmail_q = "newer_than:1d"
+        elif selected_range in ("7d", "7days", "week"):
+            gmail_q = "newer_than:7d"
+        elif selected_range in ("30d", "30days", "month"):
+            gmail_q = "newer_than:30d"
+
+        # List recent threads (limit to 50 for popup use)
         print("[Sync] Fetching threads list...")
-        threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
+        list_call = service.users().threads().list(userId="me", maxResults=50)
+        if gmail_q:
+            list_call = list_call.q(gmail_q)
+        threads_resp = list_call.execute()
         threads = threads_resp.get('threads', []) or []
         print(f"[Sync] Found {len(threads)} threads")
 
@@ -799,18 +937,34 @@ async def sync_inbox(request: dict):
             print("[Sync] No threads found, returning 0")
             return {"status": "success", "indexed_count": 0}
 
+        # Determine which threads are new by comparing with Supabase
+        thread_ids = [t.get('id') for t in threads if t.get('id')]
+        existing_ids: set[str] = set()
+        if thread_ids:
+            try:
+                existing = sb.table("emails").select("thread_id").in_("thread_id", thread_ids).execute()  # type: ignore[attr-defined]
+                rows = getattr(existing, "data", []) or []
+                existing_ids = {r.get("thread_id") for r in rows if r.get("thread_id")}
+            except Exception as e:
+                print(f"[Sync] Warning: failed to query existing thread ids: {e}")
+        new_thread_ids = [tid for tid in thread_ids if tid not in existing_ids]
+
+        print(f"[Sync] New threads to index: {len(new_thread_ids)}; existing skipped: {len(existing_ids)}")
+
+        if not new_thread_ids:
+            return {"status": "success", "indexed_count": 0, "skipped_existing": len(existing_ids)}
+
         print("[Sync] Loading embedding model...")
         model = _get_embedding_model()
         print("[Sync] Embedding model loaded")
 
         indexed = 0
-        for i, t in enumerate(threads):
-            tid = t.get('id')
+        for i, tid in enumerate(new_thread_ids):
             if not tid:
-                print(f"[Sync] Thread {i+1}/{len(threads)}: No ID, skipping")
+                print(f"[Sync] Thread {i+1}/{len(new_thread_ids)}: No ID, skipping")
                 continue
             
-            print(f"[Sync] Processing thread {i+1}/{len(threads)}: {tid}")
+            print(f"[Sync] Processing thread {i+1}/{len(new_thread_ids)}: {tid}")
             try:
                 thread_full = service.users().threads().get(userId="me", id=tid, format="full").execute()
                 print(f"[Sync] Thread {tid}: Fetched full thread data")
@@ -823,7 +977,8 @@ async def sync_inbox(request: dict):
                 sender = meta.get('from', '')
                 print(f"[Sync] Thread {tid}: Subject='{subject[:50]}...', Sender='{sender}'")
 
-                text_for_embedding = (subject + "\n\n" + content).strip() or content
+                # Create enhanced text for embedding that includes keywords and context
+                text_for_embedding = _create_enhanced_embedding_text(subject, content, sender)
                 print(f"[Sync] Thread {tid}: Generating embedding for {len(text_for_embedding)} chars")
                 emb = model.encode(text_for_embedding, normalize_embeddings=True).tolist()  # 384 dims
                 print(f"[Sync] Thread {tid}: Generated embedding with {len(emb)} dimensions")
@@ -840,15 +995,15 @@ async def sync_inbox(request: dict):
                 print(f"[Sync] Thread {tid}: Upserting to Supabase...")
                 sb.table("emails").upsert(payload, on_conflict="thread_id").execute()  # type: ignore[attr-defined]
                 indexed += 1
-                print(f"[Sync] Thread {tid}: Successfully indexed ({indexed}/{len(threads)})")
+                print(f"[Sync] Thread {tid}: Successfully indexed ({indexed}/{len(new_thread_ids)})")
             except Exception as e:
                 print(f"[Sync] Thread {tid}: ERROR - {str(e)}")
                 import traceback
                 traceback.print_exc()
                 continue
 
-        print(f"[Sync] Completed: {indexed}/{len(threads)} threads indexed successfully")
-        return {"status": "success", "indexed_count": indexed}
+        print(f"[Sync] Completed: {indexed}/{len(new_thread_ids)} new threads indexed successfully (skipped {len(existing_ids)})")
+        return {"status": "success", "indexed_count": indexed, "skipped_existing": len(existing_ids)}
     except HTTPException as he:
         print(f"[ERROR] HTTPException in /sync-inbox: {he.status_code} - {he.detail}")
         raise he
