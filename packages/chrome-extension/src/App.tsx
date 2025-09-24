@@ -15,6 +15,8 @@ function App() {
   const [chatInput, setChatInput] = useState('')
   const [isChatting, setIsChatting] = useState(false)
   const [showChat, setShowChat] = useState(false)
+  const [hasAutoSynced, setHasAutoSynced] = useState(false)
+  const [isAutoSyncing, setIsAutoSyncing] = useState(false)
 
   // Check authentication status on component mount
   const checkAuthStatus = async () => {
@@ -44,6 +46,18 @@ function App() {
   useEffect(() => {
     checkAuthStatus();
   }, []);
+
+  // Auto-sync when authenticated and haven't synced yet
+  useEffect(() => {
+    if (isAuthenticated && !hasAutoSynced) {
+      // Add a small delay to ensure everything is ready
+      const timer = setTimeout(() => {
+        autoSyncInbox();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, hasAutoSynced]);
 
   const handleLogin = async () => {
     setIsLoading(true)
@@ -151,9 +165,8 @@ function App() {
     }
   }
 
-  const handleSyncInbox = async () => {
-    setSyncLoading(true)
-    console.log('📥 [Sync] Starting inbox sync...');
+  const performSync = async (range: '24h' | '7d' | '30d', showAlert: boolean = true) => {
+    console.log(`📥 [Sync] Starting inbox sync for ${range}...`);
     
     try {
       const response = await fetch('http://localhost:8000/sync-inbox', {
@@ -161,7 +174,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ range: syncRange }),
+        body: JSON.stringify({ range }),
         credentials: 'include'
       });
       
@@ -169,17 +182,50 @@ function App() {
         const result = await response.json();
         console.log('✅ [Sync] Sync successful:', result);
         const skipped = typeof result.skipped_existing === 'number' ? result.skipped_existing : 0;
-        alert(`✅ Indexed ${result.indexed_count} new emails${skipped ? ` (skipped ${skipped} existing)` : ''}.`);
+        
+        if (showAlert) {
+          alert(`✅ Indexed ${result.indexed_count} new emails${skipped ? ` (skipped ${skipped} existing)` : ''}.`);
+        } else {
+          console.log(`✅ [Auto-Sync] Indexed ${result.indexed_count} new emails${skipped ? ` (skipped ${skipped} existing)` : ''}.`);
+        }
+        return result;
       } else {
         console.error(`❌ [Sync] Backend error: ${response.status} ${response.statusText}`);
         throw new Error(`Failed to sync: ${response.status}`);
       }
     } catch (error) {
       console.error('💥 [Sync] Sync failed:', error);
-      alert('Failed to sync inbox. Please try again.');
+      if (showAlert) {
+        alert('Failed to sync inbox. Please try again.');
+      }
+      throw error;
+    }
+  }
+
+  const handleSyncInbox = async () => {
+    setSyncLoading(true)
+    try {
+      await performSync(syncRange, true);
     } finally {
       setSyncLoading(false);
-      console.log('🏁 [Sync] Sync flow completed');
+      console.log('🏁 [Sync] Manual sync flow completed');
+    }
+  }
+
+  const autoSyncInbox = async () => {
+    if (hasAutoSynced) return; // Prevent multiple auto-syncs
+    
+    setIsAutoSyncing(true);
+    console.log('🔄 [Auto-Sync] Starting automatic sync for last 24 hours...');
+    try {
+      await performSync('24h', false); // Don't show alert for auto-sync
+      setHasAutoSynced(true);
+      console.log('🏁 [Auto-Sync] Automatic sync completed');
+    } catch (error) {
+      console.error('💥 [Auto-Sync] Automatic sync failed:', error);
+      // Don't show error alert for auto-sync, just log it
+    } finally {
+      setIsAutoSyncing(false);
     }
   }
 
@@ -312,6 +358,14 @@ function App() {
             <div className="w-2 h-2 bg-green-400 rounded-full"></div>
             Connected to Gmail
           </div>
+          
+          {/* Auto-sync Status */}
+          {isAutoSyncing && (
+            <div className="flex items-center justify-center gap-x-2 text-sm text-blue-400 bg-blue-900/50 rounded-full px-3 py-1">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+              Auto-syncing last 24 hours...
+            </div>
+          )}
           
           {/* Sync Inbox Section */}
           <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
