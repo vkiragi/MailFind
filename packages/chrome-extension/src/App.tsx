@@ -11,6 +11,10 @@ function App() {
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncRange, setSyncRange] = useState<'24h' | '7d' | '30d'>('24h')
   const [searchInfo, setSearchInfo] = useState<any>(null)
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([])
+  const [chatInput, setChatInput] = useState('')
+  const [isChatting, setIsChatting] = useState(false)
+  const [showChat, setShowChat] = useState(false)
 
   // Check authentication status on component mount
   const checkAuthStatus = async () => {
@@ -213,6 +217,69 @@ function App() {
     }
   }
 
+  const handleChat = async () => {
+    if (!chatInput.trim()) return;
+    
+    setIsChatting(true)
+    const userMessage = chatInput.trim()
+    setChatInput('')
+    
+    // Add user message to chat
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    
+    console.log('💬 [Chat] Starting chat with:', userMessage);
+    
+    try {
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userMessage }),
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        // Handle streaming response
+        const reader = response.body?.getReader()
+        const decoder = new TextDecoder()
+        let assistantMessage = ''
+        
+        // Add assistant message placeholder
+        setChatMessages(prev => [...prev, { role: 'assistant', content: '' }])
+        
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            
+            const chunk = decoder.decode(value, { stream: true })
+            assistantMessage += chunk
+            
+            // Update the last message (assistant's response)
+            setChatMessages(prev => {
+              const newMessages = [...prev]
+              newMessages[newMessages.length - 1] = { role: 'assistant', content: assistantMessage }
+              return newMessages
+            })
+          }
+        }
+        
+        console.log('✅ [Chat] Chat successful');
+      } else {
+        console.error(`❌ [Chat] Backend error: ${response.status} ${response.statusText}`);
+        throw new Error(`Chat failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('💥 [Chat] Chat failed:', error);
+      // Add error message to chat
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }])
+    } finally {
+      setIsChatting(false);
+      console.log('🏁 [Chat] Chat flow completed');
+    }
+  }
+
   return (
     <div className="w-full h-full bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans">
       {/* Header Section */}
@@ -274,29 +341,132 @@ function App() {
             </button>
           </div>
 
-          {/* AI Assistant (Search) Section */}
+          {/* AI Assistant Section */}
           <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
-            <div className="flex items-center gap-x-2 font-semibold">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              AI Email Assistant
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-x-2 font-semibold">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                AI Email Assistant
+              </div>
+              <div className="flex bg-slate-700 rounded-lg p-1">
+                <button
+                  onClick={() => setShowChat(false)}
+                  className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
+                    !showChat ? 'bg-slate-600 text-slate-100' : 'text-slate-300 hover:text-slate-100'
+                  }`}
+                >
+                  Search
+                </button>
+                <button
+                  onClick={() => setShowChat(true)}
+                  className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
+                    showChat ? 'bg-slate-600 text-slate-100' : 'text-slate-300 hover:text-slate-100'
+                  }`}
+                >
+                  Chat
+                </button>
+              </div>
             </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Ask about your emails..."
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={isSearching || !searchQuery.trim()}
-              className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
-            >
-              {isSearching ? 'Searching...' : 'Search'}
-            </button>
+
+            {!showChat ? (
+              // Search Mode
+              <>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="Search your emails..."
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+                <button
+                  onClick={handleSearch}
+                  disabled={isSearching || !searchQuery.trim()}
+                  className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+                >
+                  {isSearching ? 'Searching...' : 'Search'}
+                </button>
+              </>
+            ) : (
+              // Chat Mode
+              <>
+                {/* Chat Messages */}
+                {chatMessages.length > 0 && (
+                  <div className="max-h-60 overflow-y-auto space-y-3 bg-slate-800/50 rounded-lg p-3">
+                    {chatMessages.map((message, index) => (
+                      <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-lg p-3 text-sm ${
+                          message.role === 'user' 
+                            ? 'bg-violet-600 text-white' 
+                            : 'bg-slate-700 text-slate-100'
+                        }`}>
+                          <div className="whitespace-pre-wrap">{message.content}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {isChatting && (
+                      <div className="flex justify-start">
+                        <div className="bg-slate-700 text-slate-100 rounded-lg p-3 text-sm">
+                          <div className="flex items-center gap-x-2">
+                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></div>
+                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Example Questions */}
+                {chatMessages.length === 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-slate-400 mb-2">Try asking:</div>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        onClick={() => setChatInput("What emails did I receive this week about NYT news?")}
+                        className="text-left text-xs bg-slate-700 hover:bg-slate-600 rounded-lg p-2 transition-colors"
+                      >
+                        📰 "What emails did I receive this week about NYT news?"
+                      </button>
+                      <button
+                        onClick={() => setChatInput("Summarize my recent fantasy football emails")}
+                        className="text-left text-xs bg-slate-700 hover:bg-slate-600 rounded-lg p-2 transition-colors"
+                      >
+                        🏈 "Summarize my recent fantasy football emails"
+                      </button>
+                      <button
+                        onClick={() => setChatInput("What important emails did I get today?")}
+                        className="text-left text-xs bg-slate-700 hover:bg-slate-600 rounded-lg p-2 transition-colors"
+                      >
+                        📧 "What important emails did I get today?"
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chat Input */}
+                <div className="flex gap-x-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleChat()}
+                    placeholder="Ask about your emails... (e.g., 'What emails did I get this week about NYT news?')"
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                  <button
+                    onClick={handleChat}
+                    disabled={isChatting || !chatInput.trim()}
+                    className="bg-violet-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+                  >
+                    {isChatting ? '...' : 'Send'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Search Results */}

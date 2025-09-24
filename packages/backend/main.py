@@ -357,6 +357,14 @@ def _enhance_search_query(query: str) -> str:
     if 'fantasy' in query_lower and 'football' in query_lower:
         enhanced_terms.extend(['nfl', 'fantasy sports', 'football news'])
     
+    # Add NYT-specific enhancements
+    if 'new york times' in query_lower or 'nyt' in query_lower:
+        enhanced_terms.extend(['new york times', 'nytimes', 'ny times', 'times newsletter'])
+    
+    # Add news source enhancements
+    if any(term in query_lower for term in ['news', 'times', 'newspaper']):
+        enhanced_terms.extend(['newsletter', 'daily', 'morning', 'evening', 'briefing'])
+    
     # Join terms with the original query getting higher weight
     return f"{query} {' '.join(set(enhanced_terms[1:]))}"
 
@@ -447,6 +455,7 @@ def _create_enhanced_embedding_text(subject: str, content: str, sender: str) -> 
 @app.get("/")
 def health_check():
     return {"status": "ok"}
+
 
 @app.get("/login")
 def login():
@@ -733,9 +742,9 @@ def summarize_email_thread(request: dict):
                                 yield delta.encode("utf-8")
                         elif event.type == "response.error":
                             err = getattr(event, "error", None)
-                            message = getattr(err, "message", None) if err else None
-                            if message:
-                                yield f"\n[error] {message}".encode("utf-8")
+                            error_message = getattr(err, "message", None) if err else None
+                            if error_message:
+                                yield f"\n[error] {error_message}".encode("utf-8")
             except Exception as oe:
                 yield f"\n[error] OpenAI stream error: {str(oe)}".encode("utf-8")
 
@@ -795,9 +804,9 @@ def summarize_email_content(request: dict):
                                 yield delta.encode("utf-8")
                         elif event.type == "response.error":
                             err = getattr(event, "error", None)
-                            message = getattr(err, "message", None) if err else None
-                            if message:
-                                yield f"\n[error] {message}".encode("utf-8")
+                            error_message = getattr(err, "message", None) if err else None
+                            if error_message:
+                                yield f"\n[error] {error_message}".encode("utf-8")
             except Exception as oe:
                 yield f"\n[error] OpenAI stream error: {str(oe)}".encode("utf-8")
 
@@ -887,6 +896,241 @@ async def search_emails(request: dict):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
+
+
+@app.post("/chat")
+async def chat_with_emails(request: dict):
+    """Chat with your emails using natural language questions.
+    
+    Expected request body:
+    { "message": "What emails did I receive this week about NYT news?", "userId": "..." (optional) }
+    
+    This endpoint:
+    1. Analyzes the user's question to extract search terms and time filters
+    2. Searches relevant emails using semantic search
+    3. Uses OpenAI to generate a conversational response based on the found emails
+    """
+    try:
+        sb = _get_supabase()
+        
+        message = request.get("message", "").strip()
+        if not message:
+            raise HTTPException(status_code=400, detail="message is required")
+        
+        user_id = request.get("userId")
+        print(f"[Chat] Processing question: '{message}'")
+        
+        # Analyze the question to extract search terms and time context
+        search_terms, time_context = _analyze_question(message)
+        print(f"[Chat] Extracted search terms: {search_terms}, time context: {time_context}")
+        
+        # Build search query with time filters if needed
+        search_query = " ".join(search_terms)
+        
+        # Enhance the search query for better matching
+        enhanced_query = _enhance_search_query(search_query)
+        print(f"[Chat] Enhanced search query: '{enhanced_query}'")
+        
+        if time_context:
+            enhanced_query = f"{enhanced_query} {time_context}"
+        
+        print(f"[Chat] Final search query: '{enhanced_query}'")
+        
+        # Perform semantic search to get relevant emails
+        model = _get_embedding_model()
+        query_embedding = model.encode(enhanced_query, normalize_embeddings=True)
+        
+        # Use more lenient threshold for chat to get more context
+        results = sb.rpc('match_emails', {
+            'query_embedding': query_embedding.tolist(),
+            'match_threshold': 0.3,
+            'match_count': 20
+        }).execute()
+        
+        search_results = getattr(results, "data", []) or []
+        print(f"[Chat] Found {len(search_results)} relevant emails")
+        
+        # Add created_at field to results if missing (for time filtering)
+        for result in search_results:
+            if 'created_at' not in result and 'thread_id' in result:
+                try:
+                    # Fetch the created_at from the emails table
+                    email_data = sb.table("emails").select("created_at").eq("thread_id", result['thread_id']).limit(1).execute()
+                    email_rows = getattr(email_data, "data", []) or []
+                    if email_rows:
+                        result['created_at'] = email_rows[0].get('created_at')
+                except Exception as e:
+                    print(f"[Chat] Warning: Could not fetch created_at for thread {result.get('thread_id')}: {e}")
+        
+        # Apply time filtering to results if time context was specified
+        if time_context and search_results:
+            filtered_results = _apply_time_filter(search_results, time_context)
+            print(f"[Chat] After time filtering: {len(filtered_results)} emails")
+            search_results = filtered_results
+        
+        # Prepare context for the LLM
+        email_context = _prepare_email_context(search_results, message)
+        
+        # Ensure OpenAI client is available
+        api_key = os.getenv("OPENAI_API_KEY")
+        if OpenAI is None or not api_key:
+            raise HTTPException(status_code=500, detail="OpenAI SDK not available or OPENAI_API_KEY not set")
+
+        client = OpenAI(api_key=api_key)
+        
+        # Create system prompt for email assistant
+        system_prompt = (
+            "You are a helpful email assistant that can answer questions about the user's emails. "
+            "You have access to relevant email context and should provide conversational, helpful responses. "
+            "When answering questions about specific time periods (like 'this week' or 'last month'), "
+            "focus on the most recent and relevant emails. Be concise but informative, and if you don't "
+            "have enough information, say so clearly."
+        )
+        
+        def token_stream():
+            try:
+                # Stream using OpenAI Responses API
+                with client.responses.stream(
+                    model="gpt-5-nano",
+                    input=f"System: {system_prompt}\n\nUser Question: {message}\n\nRelevant Email Context:\n{email_context}",
+                ) as stream:
+                    for event in stream:
+                        if event.type == "response.output_text.delta":
+                            delta = getattr(event, "delta", "") or ""
+                            if delta:
+                                yield delta.encode("utf-8")
+                        elif event.type == "response.error":
+                            err = getattr(event, "error", None)
+                            error_message = getattr(err, "message", None) if err else None
+                            if error_message:
+                                yield f"\n[error] {error_message}".encode("utf-8")
+            except Exception as oe:
+                yield f"\n[error] OpenAI stream error: {str(oe)}".encode("utf-8")
+
+        return StreamingResponse(token_stream(), media_type="text/plain; charset=utf-8")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Exception in /chat: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+
+
+def _analyze_question(question: str) -> tuple[list[str], str]:
+    """Analyze user question to extract search terms and time context."""
+    question_lower = question.lower()
+    
+    # Extract time-related terms
+    time_context = ""
+    if any(term in question_lower for term in ['this week', 'this week\'s', 'past week']):
+        time_context = "newer_than:7d"
+    elif any(term in question_lower for term in ['last week', 'previous week']):
+        time_context = "newer_than:14d older_than:7d"
+    elif any(term in question_lower for term in ['this month', 'past month']):
+        time_context = "newer_than:30d"
+    elif any(term in question_lower for term in ['last month', 'previous month']):
+        time_context = "newer_than:60d older_than:30d"
+    elif any(term in question_lower for term in ['today', 'this morning', 'this afternoon']):
+        time_context = "newer_than:1d"
+    elif any(term in question_lower for term in ['yesterday']):
+        time_context = "newer_than:2d older_than:1d"
+    
+    # Handle common abbreviations and variations BEFORE extracting search terms
+    question_lower = question_lower.replace('nyt', 'new york times')
+    question_lower = question_lower.replace('ny times', 'new york times')
+    
+    # Extract key search terms (remove common words)
+    stop_words = {'what', 'did', 'i', 'receive', 'get', 'about', 'from', 'this', 'that', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must'}
+    
+    # Split and clean the question
+    words = question_lower.replace('?', '').replace('.', '').split()
+    search_terms = [word for word in words if word not in stop_words and len(word) > 2]
+    
+    return search_terms, time_context
+
+
+def _apply_time_filter(search_results: list, time_context: str) -> list:
+    """Apply time filtering to search results based on created_at timestamp."""
+    from datetime import datetime, timezone, timedelta
+    
+    if not search_results:
+        return search_results
+    
+    now = datetime.now(timezone.utc)
+    filtered_results = []
+    
+    for result in search_results:
+        created_at_str = result.get('created_at')
+        if not created_at_str:
+            continue
+            
+        try:
+            # Parse the timestamp - handle both Z and +00:00 formats
+            if created_at_str.endswith('Z'):
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+            else:
+                created_at = datetime.fromisoformat(created_at_str)
+            
+            # Apply time filtering based on the time context
+            if time_context == "newer_than:7d":
+                if created_at > now - timedelta(days=7):
+                    filtered_results.append(result)
+            elif time_context == "newer_than:14d older_than:7d":
+                if now - timedelta(days=14) < created_at <= now - timedelta(days=7):
+                    filtered_results.append(result)
+            elif time_context == "newer_than:30d":
+                if created_at > now - timedelta(days=30):
+                    filtered_results.append(result)
+            elif time_context == "newer_than:60d older_than:30d":
+                if now - timedelta(days=60) < created_at <= now - timedelta(days=30):
+                    filtered_results.append(result)
+            elif time_context == "newer_than:1d":
+                if created_at > now - timedelta(days=1):
+                    filtered_results.append(result)
+            elif time_context == "newer_than:2d older_than:1d":
+                if now - timedelta(days=2) < created_at <= now - timedelta(days=1):
+                    filtered_results.append(result)
+            else:
+                # If we don't recognize the time context, include the result
+                filtered_results.append(result)
+                
+        except Exception as e:
+            print(f"[Chat] Error parsing timestamp {created_at_str}: {e}")
+            # If we can't parse the timestamp, include the result to be safe
+            filtered_results.append(result)
+    
+    return filtered_results
+
+
+def _prepare_email_context(search_results: list, original_question: str) -> str:
+    """Prepare email context for the LLM by formatting relevant emails."""
+    if not search_results:
+        return "No relevant emails found for this question."
+    
+    context_parts = []
+    context_parts.append(f"User asked: {original_question}")
+    context_parts.append(f"Found {len(search_results)} relevant emails:")
+    context_parts.append("")
+    
+    for i, result in enumerate(search_results[:10]):  # Limit to top 10 most relevant
+        subject = result.get('subject', 'No Subject')
+        sender = result.get('sender', 'Unknown Sender')
+        content = result.get('content', '')
+        similarity = result.get('similarity', 0)
+        
+        # Truncate content to avoid token limits
+        content_preview = content[:500] + "..." if len(content) > 500 else content
+        
+        context_parts.append(f"Email {i+1}:")
+        context_parts.append(f"  From: {sender}")
+        context_parts.append(f"  Subject: {subject}")
+        context_parts.append(f"  Relevance: {similarity:.2f}")
+        context_parts.append(f"  Content: {content_preview}")
+        context_parts.append("")
+    
+    return "\n".join(context_parts)
 
 
 @app.post("/sync-inbox")

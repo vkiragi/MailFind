@@ -5,6 +5,15 @@ MailFind is an MVP that lets you index and semantically search your Gmail, and g
 - packages/backend: FastAPI service handling Google OAuth, Gmail API access, Supabase storage, embeddings, search, and OpenAI-powered summarization.
 - packages/chrome-extension: A React + Vite Chrome extension UI.
 
+## Features
+
+- **Gmail Integration**: Secure OAuth authentication with Google
+- **Semantic Search**: AI-powered search through your emails using embeddings
+- **Email Summarization**: Generate concise summaries of email threads
+- **Chatbot Interface**: Ask natural language questions about your emails (e.g., "What emails did I get this week about NYT news?")
+- **Time-aware Queries**: Smart detection of time-based questions (this week, last month, today, etc.)
+- **Streaming Responses**: Real-time chat responses for better user experience
+
 ## Prerequisites
 
 - Python 3.10+
@@ -72,6 +81,7 @@ Health check: `GET http://localhost:8000/` returns `{ "status": "ok" }`.
 - POST `/search` → Semantic search. Body: `{ "query": "...", "userId": "optional" }`.
 - POST `/summarize` → Summarize a thread by message ID (backend resolves thread). Body: `{ "messageId": "...", "userId": "optional" }`.
 - POST `/summarize-content` → Summarize raw content. Body: `{ "content": "..." }`.
+- POST `/chat` → Chat with your emails using natural language. Body: `{ "message": "What emails did I get this week about NYT news?", "userId": "optional" }`.
 
 Note: The backend expects at least one authenticated user stored in Supabase to access Gmail API.
 
