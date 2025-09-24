@@ -218,7 +218,7 @@ function App() {
     setIsAutoSyncing(true);
     console.log('🔄 [Auto-Sync] Starting automatic sync for last 24 hours...');
     try {
-      await performSync('24h', false); // Don't show alert for auto-sync
+      await performSync('24h', true); // Show alert for auto-sync so user can see it's working
       setHasAutoSynced(true);
       console.log('🏁 [Auto-Sync] Automatic sync completed');
     } catch (error) {
