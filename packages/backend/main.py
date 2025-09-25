@@ -457,6 +457,7 @@ def health_check():
     return {"status": "ok"}
 
 
+
 @app.get("/login")
 def login():
     """Redirect to Google OAuth"""
@@ -877,6 +878,18 @@ async def search_emails(request: dict):
         
         search_results = getattr(results, "data", []) or []
         
+        # Add created_at field to results if missing (for time filtering and display)
+        for result in search_results:
+            if 'created_at' not in result and 'thread_id' in result:
+                try:
+                    # Fetch the created_at from the emails table
+                    email_data = sb.table("emails").select("created_at").eq("thread_id", result['thread_id']).limit(1).execute()
+                    email_rows = getattr(email_data, "data", []) or []
+                    if email_rows:
+                        result['created_at'] = email_rows[0].get('created_at')
+                except Exception as e:
+                    print(f"[Search] Warning: Could not fetch created_at for thread {result.get('thread_id')}: {e}")
+        
         # Post-process results to boost recent emails for news queries
         if is_news_query and search_results:
             search_results = _boost_recent_emails(search_results)
@@ -1119,6 +1132,7 @@ def _prepare_email_context(search_results: list, original_question: str) -> str:
         sender = result.get('sender', 'Unknown Sender')
         content = result.get('content', '')
         similarity = result.get('similarity', 0)
+        created_at = result.get('created_at', 'Unknown Date')
         
         # Truncate content to avoid token limits
         content_preview = content[:500] + "..." if len(content) > 500 else content
@@ -1126,6 +1140,7 @@ def _prepare_email_context(search_results: list, original_question: str) -> str:
         context_parts.append(f"Email {i+1}:")
         context_parts.append(f"  From: {sender}")
         context_parts.append(f"  Subject: {subject}")
+        context_parts.append(f"  Date: {created_at}")
         context_parts.append(f"  Relevance: {similarity:.2f}")
         context_parts.append(f"  Content: {content_preview}")
         context_parts.append("")
