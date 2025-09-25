@@ -246,6 +246,12 @@ def _get_credentials_for_user(user_id: Optional[str] = None) -> Credentials:
             except Exception:
                 pass
     except Exception as e:
+        # If refresh token is invalid/expired, user needs to re-authenticate
+        if "invalid_grant" in str(e) or "Token has been expired or revoked" in str(e):
+            raise HTTPException(
+                status_code=401, 
+                detail="Authentication expired. Please log out and log back in to reconnect your Google account."
+            )
         raise HTTPException(status_code=401, detail=f"Failed to refresh credentials: {str(e)}")
 
     return creds
@@ -1258,6 +1264,11 @@ async def sync_inbox(request: dict):
             threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
         threads = threads_resp.get('threads', []) or []
         print(f"[Sync] Found {len(threads)} threads")
+        
+        # Debug: Log thread IDs and basic info
+        for i, thread in enumerate(threads[:5]):  # Log first 5 for debugging
+            thread_id = thread.get('id', 'Unknown')
+            print(f"[Sync] Thread {i+1}: ID={thread_id}")
 
         if not threads:
             print("[Sync] No threads found, returning 0")
@@ -1296,7 +1307,16 @@ async def sync_inbox(request: dict):
             print(f"[Sync] Processing thread {i+1}/{len(new_thread_ids)}: {tid}")
             try:
                 thread_full = service.users().threads().get(userId="me", id=tid, format="full").execute()
-                print(f"[Sync] Thread {tid}: Fetched full thread data")
+                
+                # Debug: Extract subject and sender for logging
+                messages = thread_full.get("messages", [])
+                if messages:
+                    headers = messages[0].get("payload", {}).get("headers", [])
+                    subject = next((h["value"] for h in headers if h["name"].lower() == "subject"), "No Subject")
+                    sender = next((h["value"] for h in headers if h["name"].lower() == "from"), "Unknown Sender")
+                    print(f"[Sync] Thread {tid}: '{subject}' from {sender}")
+                
+                print(f"[Sync] Thread {tid}: Fetched full thread data ({len(messages)} messages in thread)")
                 
                 content = _fetch_thread_plaintext(service, tid)
                 print(f"[Sync] Thread {tid}: Extracted content ({len(content)} chars)")

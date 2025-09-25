@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/hooks/use-toast'
+import { Toaster } from '@/components/ui/toaster'
+
+// Notification types
+type NotificationType = 'success' | 'error' | 'info' | 'warning'
 
 // Component to render text with clickable markdown links
 const MarkdownText = ({ text }: { text: string }) => {
@@ -69,6 +76,20 @@ function App() {
   const [showChat, setShowChat] = useState(false)
   const [hasAutoSynced, setHasAutoSynced] = useState(false)
   const [isAutoSyncing, setIsAutoSyncing] = useState(false)
+  
+  // Toast notifications
+  const { toast } = useToast()
+
+  // Notification function using shadcn toast
+  const addNotification = (type: NotificationType, message: string) => {
+    toast({
+      title: type === 'success' ? '✅ Success' : 
+             type === 'error' ? '❌ Error' :
+             type === 'warning' ? '⚠️ Warning' : 'ℹ️ Info',
+      description: message,
+      variant: type === 'error' || type === 'warning' ? 'destructive' : 'default',
+    })
+  }
 
   // Check authentication status on component mount
   const checkAuthStatus = async () => {
@@ -162,7 +183,7 @@ function App() {
           if (!isAuthenticated) {
             console.warn('⚠️ [OAuth] OAuth timed out, closing popup');
             oauthWindow.close();
-            alert('OAuth timed out. Please try again.');
+            addNotification('error', 'OAuth timed out. Please try again.');
           }
         }, 120000);
         
@@ -171,7 +192,7 @@ function App() {
       }
     } catch (error) {
       console.error('💥 [OAuth] Login failed:', error);
-      alert('Login failed: ' + (error instanceof Error ? error.message : String(error)));
+      addNotification('error', 'Login failed: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsLoading(false);
       console.log('🏁 [OAuth] Login flow completed');
@@ -210,7 +231,7 @@ function App() {
       }
     } catch (error) {
       console.error('💥 [Logout] Logout failed:', error);
-      alert('Failed to logout. Please try again.');
+      addNotification('error', 'Failed to logout. Please try again.');
     } finally {
       setIsLoading(false);
       console.log('🏁 [Logout] Logout flow completed');
@@ -236,7 +257,7 @@ function App() {
         const skipped = typeof result.skipped_existing === 'number' ? result.skipped_existing : 0;
         
         if (showAlert) {
-          alert(`✅ Indexed ${result.indexed_count} new emails${skipped ? ` (skipped ${skipped} existing)` : ''}.`);
+          addNotification('success', `Indexed ${result.indexed_count} new emails${skipped ? ` (skipped ${skipped} existing)` : ''}.`);
         } else {
           console.log(`✅ [Auto-Sync] Indexed ${result.indexed_count} new emails${skipped ? ` (skipped ${skipped} existing)` : ''}.`);
         }
@@ -248,7 +269,7 @@ function App() {
     } catch (error) {
       console.error('💥 [Sync] Sync failed:', error);
       if (showAlert) {
-        alert('Failed to sync inbox. Please try again.');
+        addNotification('error', 'Failed to sync inbox. Please try again.');
       }
       throw error;
     }
@@ -308,7 +329,7 @@ function App() {
       }
     } catch (error) {
       console.error('💥 [Search] Search failed:', error);
-      alert('Search failed. Please try again.');
+      addNotification('error', 'Search failed. Please try again.');
     } finally {
       setIsSearching(false);
       console.log('🏁 [Search] Search flow completed');
@@ -378,8 +399,9 @@ function App() {
     }
   }
 
+
   return (
-    <div className="w-full min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans">
+    <div className="w-full min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans relative">
       {/* Header Section */}
       <div className="flex flex-col items-center">
         <h1 className="text-2xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-500">
@@ -395,13 +417,13 @@ function App() {
           <p className="text-sm text-slate-300 text-center">
             Connect your Gmail account to start using AI-powered email search
           </p>
-          <button
+          <Button
             onClick={handleLogin}
             disabled={isLoading}
-            className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+            className="bg-violet-600 hover:bg-violet-500"
           >
             {isLoading ? 'Connecting...' : 'Connect with Google'}
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-y-5">
@@ -479,21 +501,21 @@ function App() {
             {!showChat ? (
               // Search Mode
               <>
-                <input
+                <Input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search your emails..."
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  className="bg-slate-700 border-slate-600 placeholder:text-slate-400"
                 />
-                <button
+                <Button
                   onClick={handleSearch}
                   disabled={isSearching || !searchQuery.trim()}
-                  className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+                  className="bg-violet-600 hover:bg-violet-500"
                 >
                   {isSearching ? 'Searching...' : 'Search'}
-                </button>
+                </Button>
               </>
             ) : (
               // Chat Mode
@@ -662,6 +684,11 @@ function App() {
             </svg>
             {isLoading ? 'Logging out...' : 'Logout'}
           </button>
+          
+          {/* Toast notifications - positioned below logout */}
+          <div className="relative">
+            <Toaster />
+          </div>
         </div>
       )}
     </div>
