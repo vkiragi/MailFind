@@ -937,11 +937,25 @@ async def chat_with_emails(request: dict):
         search_terms, time_context = _analyze_question(message)
         print(f"[Chat] Extracted search terms: {search_terms}, time context: {time_context}")
         
-        # Build search query with time filters if needed
-        search_query = " ".join(search_terms)
+        # Detect generic temporal queries that need special handling
+        is_generic_temporal_query = any(term in message.lower() for term in [
+            'today\'s emails', 'recent emails', 'latest emails', 'new emails',
+            'what emails', 'show me emails', 'my emails', 'all emails'
+        ]) and any(term in message.lower() for term in [
+            'today', 'recent', 'latest', 'new', 'this week', 'yesterday'
+        ])
         
-        # Enhance the search query for better matching
-        enhanced_query = _enhance_search_query(search_query)
+        # Build search query with time filters if needed
+        search_query = " ".join(search_terms) if search_terms else "email"
+        
+        # For generic temporal queries, use a broader search approach
+        if is_generic_temporal_query:
+            print(f"[Chat] Detected generic temporal query, using broader search")
+            enhanced_query = "email message recent latest"
+        else:
+            # Enhance the search query for better matching
+            enhanced_query = _enhance_search_query(search_query)
+        
         print(f"[Chat] Enhanced search query: '{enhanced_query}'")
         
         if time_context:
@@ -954,14 +968,22 @@ async def chat_with_emails(request: dict):
         query_embedding = model.encode(enhanced_query, normalize_embeddings=True)
         
         # Use more lenient threshold for chat to get more context
+        # For generic temporal queries, use very low threshold and higher count
+        if is_generic_temporal_query:
+            threshold = 0.1  # Very low threshold to catch more emails
+            count = 30       # Higher count for broader results
+        else:
+            threshold = 0.3  # Normal threshold
+            count = 20       # Normal count
+            
         results = sb.rpc('match_emails', {
             'query_embedding': query_embedding.tolist(),
-            'match_threshold': 0.3,
-            'match_count': 20
+            'match_threshold': threshold,
+            'match_count': count
         }).execute()
         
         search_results = getattr(results, "data", []) or []
-        print(f"[Chat] Found {len(search_results)} relevant emails")
+        print(f"[Chat] Found {len(search_results)} relevant emails (threshold: {threshold})")
         
         # Add created_at field to results if missing (for time filtering)
         for result in search_results:
@@ -980,6 +1002,21 @@ async def chat_with_emails(request: dict):
             filtered_results = _apply_time_filter(search_results, time_context)
             print(f"[Chat] After time filtering: {len(filtered_results)} emails")
             search_results = filtered_results
+        
+        # For generic temporal queries, sort by recency instead of similarity
+        if is_generic_temporal_query and search_results:
+            from datetime import datetime
+            def get_date(result):
+                created_at = result.get('created_at')
+                if created_at:
+                    try:
+                        return datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    except:
+                        pass
+                return datetime.min.replace(tzinfo=datetime.now().tzinfo)
+            
+            search_results.sort(key=get_date, reverse=True)  # Most recent first
+            print(f"[Chat] Sorted {len(search_results)} results by recency for temporal query")
         
         # Prepare context for the LLM
         email_context = _prepare_email_context(search_results, message)
