@@ -1034,7 +1034,9 @@ async def chat_with_emails(request: dict):
             "You have access to relevant email context and should provide conversational, helpful responses. "
             "When answering questions about specific time periods (like 'this week' or 'last month'), "
             "focus on the most recent and relevant emails. Be concise but informative, and if you don't "
-            "have enough information, say so clearly."
+            "have enough information, say so clearly. "
+            "IMPORTANT: When mentioning emails, always include the Gmail URL as a clickable link using markdown format: "
+            "[Email Subject](Gmail URL). This allows users to click directly to open the email in Gmail."
         )
         
         def token_stream():
@@ -1154,6 +1156,20 @@ def _apply_time_filter(search_results: list, time_context: str) -> list:
     return filtered_results
 
 
+def _generate_gmail_url(thread_id: str) -> str:
+    """Generate Gmail URL for a thread ID."""
+    # Convert thread ID to hex format if needed (Gmail uses hex)
+    try:
+        # If thread_id is numeric, convert to hex
+        if thread_id.isdigit():
+            hex_id = hex(int(thread_id))[2:]
+        else:
+            hex_id = thread_id
+        return f"https://mail.google.com/mail/u/0/#inbox/{hex_id}"
+    except:
+        # Fallback: use thread_id as is
+        return f"https://mail.google.com/mail/u/0/#inbox/{thread_id}"
+
 def _prepare_email_context(search_results: list, original_question: str) -> str:
     """Prepare email context for the LLM by formatting relevant emails."""
     if not search_results:
@@ -1170,14 +1186,19 @@ def _prepare_email_context(search_results: list, original_question: str) -> str:
         content = result.get('content', '')
         similarity = result.get('similarity', 0)
         created_at = result.get('created_at', 'Unknown Date')
+        thread_id = result.get('thread_id', '')
         
         # Truncate content to avoid token limits
         content_preview = content[:500] + "..." if len(content) > 500 else content
+        
+        # Generate Gmail URL
+        gmail_url = _generate_gmail_url(thread_id) if thread_id else ""
         
         context_parts.append(f"Email {i+1}:")
         context_parts.append(f"  From: {sender}")
         context_parts.append(f"  Subject: {subject}")
         context_parts.append(f"  Date: {created_at}")
+        context_parts.append(f"  Gmail URL: {gmail_url}")
         context_parts.append(f"  Relevance: {similarity:.2f}")
         context_parts.append(f"  Content: {content_preview}")
         context_parts.append("")

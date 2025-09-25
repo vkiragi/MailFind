@@ -1,6 +1,58 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
+// Component to render text with clickable markdown links
+const MarkdownText = ({ text }: { text: string }) => {
+  const renderTextWithLinks = (text: string) => {
+    // Regex to match markdown links: [text](url)
+    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      // Add text before the link
+      if (match.index > lastIndex) {
+        parts.push(text.slice(lastIndex, match.index));
+      }
+
+      // Add the clickable link
+      const linkText = match[1];
+      const linkUrl = match[2];
+      parts.push(
+        <a
+          key={match.index}
+          href={linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:text-blue-300 underline cursor-pointer"
+          onClick={(e) => {
+            e.preventDefault();
+            window.open(linkUrl, '_blank');
+          }}
+        >
+          {linkText}
+        </a>
+      );
+
+      lastIndex = linkRegex.lastIndex;
+    }
+
+    // Add remaining text after the last link
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : [text];
+  };
+
+  return (
+    <div className="whitespace-pre-wrap">
+      {renderTextWithLinks(text)}
+    </div>
+  );
+};
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -456,7 +508,11 @@ function App() {
                             ? 'bg-violet-600 text-white' 
                             : 'bg-slate-700 text-slate-100'
                         }`}>
-                          <div className="whitespace-pre-wrap">{message.content}</div>
+                          {message.role === 'user' ? (
+                            <div className="whitespace-pre-wrap">{message.content}</div>
+                          ) : (
+                            <MarkdownText text={message.content} />
+                          )}
                         </div>
                       </div>
                     ))}
@@ -535,28 +591,62 @@ function App() {
                 )}
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
-                {searchResults.map((result, index) => (
-                  <div key={index} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
-                    <div className="text-xs font-medium text-slate-200 mb-1">
-                      {result.sender || 'Unknown Sender'}
+                {searchResults.map((result, index) => {
+                  // Generate Gmail URL for this email
+                  const generateGmailUrl = (threadId: string) => {
+                    try {
+                      // If thread_id is numeric, convert to hex
+                      if (threadId && /^\d+$/.test(threadId)) {
+                        const hex_id = parseInt(threadId).toString(16);
+                        return `https://mail.google.com/mail/u/0/#inbox/${hex_id}`;
+                      } else {
+                        return `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
+                      }
+                    } catch {
+                      // Fallback: use thread_id as is
+                      return `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
+                    }
+                  };
+
+                  const gmailUrl = result.thread_id ? generateGmailUrl(result.thread_id) : null;
+
+                  return (
+                    <div 
+                      key={index} 
+                      className={`bg-slate-800 border border-slate-700 rounded-lg p-3 transition-all duration-200 ${
+                        gmailUrl 
+                          ? 'hover:bg-slate-700 hover:border-violet-500 cursor-pointer transform hover:scale-[1.02]' 
+                          : ''
+                      }`}
+                      onClick={() => {
+                        if (gmailUrl) {
+                          window.open(gmailUrl, '_blank');
+                        }
+                      }}
+                      title={gmailUrl ? 'Click to open in Gmail' : undefined}
+                    >
+                      <div className="text-xs font-medium text-slate-200 mb-1">
+                        {result.sender || 'Unknown Sender'}
+                        {gmailUrl && <span className="ml-2 text-violet-400">🔗</span>}
+                      </div>
+                      <div className="text-xs text-slate-300 mb-2">
+                        {result.subject || 'No Subject'}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        {result.similarity && (
+                          <div className="text-xs text-violet-400">
+                            Similarity: {Math.round(result.similarity * 100)}%
+                          </div>
+                        )}
+                        {result.recency_boost && result.recency_boost !== 'none' && (
+                          <div className="text-xs text-green-400">
+                            {result.recency_boost === 'week' ? '🔥 Recent' : '📅 This month'}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-300 mb-2">
-                      {result.subject || 'No Subject'}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      {result.similarity && (
-                        <div className="text-xs text-violet-400">
-                          Similarity: {Math.round(result.similarity * 100)}%
-                        </div>
-                      )}
-                      {result.recency_boost && result.recency_boost !== 'none' && (
-                        <div className="text-xs text-green-400">
-                          {result.recency_boost === 'week' ? '🔥 Recent' : '📅 This month'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
