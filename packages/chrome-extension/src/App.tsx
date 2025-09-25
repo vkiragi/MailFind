@@ -379,7 +379,7 @@ function App() {
   }
 
   return (
-    <div className="w-full h-full bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans">
+    <div className="w-full min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col gap-y-5 font-sans">
       {/* Header Section */}
       <div className="flex flex-col items-center">
         <h1 className="text-2xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-500">

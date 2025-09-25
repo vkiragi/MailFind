@@ -51,6 +51,14 @@ iOSInjectionProject/
 .env.test.local
 .env.production.local
 
+# Backend sensitive files
+packages/backend/.env
+packages/backend/cookies.txt
+packages/backend/server.log
+
+# Test files
+test_*.py
+
 # IDE
 .vscode/
 .idea/

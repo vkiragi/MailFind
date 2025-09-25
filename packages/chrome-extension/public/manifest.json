@@ -5,7 +5,8 @@
   "description": "Summarize Gmail threads with AI-powered insights",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "sidePanel"
   ],
   "host_permissions": [
     "http://localhost:8000/*",
@@ -18,8 +19,22 @@
     }
   ],
   "action": {
-    "default_popup": "index.html",
     "default_title": "MailFind"
+  },
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+M",
+        "mac": "Command+Shift+M"
+      },
+      "description": "Open MailFind popup"
+    }
   },
   "icons": {
     "16": "vite.svg",
