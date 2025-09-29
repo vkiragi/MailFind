@@ -126,7 +126,7 @@ def _get_fernet() -> Fernet:
     if not ENCRYPTION_KEY:
         raise HTTPException(status_code=500, detail="ENCRYPTION_KEY not configured")
     try:
-        return Fernet(ENCRYPTION_KEY)
+        return Fernet(ENCRYPTION_KEY.encode() if isinstance(ENCRYPTION_KEY, str) else ENCRYPTION_KEY)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Invalid ENCRYPTION_KEY: {str(e)}")
 
@@ -1473,7 +1473,10 @@ async def chat_with_emails(request: dict):
             raise HTTPException(status_code=500, detail="OpenAI SDK not available or OPENAI_API_KEY not set")
 
         client = OpenAI(api_key=api_key)
-        
+
+        # Detect if user is asking about "important" emails
+        is_asking_important = any(term in message_lower for term in ['important', 'critical', 'urgent', 'priority'])
+
         # Create system prompt for email assistant
         system_prompt = (
             "You are a helpful email assistant that can answer questions about the user's emails. "
@@ -1481,7 +1484,23 @@ async def chat_with_emails(request: dict):
             "When answering questions about specific time periods (like 'this week' or 'last month'), "
             "focus on the most recent and relevant emails. Be concise but informative, and if you don't "
             "have enough information, say so clearly. "
-            "IMPORTANT: When mentioning emails, always include the Gmail URL as a clickable link using markdown format: "
+        )
+
+        if is_asking_important:
+            system_prompt += (
+                "\n\nIMPORTANT: The user asked about 'important' emails. Focus ONLY on emails that are truly significant, such as: "
+                "1) Personal emails from real people (not automated/marketing), "
+                "2) Work-related communications from colleagues/clients, "
+                "3) Financial alerts (bills, payments, receipts), "
+                "4) Account notifications (password resets, security alerts), "
+                "5) Travel confirmations and tickets. "
+                "EXCLUDE: Newsletters, promotional emails, marketing content, social media notifications, "
+                "automated digests, and subscription content. If all the emails provided are newsletters/promotions, "
+                "say 'I found some emails from today, but they appear to be newsletters and promotional content rather than important personal or work emails.'"
+            )
+
+        system_prompt += (
+            "\n\nIMPORTANT: When mentioning emails, always include the Gmail URL as a clickable link using markdown format: "
             "[Email Subject](Gmail URL). This allows users to click directly to open the email in Gmail."
         )
         
