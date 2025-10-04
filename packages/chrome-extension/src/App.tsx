@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
 
@@ -63,19 +62,14 @@ const MarkdownText = ({ text }: { text: string }) => {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  // const [authStatus, setAuthStatus] = useState<any>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
-  const [isSearching, setIsSearching] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncRange, setSyncRange] = useState<'24h' | '7d' | '30d'>('24h')
-  const [searchInfo, setSearchInfo] = useState<any>(null)
-  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([])
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string, emails?: any[]}>>([])
   const [chatInput, setChatInput] = useState('')
   const [isChatting, setIsChatting] = useState(false)
-  const [showChat, setShowChat] = useState(false)
   const [hasAutoSynced, setHasAutoSynced] = useState(false)
   const [isAutoSyncing, setIsAutoSyncing] = useState(false)
+  const [chatHeight, setChatHeight] = useState(240) // Initial height in pixels
   
   // Toast notifications
   const { toast } = useToast()
@@ -302,40 +296,6 @@ function App() {
     }
   }
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setIsSearching(true)
-    console.log('🔍 [Search] Starting search for:', searchQuery);
-    
-    try {
-      const response = await fetch('http://localhost:8000/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: searchQuery }),
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ [Search] Search successful:', result);
-        setSearchResults(result.results || []);
-        setSearchInfo(result);
-      } else {
-        console.error(`❌ [Search] Backend error: ${response.status} ${response.statusText}`);
-        throw new Error(`Search failed: ${response.status}`);
-      }
-    } catch (error) {
-      console.error('💥 [Search] Search failed:', error);
-      addNotification('error', 'Search failed. Please try again.');
-    } finally {
-      setIsSearching(false);
-      console.log('🏁 [Search] Search flow completed');
-    }
-  }
-
   const handleChat = async () => {
     if (!chatInput.trim()) return;
     
@@ -359,32 +319,15 @@ function App() {
       });
       
       if (response.ok) {
-        // Handle streaming response
-        const reader = response.body?.getReader()
-        const decoder = new TextDecoder()
-        let assistantMessage = ''
-        
-        // Add assistant message placeholder
-        setChatMessages(prev => [...prev, { role: 'assistant', content: '' }])
-        
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-            
-            const chunk = decoder.decode(value, { stream: true })
-            assistantMessage += chunk
-            
-            // Update the last message (assistant's response)
-            setChatMessages(prev => {
-              const newMessages = [...prev]
-              newMessages[newMessages.length - 1] = { role: 'assistant', content: assistantMessage }
-              return newMessages
-            })
-          }
-        }
-        
-        console.log('✅ [Chat] Chat successful');
+        // Parse JSON response
+        const data = await response.json()
+        const assistantMessage = data.response || data.error || 'No response'
+        const emails = data.emails || []
+
+        // Add assistant message with emails
+        setChatMessages(prev => [...prev, { role: 'assistant', content: assistantMessage, emails }])
+
+        console.log('✅ [Chat] Chat successful with', emails.length, 'emails');
       } else {
         console.error(`❌ [Chat] Backend error: ${response.status} ${response.statusText}`);
         throw new Error(`Chat failed: ${response.status}`);
@@ -471,70 +414,59 @@ function App() {
 
           {/* AI Assistant Section */}
           <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-x-2 font-semibold">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                AI Email Assistant
-              </div>
-              <div className="flex bg-slate-700 rounded-lg p-1">
-                <button
-                  onClick={() => setShowChat(false)}
-                  className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
-                    !showChat ? 'bg-slate-600 text-slate-100' : 'text-slate-300 hover:text-slate-100'
-                  }`}
-                >
-                  Search
-                </button>
-                <button
-                  onClick={() => setShowChat(true)}
-                  className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
-                    showChat ? 'bg-slate-600 text-slate-100' : 'text-slate-300 hover:text-slate-100'
-                  }`}
-                >
-                  Chat
-                </button>
-              </div>
+            <div className="flex items-center gap-x-2 font-semibold">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              AI Email Chat
             </div>
 
-            {!showChat ? (
-              // Search Mode
-              <>
-                <Input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search your emails..."
-                  className="bg-slate-700 border-slate-600 placeholder:text-slate-400"
-                />
-                <Button
-                  onClick={handleSearch}
-                  disabled={isSearching || !searchQuery.trim()}
-                  className="bg-violet-600 hover:bg-violet-500"
-                >
-                  {isSearching ? 'Searching...' : 'Search'}
-                </Button>
-              </>
-            ) : (
-              // Chat Mode
-              <>
+            {/* Chat Interface */}
+            <>
                 {/* Chat Messages */}
                 {chatMessages.length > 0 && (
-                  <div className="max-h-60 overflow-y-auto space-y-3 bg-slate-800/50 rounded-lg p-3">
+                  <div className="relative">
+                    <div
+                      className="overflow-y-auto space-y-3 bg-slate-800/50 rounded-lg p-3"
+                      style={{ height: `${chatHeight}px` }}
+                    >
                     {chatMessages.map((message, index) => (
-                      <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] rounded-lg p-3 text-sm ${
-                          message.role === 'user' 
-                            ? 'bg-violet-600 text-white' 
-                            : 'bg-slate-700 text-slate-100'
-                        }`}>
-                          {message.role === 'user' ? (
-                            <div className="whitespace-pre-wrap">{message.content}</div>
-                          ) : (
-                            <MarkdownText text={message.content} />
-                          )}
+                      <div key={index}>
+                        <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[90%] rounded-lg p-3 text-sm overflow-hidden ${
+                            message.role === 'user'
+                              ? 'bg-violet-600 text-white'
+                              : 'bg-slate-700 text-slate-100'
+                          }`}>
+                            {message.role === 'user' ? (
+                              <div className="whitespace-pre-wrap">{message.content}</div>
+                            ) : (
+                              <>
+                                <MarkdownText text={message.content} />
+
+                                {/* Display email cards inline for assistant messages */}
+                                {message.emails && message.emails.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-slate-600 space-y-2">
+                                    <div className="text-xs text-slate-400 mb-2">📧 {message.emails.length} email{message.emails.length > 1 ? 's' : ''}</div>
+                                    {message.emails.map((email: any, emailIndex: number) => (
+                                      <a
+                                        key={emailIndex}
+                                        href={`https://mail.google.com/mail/u/0/#inbox/${email.thread_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block bg-slate-800/50 hover:bg-slate-600 border border-slate-600 rounded-lg p-2 transition-colors overflow-hidden"
+                                      >
+                                        <div className="text-sm font-medium text-slate-100 truncate">
+                                          {email.subject || '(No Subject)'}
+                                        </div>
+                                        <div className="text-xs text-slate-400 mt-1 truncate">{email.sender}</div>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -549,6 +481,32 @@ function App() {
                         </div>
                       </div>
                     )}
+                    </div>
+                    {/* Resize Handle */}
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-violet-500/30 transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        const startY = e.clientY
+                        const startHeight = chatHeight
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const delta = e.clientY - startY
+                          const newHeight = Math.max(150, Math.min(600, startHeight + delta))
+                          setChatHeight(newHeight)
+                        }
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener('mousemove', handleMouseMove)
+                          document.removeEventListener('mouseup', handleMouseUp)
+                        }
+
+                        document.addEventListener('mousemove', handleMouseMove)
+                        document.addEventListener('mouseup', handleMouseUp)
+                      }}
+                    >
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-slate-600 rounded-full"></div>
+                    </div>
                   </div>
                 )}
 
@@ -598,81 +556,8 @@ function App() {
                   </button>
                 </div>
               </>
-            )}
           </div>
 
-          {/* Search Results */}
-          {searchResults.length > 0 && (
-            <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
-              <div className="flex justify-between items-center">
-                <div className="font-semibold">Search Results ({searchResults.length})</div>
-                {searchInfo?.search_type === 'news_optimized' && (
-                  <div className="text-xs bg-orange-900/50 text-orange-300 px-2 py-1 rounded">
-                    📰 News Mode
-                  </div>
-                )}
-              </div>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {searchResults.map((result, index) => {
-                  // Generate Gmail URL for this email
-                  const generateGmailUrl = (threadId: string) => {
-                    try {
-                      // If thread_id is numeric, convert to hex
-                      if (threadId && /^\d+$/.test(threadId)) {
-                        const hex_id = parseInt(threadId).toString(16);
-                        return `https://mail.google.com/mail/u/0/#inbox/${hex_id}`;
-                      } else {
-                        return `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
-                      }
-                    } catch {
-                      // Fallback: use thread_id as is
-                      return `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
-                    }
-                  };
-
-                  const gmailUrl = result.thread_id ? generateGmailUrl(result.thread_id) : null;
-
-                  return (
-                    <div 
-                      key={index} 
-                      className={`bg-slate-800 border border-slate-700 rounded-lg p-3 transition-all duration-200 ${
-                        gmailUrl 
-                          ? 'hover:bg-slate-700 hover:border-violet-500 cursor-pointer transform hover:scale-[1.02]' 
-                          : ''
-                      }`}
-                      onClick={() => {
-                        if (gmailUrl) {
-                          window.open(gmailUrl, '_blank');
-                        }
-                      }}
-                      title={gmailUrl ? 'Click to open in Gmail' : undefined}
-                    >
-                      <div className="text-xs font-medium text-slate-200 mb-1">
-                        {result.sender || 'Unknown Sender'}
-                        {gmailUrl && <span className="ml-2 text-violet-400">🔗</span>}
-                      </div>
-                      <div className="text-xs text-slate-300 mb-2">
-                        {result.subject || 'No Subject'}
-                      </div>
-                      <div className="flex justify-between items-center">
-                        {result.similarity && (
-                          <div className="text-xs text-violet-400">
-                            Similarity: {Math.round(result.similarity * 100)}%
-                          </div>
-                        )}
-                        {result.recency_boost && result.recency_boost !== 'none' && (
-                          <div className="text-xs text-green-400">
-                            {result.recency_boost === 'week' ? '🔥 Recent' : '📅 This month'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          
           {/* Logout Button */}
           <button
             onClick={handleLogout}

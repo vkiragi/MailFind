@@ -1397,20 +1397,24 @@ async def chat_with_emails(request: dict):
         # For temporal queries and news-related queries, use very low threshold
         message_lower = message.lower()
         is_news_query = any(term in message_lower for term in ['news', 'nyt', 'new york times', 'times', 'newspaper', 'breaking'])
+        is_latest_query = any(term in message_lower for term in ['latest', 'most recent', 'newest', 'last email'])
 
         if is_generic_temporal_query or is_news_query:
             threshold = 0.15  # Very low threshold to catch all potentially relevant emails
             count = 30        # Higher count for broader results
+        elif is_latest_query:
+            threshold = 0.2   # Low threshold for latest queries
+            count = 10        # Fewer results since we want latest
         else:
             threshold = 0.3   # More lenient threshold for chat
-            count = 20        # More results for better context
-            
+            count = 15        # Moderate number of results
+
         results = sb.rpc('match_emails', {
             'query_embedding': query_embedding.tolist(),
             'match_threshold': threshold,
             'match_count': count
         }).execute()
-        
+
         search_results = getattr(results, "data", []) or []
         print(f"[Chat] Found {len(search_results)} relevant emails (threshold: {threshold})")
         
@@ -1432,8 +1436,8 @@ async def chat_with_emails(request: dict):
             print(f"[Chat] After time filtering: {len(filtered_results)} emails")
             search_results = filtered_results
         
-        # For generic temporal queries, sort by recency instead of similarity
-        if is_generic_temporal_query and search_results:
+        # For generic temporal queries or "latest" queries, sort by recency instead of similarity
+        if (is_generic_temporal_query or is_latest_query) and search_results:
             from datetime import datetime
             def get_date(result):
                 created_at = result.get('created_at')
@@ -1443,29 +1447,50 @@ async def chat_with_emails(request: dict):
                     except:
                         pass
                 return datetime.min.replace(tzinfo=datetime.now().tzinfo)
-            
+
             search_results.sort(key=get_date, reverse=True)  # Most recent first
-            print(f"[Chat] Sorted {len(search_results)} results by recency for temporal query")
+            print(f"[Chat] Sorted {len(search_results)} results by recency")
+
+            # For "latest" queries, take only the top results
+            if is_latest_query and len(search_results) > 5:
+                search_results = search_results[:5]
+                print(f"[Chat] Limited to top 5 most recent for 'latest' query")
         
+        # Filter by importance score if user asked for "important" emails
+        is_asking_important = any(term in message_lower for term in ['important', 'critical', 'urgent', 'priority'])
+        if is_asking_important and search_results:
+            original_count = len(search_results)
+            # Only keep emails with importance score >= 40 (above marketing threshold)
+            search_results = [email for email in search_results if email.get('importance_score', 50) >= 40]
+            filtered_count = len(search_results)
+            if original_count != filtered_count:
+                print(f"[Chat] Filtered to important emails only: {filtered_count}/{original_count} (removed {original_count - filtered_count} marketing emails)")
+
         # Apply minimal filtering for chat to preserve context - only filter if query is very specific
         entity_indicators = ['anthropic', 'openai', 'google', 'microsoft', 'apple', 'amazon', 'meta', 'tesla', 'nvidia']
         has_specific_entity = any(entity in message_lower for entity in entity_indicators)
 
         # Only apply aggressive filtering for very specific entity queries, not for general news/time queries
-        if search_results and has_specific_entity and not is_news_query:
+        if search_results and has_specific_entity and not is_news_query and not is_asking_important:
             original_count = len(search_results)
             search_results = _filter_irrelevant_results(message, search_results)
             filtered_count = len(search_results)
             if original_count != filtered_count:
                 print(f"[Chat] Filtered out {original_count - filtered_count} irrelevant results")
         else:
-            print(f"[Chat] Skipping aggressive filtering for temporal/news query")
+            print(f"[Chat] Skipping aggressive filtering for temporal/news/important query")
         
 
         # Prepare context for the LLM
         email_context = _prepare_email_context(search_results, message)
         print(f"[Chat] Prepared email context with {len(search_results)} results")
         print(f"[Chat] Context length: {len(email_context)} characters")
+
+        # Debug: Print first few email subjects
+        if search_results:
+            print(f"[Chat] DEBUG: Found {len(search_results)} emails:")
+            for i, email in enumerate(search_results[:5]):
+                print(f"[Chat] DEBUG: {i+1}. '{email.get('subject', 'No subject')}' from {email.get('sender', 'Unknown')}")
         
         # Ensure OpenAI client is available
         api_key = os.getenv("OPENAI_API_KEY")
@@ -1488,15 +1513,17 @@ async def chat_with_emails(request: dict):
 
         if is_asking_important:
             system_prompt += (
-                "\n\nIMPORTANT: The user asked about 'important' emails. Focus ONLY on emails that are truly significant, such as: "
-                "1) Personal emails from real people (not automated/marketing), "
-                "2) Work-related communications from colleagues/clients, "
-                "3) Financial alerts (bills, payments, receipts), "
-                "4) Account notifications (password resets, security alerts), "
-                "5) Travel confirmations and tickets. "
-                "EXCLUDE: Newsletters, promotional emails, marketing content, social media notifications, "
-                "automated digests, and subscription content. If all the emails provided are newsletters/promotions, "
-                "say 'I found some emails from today, but they appear to be newsletters and promotional content rather than important personal or work emails.'"
+                "\n\nIMPORTANT: The user asked about 'important' emails. Categorize the emails into: "
+                "\n\n**Important emails** (mention these first):"
+                "\n1) Personal emails from real people (not automated/marketing)"
+                "\n2) Work-related communications from colleagues/clients"
+                "\n3) Financial alerts (bills, payments, receipts)"
+                "\n4) Account notifications (password resets, security alerts)"
+                "\n5) Travel confirmations and tickets"
+                "\n\n**Less important** (newsletters/promotional - mention these briefly if present):"
+                "\n- Newsletters, promotional emails, marketing content, social media notifications, automated digests"
+                "\n\nIf there are NO important emails, say so clearly, but still mention what other emails they received. "
+                "For example: 'You received 5 emails today, but they are all newsletters and promotional content: [list them]'"
             )
 
         system_prompt += (
@@ -1504,30 +1531,71 @@ async def chat_with_emails(request: dict):
             "[Email Subject](Gmail URL). This allows users to click directly to open the email in Gmail."
         )
         
-        # Temporary: Use simple non-streaming response for debugging
+        # Try GPT-5-nano first, fallback to gpt-4o-mini if it fails or returns empty
         try:
-            print(f"[Chat] Making OpenAI API call...")
+            print(f"[Chat] Trying gpt-5-nano...")
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-nano",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"User Question: {message}\n\nRelevant Email Context:\n{email_context}"}
                 ],
-                max_tokens=500,
-                temperature=0.7
+                max_completion_tokens=1000  # gpt-5-nano uses max_completion_tokens, no temperature parameter
             )
 
-            content = response.choices[0].message.content
-            print(f"[Chat] Got response: {content[:100]}...")
+            content = response.choices[0].message.content if response.choices else None
+            print(f"[Chat] gpt-5-nano response: {content[:100] if content else 'EMPTY'}...")
 
+            # If gpt-5-nano returns empty, fallback to gpt-4o-mini
+            if not content or not content.strip():
+                print(f"[Chat] gpt-5-nano returned empty, falling back to gpt-4o-mini...")
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"User Question: {message}\n\nRelevant Email Context:\n{email_context}"}
+                    ],
+                    max_tokens=1000,  # gpt-4o-mini still uses max_tokens
+                    temperature=0.7
+                )
+                content = response.choices[0].message.content
+                print(f"[Chat] gpt-4o-mini response: {content[:100]}...")
+
+            # Return both the AI response and the email results
             if content:
-                return {"response": content}
+                return {
+                    "response": content,
+                    "emails": search_results  # Include the actual email results
+                }
             else:
-                return {"response": "No response generated."}
+                return {
+                    "response": "No response generated.",
+                    "emails": search_results
+                }
 
         except Exception as oe:
-            print(f"[Chat] OpenAI error: {str(oe)}")
-            return {"error": f"Chat error: {str(oe)}"}
+            print(f"[Chat] gpt-5-nano error: {str(oe)}")
+            print(f"[Chat] Falling back to gpt-4o-mini due to error...")
+            # Fallback to gpt-4o-mini on any error
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"User Question: {message}\n\nRelevant Email Context:\n{email_context}"}
+                    ],
+                    max_tokens=1000,  # gpt-4o-mini uses max_tokens
+                    temperature=0.7
+                )
+                content = response.choices[0].message.content
+                print(f"[Chat] gpt-4o-mini fallback response: {content[:100]}...")
+                return {
+                    "response": content,
+                    "emails": search_results
+                }
+            except Exception as fallback_error:
+                print(f"[Chat] Fallback also failed: {str(fallback_error)}")
+                return {"error": f"Chat error: {str(fallback_error)}"}
         
     except HTTPException:
         raise
@@ -2229,6 +2297,116 @@ def _fallback_single_score(candidate: dict, query: str) -> float:
     return min(10.0, score)
 
 
+def _detect_unsubscribe_link(content: str, headers: dict = None) -> bool:
+    """Detect if email has unsubscribe link or headers (indicates newsletter/marketing)."""
+    if not content:
+        return False
+
+    content_lower = content.lower()
+
+    # Check for unsubscribe links in content
+    unsubscribe_patterns = [
+        'unsubscribe', 'opt-out', 'opt out', 'manage preferences',
+        'update your preferences', 'email preferences', 'stop receiving'
+    ]
+
+    if any(pattern in content_lower for pattern in unsubscribe_patterns):
+        return True
+
+    # Check for List-Unsubscribe header (standard for bulk email)
+    if headers and 'list-unsubscribe' in [k.lower() for k in headers.keys()]:
+        return True
+
+    return False
+
+
+def _is_automated_sender(sender: str) -> bool:
+    """Detect if sender is automated/marketing (not a real person)."""
+    if not sender:
+        return False
+
+    sender_lower = sender.lower()
+
+    # Check for noreply/no-reply anywhere in the email (not just at start)
+    if 'noreply' in sender_lower or 'no-reply' in sender_lower or 'no_reply' in sender_lower:
+        return True
+    if 'donotreply' in sender_lower or 'do-not-reply' in sender_lower or 'do_not_reply' in sender_lower:
+        return True
+
+    # Common automated sender patterns (must be at start of local part)
+    automated_patterns = [
+        'newsletter@', 'news@', 'marketing@',
+        'notifications@', 'notify@', 'alerts@',
+        'info@', 'support@', 'help@',
+        'team@', 'hello@', 'hi@',
+        'automated@', 'auto@',
+        'direct@', 'fromthetimes@', 'mailer@',
+        'careerservice@', 'careers@', 'jobs@'
+    ]
+
+    return any(pattern in sender_lower for pattern in automated_patterns)
+
+
+def _has_bulk_headers(headers: dict) -> bool:
+    """Check for bulk/marketing email headers."""
+    if not headers:
+        return False
+
+    # Normalize header keys to lowercase
+    headers_lower = {k.lower(): v for k, v in headers.items()}
+
+    # Check for bulk email indicators
+    if 'precedence' in headers_lower:
+        precedence = str(headers_lower['precedence']).lower()
+        if precedence in ['bulk', 'list', 'junk']:
+            return True
+
+    # Check for list headers
+    list_headers = ['list-id', 'list-post', 'list-help', 'list-subscribe']
+    if any(header in headers_lower for header in list_headers):
+        return True
+
+    return False
+
+
+def _calculate_importance_score(email_data: dict) -> int:
+    """
+    Calculate importance score (0-100) based on email metadata.
+    Higher score = more important/personal, Lower score = marketing/automated
+    """
+    score = 50  # baseline
+
+    content = email_data.get('content', '')
+    sender = email_data.get('sender', '')
+    headers = email_data.get('headers', {})
+
+    # Marketing/automated signals (negative)
+    if _detect_unsubscribe_link(content, headers):
+        score -= 20
+
+    if _is_automated_sender(sender):
+        score -= 15
+
+    if _has_bulk_headers(headers):
+        score -= 10
+
+    # Positive signals
+    # Short content often means personal email (not marketing copy)
+    if content and len(content) < 500:
+        score += 5
+
+    # Personal domain patterns (simple heuristic)
+    if sender and '@' in sender:
+        domain = sender.split('@')[-1].lower()
+        personal_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com']
+        if any(personal_domain in domain for personal_domain in personal_domains):
+            # But only if not automated sender
+            if not _is_automated_sender(sender):
+                score += 10
+
+    return max(0, min(100, score))
+
+
 def _prepare_email_context(search_results: list, original_question: str) -> str:
     """Prepare email context for the LLM by formatting relevant emails."""
     if not search_results:
@@ -2246,17 +2424,26 @@ def _prepare_email_context(search_results: list, original_question: str) -> str:
         similarity = result.get('similarity', 0)
         created_at = result.get('created_at', 'Unknown Date')
         thread_id = result.get('thread_id', '')
-        
+        importance_score = result.get('importance_score', 50)
+        is_automated = result.get('is_automated', False)
+        has_unsubscribe = result.get('has_unsubscribe', False)
+
         # Truncate content to avoid token limits
         content_preview = content[:500] + "..." if len(content) > 500 else content
-        
+
         # Generate Gmail URL
         gmail_url = _generate_gmail_url(thread_id) if thread_id else ""
-        
+
+        # Determine email type based on importance metadata
+        email_type = "Personal/Important"
+        if is_automated or has_unsubscribe or importance_score < 40:
+            email_type = "Newsletter/Marketing"
+
         context_parts.append(f"Email {i+1}:")
         context_parts.append(f"  From: {sender}")
         context_parts.append(f"  Subject: {subject}")
         context_parts.append(f"  Date: {created_at}")
+        context_parts.append(f"  Type: {email_type} (Importance Score: {importance_score}/100)")
         context_parts.append(f"  Gmail URL: {gmail_url}")
         context_parts.append(f"  Relevance: {similarity:.2f}")
         context_parts.append(f"  Content: {content_preview}")
@@ -2309,14 +2496,32 @@ async def sync_inbox(request: dict):
         elif selected_range in ("30d", "30days", "month"):
             gmail_q = "newer_than:30d"
 
-        # List recent threads (limit to 50 for popup use)
+        # List all threads in the time range (with pagination)
         print("[Sync] Fetching threads list...")
-        if gmail_q:
-            threads_resp = service.users().threads().list(userId="me", maxResults=50, q=gmail_q).execute()
-        else:
-            threads_resp = service.users().threads().list(userId="me", maxResults=50).execute()
-        threads = threads_resp.get('threads', []) or []
-        print(f"[Sync] Found {len(threads)} threads")
+        threads = []
+        page_token = None
+
+        while True:
+            if gmail_q:
+                if page_token:
+                    threads_resp = service.users().threads().list(userId="me", maxResults=500, q=gmail_q, pageToken=page_token).execute()
+                else:
+                    threads_resp = service.users().threads().list(userId="me", maxResults=500, q=gmail_q).execute()
+            else:
+                if page_token:
+                    threads_resp = service.users().threads().list(userId="me", maxResults=500, pageToken=page_token).execute()
+                else:
+                    threads_resp = service.users().threads().list(userId="me", maxResults=500).execute()
+
+            batch_threads = threads_resp.get('threads', []) or []
+            threads.extend(batch_threads)
+            print(f"[Sync] Fetched {len(batch_threads)} threads (total so far: {len(threads)})")
+
+            page_token = threads_resp.get('nextPageToken')
+            if not page_token:
+                break
+
+        print(f"[Sync] Found {len(threads)} total threads")
         
         # Debug: Log thread IDs and basic info
         for i, thread in enumerate(threads[:5]):  # Log first 5 for debugging
@@ -2382,7 +2587,18 @@ async def sync_inbox(request: dict):
                 # Classify email into categories using LLM
                 print(f"[Sync] Thread {tid}: Classifying email categories")
                 categories = _classify_email_categories(subject, content, sender)
-                
+
+                # Calculate importance score based on metadata
+                email_data = {
+                    'content': content,
+                    'sender': sender,
+                    'headers': {}  # TODO: Extract headers from Gmail API if needed
+                }
+                importance_score = _calculate_importance_score(email_data)
+                is_automated = _is_automated_sender(sender)
+                has_unsubscribe = _detect_unsubscribe_link(content)
+                print(f"[Sync] Thread {tid}: Importance score: {importance_score} (automated: {is_automated}, unsubscribe: {has_unsubscribe})")
+
                 # Create enhanced text for embedding that includes keywords and context
                 text_for_embedding = _create_enhanced_embedding_text(subject, content, sender)
                 print(f"[Sync] Thread {tid}: Generating embedding for {len(text_for_embedding)} chars")
@@ -2398,6 +2614,9 @@ async def sync_inbox(request: dict):
                     "content": content,
                     "embedding": emb,
                     "categories": categories,
+                    "importance_score": importance_score,
+                    "is_automated": is_automated,
+                    "has_unsubscribe": has_unsubscribe,
                 }
                 print(f"[Sync] Thread {tid}: Upserting to Supabase...")
                 sb.table("emails").upsert(
