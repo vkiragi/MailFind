@@ -777,20 +777,28 @@ def health_check():
 
 @app.get("/login")
 def login():
-    """Redirect to Google OAuth"""
+    """Redirect to Google OAuth
+
+    Always uses prompt='consent' to ensure we get a refresh token.
+    This is necessary because Google only returns refresh tokens on first auth or with consent.
+    """
     try:
         flow = get_flow()
-        
+
         # Generate state to prevent CSRF
         state = secrets.token_urlsafe(32)
         oauth_states[state] = True
-        
+
+        # Always request consent to get refresh token
+        # Note: This will create a new refresh token each time, but we need it
+        # because without it, subsequent logins don't provide refresh tokens
         authorization_url, _ = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
+            prompt='consent',  # Required to get refresh token
             state=state
         )
-        
+
         return RedirectResponse(url=authorization_url)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Login error: {str(e)}")
@@ -2754,9 +2762,107 @@ async def autocomplete_suggestions(query: str = "", limit: int = 5):
         return {"suggestions": []}
 
 
+def _score_email_relevance_with_ai(query: str, email: dict) -> float:
+    """Use AI (gpt-4o-mini) to score how relevant an email is to a search query.
+
+    Returns a similarity score between 0.0 and 1.0.
+    Uses caching to avoid redundant API calls.
+    """
+    try:
+        # Create cache key from query and email ID
+        cache_key = f"{query.lower().strip()}:{email.get('thread_id', '')}"
+
+        # Check cache first
+        if cache_key in AI_SCORE_CACHE:
+            cached_entry = AI_SCORE_CACHE[cache_key]
+            # Check if cache entry is still valid (TTL)
+            if time.time() - cached_entry['timestamp'] < CACHE_TTL:
+                return cached_entry['score']
+
+        # Prepare email content for scoring
+        subject = email.get('subject', '(No Subject)')[:200]
+        sender = email.get('sender', 'Unknown')[:100]
+        content = email.get('content', '')[:300]
+        created_at = email.get('created_at', '')
+
+        # Format date nicely
+        try:
+            email_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            days_ago = (datetime.now(timezone.utc) - email_date).days
+            date_str = f"{days_ago} days ago" if days_ago > 0 else "today"
+        except:
+            date_str = created_at
+
+        # Create scoring prompt
+        prompt = f"""Score how relevant this email is to the search query. Consider:
+- Does the sender match or relate to the query?
+- Does the subject match or relate to the query?
+- Does the content match or relate to the query?
+- Is the email recent (if recency matters for the query)?
+
+Query: "{query}"
+
+Email:
+- Sender: {sender}
+- Subject: {subject}
+- Content: {content}
+- Date: {date_str}
+
+Return ONLY a decimal number between 0.0 and 1.0 representing the relevance score. No explanation, just the number."""
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key or not OpenAI:
+            # Fallback to rule-based if no API key
+            return 0.5
+
+        client = OpenAI(api_key=api_key)
+
+        # Call GPT-5 nano with minimal reasoning for fast scoring
+        response = client.chat.completions.create(
+            model="gpt-5-nano",
+            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=50,  # Higher limit to account for reasoning tokens
+            reasoning_effort="minimal"  # Use minimal reasoning for speed
+        )
+
+        score_text = response.choices[0].message.content.strip()
+        print(f"[AI Scoring] Query: '{query}' | Sender: '{sender}' | Subject: '{subject[:50]}' | GPT-5 response: '{score_text}'")
+
+        # Handle empty or invalid responses
+        if not score_text:
+            print(f"[AI Scoring] Empty response, using fallback score 0.5")
+            return 0.5
+
+        # Try to extract a number from the response
+        import re
+        number_match = re.search(r'0?\.\d+|[01]\.?\d*', score_text)
+        if number_match:
+            score = float(number_match.group())
+        else:
+            print(f"[AI Scoring] Could not parse number from '{score_text}', using fallback")
+            return 0.5
+
+        # Clamp to valid range
+        score = max(0.0, min(1.0, score))
+
+        # Cache the result
+        AI_SCORE_CACHE[cache_key] = {
+            'score': score,
+            'timestamp': time.time()
+        }
+
+        return score
+
+    except Exception as e:
+        print(f"[AI Scoring] Error scoring email: {e}")
+        # Fallback to 0.5 if scoring fails
+        return 0.5
+
+
 @app.post("/instant-search")
 async def instant_search(request: dict):
     """Instant search with filters for date ranges, senders, and attachments.
+    Uses AI-powered relevance scoring (GPT-5 nano) for accurate confidence scores.
 
     Expected request body:
     {
@@ -2787,13 +2893,22 @@ async def instant_search(request: dict):
         # Check for "from:" or "emails from" patterns
         if "from:" in query_lower or "emails from" in query_lower:
             import re
-            # Extract domain/email pattern
-            match = re.search(r'(?:from:|emails from)\s*@?([a-zA-Z0-9\-\.]+)', query_lower)
+
+            # First try to match @domain pattern (e.g., "emails from @nytimes.com")
+            match = re.search(r'(?:from:|emails from)\s*@([a-zA-Z0-9\-\.]+)', query_lower)
             if match:
                 sender_filter = match.group(1)
-                print(f"[InstantSearch] Detected sender filter: {sender_filter}")
+                print(f"[InstantSearch] Detected sender filter (domain): {sender_filter}")
                 # Remove the from pattern from search text
-                search_text = re.sub(r'(?:from:|emails from)\s*@?[a-zA-Z0-9\-\.]+', '', query, flags=re.IGNORECASE).strip()
+                search_text = re.sub(r'(?:from:|emails from)\s*@[a-zA-Z0-9\-\.]+', '', query, flags=re.IGNORECASE).strip()
+            else:
+                # Try to match sender name pattern (e.g., "emails from new york times")
+                match = re.search(r'(?:from:|emails from)\s+(.+?)(?:\s+(?:about|with|containing|in|on)\s+|$)', query_lower)
+                if match:
+                    sender_filter = match.group(1).strip()
+                    print(f"[InstantSearch] Detected sender filter (name): {sender_filter}")
+                    # Remove the from pattern from search text
+                    search_text = re.sub(r'(?:from:|emails from)\s+[^(about|with|containing|in|on)]+', '', query, flags=re.IGNORECASE).strip()
 
         # Build the search
         if sender_filter:
@@ -2888,7 +3003,27 @@ async def instant_search(request: dict):
         # Limit results
         filtered_results = filtered_results[:limit]
 
+        # Use AI to re-score all results for accurate relevance (hybrid approach)
+        if query and filtered_results:
+            print(f"[InstantSearch] Re-scoring {len(filtered_results)} results with AI...")
+            for result in filtered_results:
+                ai_score = _score_email_relevance_with_ai(query, result)
+                result['similarity'] = ai_score
+
         print(f"[InstantSearch] Returning {len(filtered_results)} results")
+
+        # Debug: Log similarity scores
+        if filtered_results:
+            print(f"[InstantSearch] Sample results with AI similarity scores:")
+            for i, result in enumerate(filtered_results[:3]):
+                similarity = result.get('similarity', 'N/A')
+                subject = result.get('subject', 'No subject')[:50]
+                sender = result.get('sender', 'Unknown')[:30]
+                print(f"[InstantSearch]   {i+1}. '{subject}' from {sender} - AI similarity: {similarity}")
+
+        # Sort by AI similarity score (highest first)
+        if query and filtered_results:
+            filtered_results = sorted(filtered_results, key=lambda x: x.get('similarity', 0), reverse=True)
 
         return {
             "results": filtered_results,

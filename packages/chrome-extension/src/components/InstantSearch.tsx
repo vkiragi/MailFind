@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, Calendar, Paperclip } from 'lucide-react'
+import { Search, X, Calendar, Paperclip, Star, Archive, ExternalLink } from 'lucide-react'
 
 interface Suggestion {
   type: 'pattern' | 'sender' | 'topic' | 'date' | 'subject'
@@ -21,6 +21,7 @@ interface SearchResult {
   created_at: string
   importance_score?: number
   has_attachment?: boolean
+  similarity?: number
 }
 
 interface InstantSearchProps {
@@ -184,6 +185,51 @@ export default function InstantSearch({ onResultsChange }: InstantSearchProps) {
     onResultsChange?.([])
   }
 
+  // Highlight matching text in content
+  const highlightText = (text: string, query: string) => {
+    if (!query || !text) return text
+
+    const parts = text.split(new RegExp(`(${query})`, 'gi'))
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase() ? (
+        <mark key={i} className="bg-yellow-500/30 text-yellow-200 rounded px-0.5">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    )
+  }
+
+  // Get relevance score color
+  const getRelevanceColor = (similarity: number) => {
+    if (similarity >= 0.7) return 'bg-green-500'
+    if (similarity >= 0.5) return 'bg-yellow-500'
+    return 'bg-slate-500'
+  }
+
+  // Get relevance label
+  const getRelevanceLabel = (similarity: number) => {
+    if (similarity >= 0.7) return 'High'
+    if (similarity >= 0.5) return 'Medium'
+    return 'Low'
+  }
+
+  // Handle quick actions
+  const handleStarEmail = async (e: React.MouseEvent, threadId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // TODO: Implement star via Gmail API
+    console.log('Star email:', threadId)
+  }
+
+  const handleArchiveEmail = async (e: React.MouseEvent, threadId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // TODO: Implement archive via Gmail API
+    console.log('Archive email:', threadId)
+  }
+
   return (
     <div className="w-full space-y-3">
       {/* Search Bar */}
@@ -299,43 +345,105 @@ export default function InstantSearch({ onResultsChange }: InstantSearchProps) {
       )}
 
       {!isSearching && searchResults.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs text-slate-400 mb-2">
+        <div className="space-y-3">
+          <div className="text-xs text-slate-400">
             Found {searchResults.length} email{searchResults.length > 1 ? 's' : ''}
           </div>
-          {searchResults.map((email, index) => (
-            <a
-              key={index}
-              href={`https://mail.google.com/mail/u/0/#inbox/${email.thread_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block bg-slate-800/50 hover:bg-slate-700 border border-slate-600 rounded-lg p-3 transition-colors cursor-pointer"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-100 truncate">
-                    {email.subject || '(No Subject)'}
+          {searchResults.map((email, index) => {
+            const similarity = email.similarity || 0.5
+            const relevancePercent = Math.round(similarity * 100)
+
+            return (
+              <div
+                key={index}
+                className="group bg-slate-800/50 border border-slate-600 rounded-lg p-3 hover:bg-slate-700/50 transition-all"
+              >
+                {/* Header with subject and relevance */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-sm font-medium text-slate-100 truncate">
+                        {highlightText(email.subject || '(No Subject)', searchQuery)}
+                      </h3>
+                    </div>
+                    <div className="text-xs text-slate-400 truncate">
+                      {highlightText(email.sender, searchQuery)}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1 truncate">
-                    {email.sender}
-                  </div>
-                  {email.content && (
-                    <div className="text-xs text-slate-500 mt-1 line-clamp-2">
-                      {email.content.substring(0, 150)}...
+
+                  {/* Relevance indicator */}
+                  {email.similarity !== undefined && (
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1">
+                        <div className="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${getRelevanceColor(similarity)} transition-all`}
+                            style={{ width: `${relevancePercent}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-slate-500">{relevancePercent}%</span>
+                      </div>
+                      <span className={`text-xs ${
+                        similarity >= 0.7 ? 'text-green-400' :
+                        similarity >= 0.5 ? 'text-yellow-400' :
+                        'text-slate-400'
+                      }`}>
+                        {getRelevanceLabel(similarity)}
+                      </span>
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <div className="text-xs text-slate-500">
-                    {new Date(email.created_at).toLocaleDateString()}
+
+                {/* Content preview */}
+                {email.content && (
+                  <div className="text-xs text-slate-500 mb-3 line-clamp-2">
+                    {highlightText(email.content.substring(0, 200), searchQuery)}
+                    {email.content.length > 200 && '...'}
                   </div>
-                  {email.has_attachment && (
-                    <Paperclip className="w-3 h-3 text-slate-400" />
-                  )}
+                )}
+
+                {/* Footer with metadata and actions */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span>{new Date(email.created_at).toLocaleDateString()}</span>
+                    {email.has_attachment && (
+                      <div className="flex items-center gap-1">
+                        <Paperclip className="w-3 h-3" />
+                        <span>Attachment</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Quick actions */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => handleStarEmail(e, email.thread_id)}
+                      className="p-1.5 hover:bg-slate-600 rounded transition-colors"
+                      title="Star"
+                    >
+                      <Star className="w-3.5 h-3.5 text-slate-400 hover:text-yellow-400" />
+                    </button>
+                    <button
+                      onClick={(e) => handleArchiveEmail(e, email.thread_id)}
+                      className="p-1.5 hover:bg-slate-600 rounded transition-colors"
+                      title="Archive"
+                    >
+                      <Archive className="w-3.5 h-3.5 text-slate-400 hover:text-blue-400" />
+                    </button>
+                    <a
+                      href={`https://mail.google.com/mail/u/0/#inbox/${email.thread_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 hover:bg-slate-600 rounded transition-colors"
+                      title="Open in Gmail"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400 hover:text-violet-400" />
+                    </a>
+                  </div>
                 </div>
               </div>
-            </a>
-          ))}
+            )
+          })}
         </div>
       )}
 
