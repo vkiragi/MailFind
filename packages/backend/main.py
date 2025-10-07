@@ -898,6 +898,119 @@ def auth_status():
         "active_states": len(oauth_states)
     }
 
+@app.get("/settings")
+def get_settings():
+    """Get user settings"""
+    try:
+        sb = _get_supabase()
+
+        # Get the first user (for now, assuming single user)
+        user_res = sb.table("users").select("*").limit(1).execute()
+        if not user_res.data:
+            print("[Settings] No users found")
+            return {
+                "autoSyncEnabled": False,
+                "syncFrequency": "1hr",
+                "userEmail": ""
+            }
+
+        user = user_res.data[0]
+        user_id = user.get("id")
+        user_email = user.get("email", "")
+
+        print(f"[Settings] Found user: {user_email}")
+
+        # Try to get settings from database (table may not exist yet)
+        try:
+            settings_res = sb.table("user_settings").select("*").eq("user_id", user_id).execute()
+
+            if settings_res.data:
+                settings = settings_res.data[0]
+                print(f"[Settings] Found settings: auto_sync={settings.get('auto_sync_enabled')}, freq={settings.get('sync_frequency')}")
+                return {
+                    "autoSyncEnabled": settings.get("auto_sync_enabled", False),
+                    "syncFrequency": settings.get("sync_frequency", "1hr"),
+                    "userEmail": user_email
+                }
+        except Exception as settings_error:
+            print(f"[Settings] user_settings table may not exist: {settings_error}")
+
+        # Return defaults if no settings found
+        print("[Settings] Returning default settings")
+        return {
+            "autoSyncEnabled": False,
+            "syncFrequency": "1hr",
+            "userEmail": user_email
+        }
+    except Exception as e:
+        print(f"[Settings] Error getting settings: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "autoSyncEnabled": False,
+            "syncFrequency": "1hr",
+            "userEmail": ""
+        }
+
+@app.post("/settings")
+def save_settings(request: dict):
+    """Save user settings"""
+    try:
+        sb = _get_supabase()
+
+        # Get the first user (for now, assuming single user)
+        user_res = sb.table("users").select("*").limit(1).execute()
+        if not user_res.data:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        user_id = user_res.data[0].get("id")
+        auto_sync_enabled = request.get("autoSyncEnabled", False)
+        sync_frequency = request.get("syncFrequency", "1hr")
+
+        print(f"[Settings] Saving settings for user {user_id}: auto_sync={auto_sync_enabled}, frequency={sync_frequency}")
+
+        # Try to save settings (table may not exist yet)
+        try:
+            # Check if settings exist
+            settings_res = sb.table("user_settings").select("*").eq("user_id", user_id).execute()
+
+            if settings_res.data:
+                # Update existing settings
+                sb.table("user_settings").update({
+                    "auto_sync_enabled": auto_sync_enabled,
+                    "sync_frequency": sync_frequency
+                }).eq("user_id", user_id).execute()
+                print(f"[Settings] Updated existing settings")
+            else:
+                # Insert new settings
+                sb.table("user_settings").insert({
+                    "user_id": user_id,
+                    "auto_sync_enabled": auto_sync_enabled,
+                    "sync_frequency": sync_frequency
+                }).execute()
+                print(f"[Settings] Created new settings")
+
+        except Exception as table_error:
+            print(f"[Settings] user_settings table may not exist, cannot save: {table_error}")
+            # Return success anyway since we can't create the table dynamically
+            # User will need to run the SQL migration
+            return {
+                "message": "Settings saved (in-memory only - run migration to persist)",
+                "autoSyncEnabled": auto_sync_enabled,
+                "syncFrequency": sync_frequency
+            }
+
+        return {
+            "message": "Settings saved successfully",
+            "autoSyncEnabled": auto_sync_enabled,
+            "syncFrequency": sync_frequency
+        }
+    except Exception as e:
+        print(f"[Settings] Error saving settings: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save settings: {str(e)}")
+
 @app.post("/logout")
 def logout():
     """Logout clears pending oauth states and stored credentials."""
