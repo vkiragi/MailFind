@@ -71,7 +71,8 @@ function App() {
   const [hasAutoSynced, setHasAutoSynced] = useState(false)
   const [isAutoSyncing, setIsAutoSyncing] = useState(false)
   const [chatHeight, setChatHeight] = useState(240) // Initial height in pixels
-  
+  const [activeTab, setActiveTab] = useState<'search' | 'chat' | 'settings' | 'analytics'>('search')
+
   // Toast notifications
   const { toast } = useToast()
 
@@ -370,7 +371,7 @@ function App() {
           </Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-y-5">
+        <div className="flex flex-col gap-y-4">
           {/* Connection Status */}
           <div className="flex items-center justify-center gap-x-2 text-sm text-green-400 bg-green-900/50 rounded-full px-3 py-1">
             <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -385,53 +386,106 @@ function App() {
             </div>
           )}
 
-          {/* Instant Search Section */}
-          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
-            <div className="flex items-center gap-x-2 font-semibold mb-3">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* Tab Navigation */}
+          <div className="flex gap-x-2 border-b border-slate-700">
+            <button
+              onClick={() => setActiveTab('search')}
+              className={`flex items-center gap-x-2 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'search'
+                  ? 'text-violet-400 border-b-2 border-violet-400'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              Instant Search
-            </div>
-            <InstantSearch />
-          </div>
-
-          {/* Sync Inbox Section */}
-          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
-            <div className="flex items-center gap-x-2 font-semibold">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-              </svg>
-              Sync Inbox
-            </div>
-            <div className="grid grid-cols-3 gap-x-2">
-              <button onClick={() => setSyncRange('24h')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='24h' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                24h
-              </button>
-              <button onClick={() => setSyncRange('7d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='7d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                7d
-              </button>
-              <button onClick={() => setSyncRange('30d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='30d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                30d
-              </button>
-            </div>
+              Search
+            </button>
             <button
-              onClick={handleSyncInbox}
-              disabled={syncLoading}
-              className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+              onClick={() => setActiveTab('chat')}
+              className={`flex items-center gap-x-2 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'chat'
+                  ? 'text-violet-400 border-b-2 border-violet-400'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
             >
-              {syncLoading ? 'Syncing...' : 'Sync Inbox'}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Chat
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-x-2 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'settings'
+                  ? 'text-violet-400 border-b-2 border-violet-400'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Settings
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`flex items-center gap-x-2 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'analytics'
+                  ? 'text-violet-400 border-b-2 border-violet-400'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Analytics
             </button>
           </div>
 
-          {/* AI Assistant Section */}
-          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
-            <div className="flex items-center gap-x-2 font-semibold">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              AI Email Chat
-            </div>
+          {/* Tab Content */}
+          <div className="flex flex-col gap-y-4">
+            {/* Search Tab */}
+            {activeTab === 'search' && (
+              <div className="space-y-4">
+                {/* Instant Search Section */}
+                <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                  <InstantSearch />
+                </div>
+
+                {/* Sync Inbox Section */}
+                <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
+                  <div className="flex items-center gap-x-2 font-semibold">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Sync Inbox
+                  </div>
+                  <div className="grid grid-cols-3 gap-x-2">
+                    <button onClick={() => setSyncRange('24h')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='24h' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      24h
+                    </button>
+                    <button onClick={() => setSyncRange('7d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='7d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      7d
+                    </button>
+                    <button onClick={() => setSyncRange('30d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='30d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      30d
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleSyncInbox}
+                    disabled={syncLoading}
+                    className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
+                  >
+                    {syncLoading ? 'Syncing...' : 'Sync Inbox'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Chat Tab */}
+            {activeTab === 'chat' && (
+              <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
 
             {/* Chat Interface */}
             <>
@@ -573,26 +627,97 @@ function App() {
                   </button>
                 </div>
               </>
-          </div>
+              </div>
+            )}
 
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            disabled={isLoading}
-            className="flex items-center justify-center gap-x-2 text-slate-400 text-sm hover:text-white transition-colors disabled:text-slate-500"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            {isLoading ? 'Logging out...' : 'Logout'}
-          </button>
-          
-          {/* Toast notifications - positioned below logout */}
-          <div className="relative">
-            <Toaster />
+            {/* Settings Tab */}
+            {activeTab === 'settings' && (
+              <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-x-2 font-semibold mb-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Settings
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="bg-slate-700/50 rounded-lg p-3">
+                      <div className="text-sm font-medium text-slate-200 mb-1">Account</div>
+                      <div className="text-xs text-slate-400">Manage your Gmail connection and preferences</div>
+                    </div>
+
+                    <div className="bg-slate-700/50 rounded-lg p-3">
+                      <div className="text-sm font-medium text-slate-200 mb-1">Notifications</div>
+                      <div className="text-xs text-slate-400">Configure email alerts and notifications</div>
+                    </div>
+
+                    <div className="bg-slate-700/50 rounded-lg p-3">
+                      <div className="text-sm font-medium text-slate-200 mb-1">Data & Privacy</div>
+                      <div className="text-xs text-slate-400">Control how your data is stored and processed</div>
+                    </div>
+
+                    {/* Logout Button */}
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLoading}
+                      className="w-full flex items-center justify-center gap-x-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm py-2 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      {isLoading ? 'Logging out...' : 'Logout'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Analytics Tab */}
+            {activeTab === 'analytics' && (
+              <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-x-2 font-semibold mb-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Email Analytics
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gradient-to-br from-violet-600/20 to-violet-600/5 rounded-lg p-3 border border-violet-600/30">
+                      <div className="text-2xl font-bold text-violet-400">---</div>
+                      <div className="text-xs text-slate-400 mt-1">Total Emails</div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-600/5 rounded-lg p-3 border border-blue-600/30">
+                      <div className="text-2xl font-bold text-blue-400">---</div>
+                      <div className="text-xs text-slate-400 mt-1">This Week</div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-green-600/20 to-green-600/5 rounded-lg p-3 border border-green-600/30">
+                      <div className="text-2xl font-bold text-green-400">---</div>
+                      <div className="text-xs text-slate-400 mt-1">Important</div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-600/5 rounded-lg p-3 border border-yellow-600/30">
+                      <div className="text-2xl font-bold text-yellow-400">---</div>
+                      <div className="text-xs text-slate-400 mt-1">Top Sender</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                    <div className="text-sm text-slate-400">Coming soon: Email trends, sender statistics, and more insights</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      <Toaster />
     </div>
   )
 }
