@@ -460,8 +460,30 @@ function isVisible(element: Element | null): boolean {
 }
 
 function findToolbar(): Element | null {
+  // Find the filter toolbar with "Is unread", "Advanced search" links
+  // This is typically a div.Dj or div containing the "Advanced search" link
+  const advancedSearchLink = document.querySelector('a[href*="advanced-search"]');
+
+  if (advancedSearchLink) {
+    const filterToolbar = advancedSearchLink.closest('.Dj') || advancedSearchLink.parentElement;
+    if (filterToolbar && isVisible(filterToolbar)) {
+      console.log('✅ [Gmail] Found filter toolbar with Advanced search link');
+      return filterToolbar;
+    }
+  }
+
+  // Alternative: Look for the toolbar by class
+  const filterToolbars = document.querySelectorAll('.Dj');
+  for (const toolbar of filterToolbars) {
+    if (isVisible(toolbar) && toolbar.textContent?.includes('Advanced search')) {
+      console.log('✅ [Gmail] Found filter toolbar by text content');
+      return toolbar;
+    }
+  }
+
+  // Fallback to email action toolbars
   const candidates = Array.from(document.querySelectorAll(TOOLBAR_CANDIDATES));
-  
+
   // Prefer visible candidates
   const visible = candidates.filter(isVisible);
 
@@ -504,8 +526,22 @@ function injectSummarizeButton() {
   // Only inject if no button exists and we have a toolbar
   if (toolbar && !document.getElementById('mailfind-summarize-btn')) {
     isInjecting = true;
-    // Find the "More" button (three dots) to position our button after it
-    const moreButton = (toolbar as Element).querySelector('[data-tooltip="More"], [aria-label="More"]');
+
+    // Check if we're in the filter toolbar (with "Advanced search" link)
+    const isFilterToolbar = toolbar.classList.contains('Dj') || toolbar.textContent?.includes('Advanced search');
+
+    // Find where to insert the button
+    let insertAfter: Element | null = null;
+
+    if (isFilterToolbar) {
+      // In filter toolbar: find the "Advanced search" link
+      insertAfter = toolbar.querySelector('a[href*="advanced-search"]');
+      console.log('📍 [Gmail] Filter toolbar - insert after Advanced search link:', !!insertAfter);
+    } else {
+      // In email action toolbar: find "More" button
+      insertAfter = toolbar.querySelector('[data-tooltip="More"], [aria-label="More"]');
+      console.log('📍 [Gmail] Action toolbar - insert after More button:', !!insertAfter);
+    }
 
     const button = document.createElement('button');
     button.id = 'mailfind-summarize-btn';
@@ -522,31 +558,57 @@ function injectSummarizeButton() {
       <span>Summarize</span>
     `;
 
-    button.style.cssText = `
-      background: ${gmailIsDarkMode ?
-        'linear-gradient(135deg, #475569 0%, #334155 100%)' :
-        'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)'};
-      color: white;
-      border: none;
-      border-radius: 20px;
-      height: 32px;
-      padding: 0 14px;
-      margin-left: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      z-index: 1000;
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      box-sizing: border-box;
-      vertical-align: middle;
-      white-space: nowrap;
-      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      transform: scale(1);
-    `;
+    // Style differently based on toolbar type
+    if (isFilterToolbar) {
+      // Match filter toolbar link style
+      button.style.cssText = `
+        background: ${gmailIsDarkMode ?
+          'linear-gradient(135deg, #475569 0%, #334155 100%)' :
+          'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)'};
+        color: white;
+        border: none;
+        border-radius: 16px;
+        height: 28px;
+        padding: 0 12px;
+        margin-left: 12px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        vertical-align: middle;
+        white-space: nowrap;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      `;
+    } else {
+      // Original action toolbar style
+      button.style.cssText = `
+        background: ${gmailIsDarkMode ?
+          'linear-gradient(135deg, #475569 0%, #334155 100%)' :
+          'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)'};
+        color: white;
+        border: none;
+        border-radius: 20px;
+        height: 36px;
+        padding: 0 16px;
+        margin: 0 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        vertical-align: middle;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        flex-shrink: 0;
+      `;
+    }
 
     // Hover and interaction effects
     const originalBg = gmailIsDarkMode ?
@@ -575,10 +637,12 @@ function injectSummarizeButton() {
 
     button.addEventListener('click', handleSummarizeClick);
 
-    if (moreButton && moreButton.parentNode) {
-      moreButton.parentNode.insertBefore(button, moreButton.nextSibling);
+    if (insertAfter && insertAfter.parentNode) {
+      insertAfter.parentNode.insertBefore(button, insertAfter.nextSibling);
+      console.log('✅ [Gmail] Button inserted after target element');
     } else {
       (toolbar as Element).appendChild(button);
+      console.log('⚠️ [Gmail] Button appended to toolbar (no target found)');
     }
 
     // Update tracking variables

@@ -3,6 +3,7 @@ import './App.css'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
+import InstantSearch from '@/components/InstantSearch'
 
 // Notification types
 type NotificationType = 'success' | 'error' | 'info' | 'warning'
@@ -375,7 +376,7 @@ function App() {
             <div className="w-2 h-2 bg-green-400 rounded-full"></div>
             Connected to Gmail
           </div>
-          
+
           {/* Auto-sync Status */}
           {isAutoSyncing && (
             <div className="flex items-center justify-center gap-x-2 text-sm text-blue-400 bg-blue-900/50 rounded-full px-3 py-1">
@@ -383,7 +384,18 @@ function App() {
               Auto-syncing last 24 hours...
             </div>
           )}
-          
+
+          {/* Instant Search Section */}
+          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+            <div className="flex items-center gap-x-2 font-semibold mb-3">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Instant Search
+            </div>
+            <InstantSearch />
+          </div>
+
           {/* Sync Inbox Section */}
           <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
             <div className="flex items-center gap-x-2 font-semibold">
@@ -447,14 +459,19 @@ function App() {
                                 {/* Display email cards inline for assistant messages */}
                                 {message.emails && message.emails.length > 0 && (
                                   <div className="mt-3 pt-3 border-t border-slate-600 space-y-2">
-                                    <div className="text-xs text-slate-400 mb-2">📧 {message.emails.length} email{message.emails.length > 1 ? 's' : ''}</div>
-                                    {message.emails.map((email: any, emailIndex: number) => (
+                                    <div className="text-xs text-slate-400 mb-2">📧 {message.emails.length} email{message.emails.length > 1 ? 's' : ''} {message.emails.length > 5 ? '(showing top 5)' : ''}</div>
+                                    {message.emails.slice(0, 5).map((email: any, emailIndex: number) => (
                                       <a
                                         key={emailIndex}
                                         href={`https://mail.google.com/mail/u/0/#inbox/${email.thread_id}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="block bg-slate-800/50 hover:bg-slate-600 border border-slate-600 rounded-lg p-2 transition-colors overflow-hidden"
+                                        className="block bg-slate-800/50 hover:bg-slate-600 border border-slate-600 rounded-lg p-2 transition-colors overflow-hidden cursor-pointer"
+                                        style={{ pointerEvents: 'auto' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          window.open(`https://mail.google.com/mail/u/0/#inbox/${email.thread_id}`, '_blank');
+                                        }}
                                       >
                                         <div className="text-sm font-medium text-slate-100 truncate">
                                           {email.subject || '(No Subject)'}
@@ -543,7 +560,7 @@ function App() {
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleChat()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleChat()}
                     placeholder="Ask about your emails... (e.g., 'What emails did I get this week about NYT news?')"
                     className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />

@@ -230,6 +230,12 @@ def _get_credentials_for_user(user_id: Optional[str] = None) -> Credentials:
 
     stored = _decrypt_to_dict(enc)
 
+    # Parse expiry if present
+    expiry = None
+    if stored.get("expiry"):
+        from datetime import datetime
+        expiry = datetime.fromisoformat(stored["expiry"])
+
     creds = Credentials(
         token=stored.get("token"),
         refresh_token=stored.get("refresh_token"),
@@ -237,6 +243,7 @@ def _get_credentials_for_user(user_id: Optional[str] = None) -> Credentials:
         client_id=stored.get("client_id"),
         client_secret=stored.get("client_secret"),
         scopes=stored.get("scopes", SCOPES),
+        expiry=expiry,
     )
 
     # Refresh if needed and persist new access token
@@ -245,6 +252,7 @@ def _get_credentials_for_user(user_id: Optional[str] = None) -> Credentials:
             creds.refresh(Request())
             updated = dict(stored)
             updated["token"] = creds.token
+            updated["expiry"] = creds.expiry.isoformat() if creds.expiry else None
             try:
                 # Persist refreshed token back to Supabase (best-effort)
                 if user_id:
@@ -780,7 +788,6 @@ def login():
         authorization_url, _ = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
-            prompt='consent',  # Force consent screen to ensure refresh token
             state=state
         )
         
@@ -831,6 +838,7 @@ def callback(code: str, state: str):
             "client_id": flow.credentials.client_id,
             "client_secret": flow.credentials.client_secret,
             "scopes": flow.credentials.scopes,
+            "expiry": flow.credentials.expiry.isoformat() if flow.credentials.expiry else None,
         }
         
         print(f"[OAuth] Storing credentials: token={bool(creds_payload['token'])}, refresh_token={bool(creds_payload['refresh_token'])}, client_id={bool(creds_payload['client_id'])}, client_secret={bool(creds_payload['client_secret'])}")
@@ -1456,21 +1464,14 @@ async def chat_with_emails(request: dict):
                 search_results = search_results[:5]
                 print(f"[Chat] Limited to top 5 most recent for 'latest' query")
         
-        # Filter by importance score if user asked for "important" emails
+        # Detect if user is asking about "important" emails (for LLM prompt enhancement)
         is_asking_important = any(term in message_lower for term in ['important', 'critical', 'urgent', 'priority'])
-        if is_asking_important and search_results:
-            original_count = len(search_results)
-            # Only keep emails with importance score >= 40 (above marketing threshold)
-            search_results = [email for email in search_results if email.get('importance_score', 50) >= 40]
-            filtered_count = len(search_results)
-            if original_count != filtered_count:
-                print(f"[Chat] Filtered to important emails only: {filtered_count}/{original_count} (removed {original_count - filtered_count} marketing emails)")
 
         # Apply minimal filtering for chat to preserve context - only filter if query is very specific
         entity_indicators = ['anthropic', 'openai', 'google', 'microsoft', 'apple', 'amazon', 'meta', 'tesla', 'nvidia']
         has_specific_entity = any(entity in message_lower for entity in entity_indicators)
 
-        # Only apply aggressive filtering for very specific entity queries, not for general news/time queries
+        # Only apply aggressive filtering for very specific entity queries, not for general news/time/important queries
         if search_results and has_specific_entity and not is_news_query and not is_asking_important:
             original_count = len(search_results)
             search_results = _filter_irrelevant_results(message, search_results)
@@ -1478,7 +1479,7 @@ async def chat_with_emails(request: dict):
             if original_count != filtered_count:
                 print(f"[Chat] Filtered out {original_count - filtered_count} irrelevant results")
         else:
-            print(f"[Chat] Skipping aggressive filtering for temporal/news/important query")
+            print(f"[Chat] Skipping aggressive filtering for temporal/news/important query - keeping all {len(search_results)} results for LLM to categorize")
         
 
         # Prepare context for the LLM
@@ -2582,7 +2583,17 @@ async def sync_inbox(request: dict):
                 meta = _parse_thread_metadata(thread_full)
                 subject = meta.get('subject', '')
                 sender = meta.get('from', '')
-                print(f"[Sync] Thread {tid}: Subject='{subject[:50]}...', Sender='{sender}'")
+
+                # Extract email date from the first message
+                email_date = None
+                if messages:
+                    # Get internalDate (milliseconds since epoch) from first message
+                    internal_date_ms = messages[0].get('internalDate')
+                    if internal_date_ms:
+                        from datetime import datetime, timezone
+                        email_date = datetime.fromtimestamp(int(internal_date_ms) / 1000, tz=timezone.utc).isoformat()
+
+                print(f"[Sync] Thread {tid}: Subject='{subject[:50]}...', Sender='{sender}', Date='{email_date}'")
 
                 # Classify email into categories using LLM
                 print(f"[Sync] Thread {tid}: Classifying email categories")
@@ -2618,6 +2629,10 @@ async def sync_inbox(request: dict):
                     "is_automated": is_automated,
                     "has_unsubscribe": has_unsubscribe,
                 }
+
+                # Add created_at if we have it
+                if email_date:
+                    payload["created_at"] = email_date
                 print(f"[Sync] Thread {tid}: Upserting to Supabase...")
                 sb.table("emails").upsert(
                     payload,
@@ -2641,3 +2656,247 @@ async def sync_inbox(request: dict):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Sync error: {str(e)}")
+
+
+@app.get("/autocomplete")
+async def autocomplete_suggestions(query: str = "", limit: int = 5):
+    """Get autocomplete suggestions for instant search.
+
+    Returns suggestions for:
+    - Common senders (emails from @github.com)
+    - Common subjects
+    - Date ranges (last 7 days, last month, etc.)
+    - Search patterns (emails about deployment, emails with attachments)
+    """
+    try:
+        if not query or len(query) < 2:
+            # Return default suggestions
+            return {
+                "suggestions": [
+                    {"type": "pattern", "text": "emails from @github.com", "description": "Filter by sender domain"},
+                    {"type": "pattern", "text": "emails about deployment", "description": "Search email content"},
+                    {"type": "pattern", "text": "emails with attachments", "description": "Filter by attachments"},
+                    {"type": "date", "text": "last 7 days", "description": "Recent emails"},
+                    {"type": "date", "text": "last month", "description": "Older emails"}
+                ]
+            }
+
+        sb = _get_supabase()
+        suggestions = []
+        query_lower = query.lower()
+
+        # Check if query starts with common patterns
+        if query_lower.startswith("from:") or query_lower.startswith("emails from"):
+            # Suggest sender domains
+            try:
+                # Extract unique sender domains from recent emails
+                recent_emails = sb.table("emails").select("sender").order("created_at", desc=True).limit(100).execute()
+                rows = getattr(recent_emails, "data", []) or []
+
+                domains = set()
+                for row in rows:
+                    sender = row.get("sender", "")
+                    if "@" in sender:
+                        domain = sender.split("@")[-1].strip(">")
+                        domains.add(domain)
+
+                # Filter domains matching query
+                search_term = query_lower.replace("from:", "").replace("emails from", "").strip()
+                matching_domains = [d for d in domains if search_term in d.lower()][:limit]
+
+                for domain in matching_domains:
+                    suggestions.append({
+                        "type": "sender",
+                        "text": f"emails from @{domain}",
+                        "description": f"Emails from {domain}"
+                    })
+            except Exception as e:
+                print(f"[Autocomplete] Error getting sender suggestions: {e}")
+
+        elif query_lower.startswith("about") or query_lower.startswith("emails about"):
+            # Suggest common topics from recent emails
+            suggestions.extend([
+                {"type": "topic", "text": "emails about deployment", "description": "Deployment related emails"},
+                {"type": "topic", "text": "emails about meeting", "description": "Meeting invitations"},
+                {"type": "topic", "text": "emails about invoice", "description": "Billing and invoices"},
+            ])
+
+        # Always include date range suggestions if query matches
+        if any(term in query_lower for term in ["last", "recent", "today", "yesterday", "week", "month"]):
+            suggestions.extend([
+                {"type": "date", "text": "last 7 days", "description": "Emails from last week"},
+                {"type": "date", "text": "last 30 days", "description": "Emails from last month"},
+                {"type": "date", "text": "today", "description": "Today's emails"},
+            ])
+
+        # If no specific suggestions, try to find emails with matching subjects
+        if not suggestions:
+            try:
+                matching_emails = sb.table("emails").select("subject, sender").ilike("subject", f"%{query}%").limit(5).execute()
+                rows = getattr(matching_emails, "data", []) or []
+
+                for row in rows[:limit]:
+                    subject = row.get("subject", "")
+                    sender = row.get("sender", "")
+                    if subject:
+                        suggestions.append({
+                            "type": "subject",
+                            "text": subject,
+                            "description": f"From {sender}"
+                        })
+            except Exception as e:
+                print(f"[Autocomplete] Error getting subject suggestions: {e}")
+
+        return {"suggestions": suggestions[:limit]}
+
+    except Exception as e:
+        print(f"[ERROR] Exception in /autocomplete: {str(e)}")
+        return {"suggestions": []}
+
+
+@app.post("/instant-search")
+async def instant_search(request: dict):
+    """Instant search with filters for date ranges, senders, and attachments.
+
+    Expected request body:
+    {
+        "query": "search text",
+        "filters": {
+            "dateRange": "7d|30d|90d|custom",
+            "senders": ["email@domain.com"],
+            "hasAttachment": true/false,
+            "startDate": "2024-01-01" (optional),
+            "endDate": "2024-12-31" (optional)
+        },
+        "limit": 20
+    }
+    """
+    try:
+        print(f"[InstantSearch] Request: {request}")
+        sb = _get_supabase()
+
+        query = request.get("query", "").strip()
+        filters = request.get("filters", {})
+        limit = request.get("limit", 20)
+
+        # Parse query for special patterns
+        query_lower = query.lower()
+        sender_filter = None
+        search_text = query
+
+        # Check for "from:" or "emails from" patterns
+        if "from:" in query_lower or "emails from" in query_lower:
+            import re
+            # Extract domain/email pattern
+            match = re.search(r'(?:from:|emails from)\s*@?([a-zA-Z0-9\-\.]+)', query_lower)
+            if match:
+                sender_filter = match.group(1)
+                print(f"[InstantSearch] Detected sender filter: {sender_filter}")
+                # Remove the from pattern from search text
+                search_text = re.sub(r'(?:from:|emails from)\s*@?[a-zA-Z0-9\-\.]+', '', query, flags=re.IGNORECASE).strip()
+
+        # Build the search
+        if sender_filter:
+            # Use direct database query for sender filtering
+            query_builder = sb.table("emails").select("*").ilike("sender", f"%{sender_filter}%")
+
+            # Apply date filter at database level if present
+            date_range = filters.get("dateRange")
+            if date_range:
+                from datetime import datetime, timedelta, timezone
+                now = datetime.now(timezone.utc)
+
+                if date_range == "7d":
+                    cutoff = now - timedelta(days=7)
+                elif date_range == "30d":
+                    cutoff = now - timedelta(days=30)
+                elif date_range == "90d":
+                    cutoff = now - timedelta(days=90)
+                else:
+                    cutoff = None
+
+                if cutoff:
+                    cutoff_iso = cutoff.isoformat()
+                    query_builder = query_builder.gte("created_at", cutoff_iso)
+                    print(f"[InstantSearch] Applying date filter: created_at >= {cutoff_iso}")
+
+            results = query_builder.order("created_at", desc=True).limit(100).execute()
+            search_results = getattr(results, "data", []) or []
+            print(f"[InstantSearch] Found {len(search_results)} emails from {sender_filter}")
+        elif search_text:
+            # Use semantic search for general query
+            model = _get_embedding_model()
+            query_embedding = model.encode(search_text, normalize_embeddings=True)
+
+            results = sb.rpc('match_emails', {
+                'query_embedding': query_embedding.tolist(),
+                'match_threshold': 0.3,
+                'match_count': 100  # Get more results for filtering
+            }).execute()
+
+            search_results = getattr(results, "data", []) or []
+        else:
+            # No query, just get recent emails
+            results = sb.table("emails").select("*").order("created_at", desc=True).limit(100).execute()
+            search_results = getattr(results, "data", []) or []
+
+        # Apply filters
+        filtered_results = search_results
+
+        # Date range filter
+        date_range = filters.get("dateRange")
+        if date_range:
+            from datetime import datetime, timedelta, timezone
+            now = datetime.now(timezone.utc)
+
+            if date_range == "7d":
+                cutoff = now - timedelta(days=7)
+            elif date_range == "30d":
+                cutoff = now - timedelta(days=30)
+            elif date_range == "90d":
+                cutoff = now - timedelta(days=90)
+            elif date_range == "custom":
+                start_date = filters.get("startDate")
+                end_date = filters.get("endDate")
+                # Custom date filtering logic here
+                cutoff = None
+            else:
+                cutoff = None
+
+            if cutoff:
+                filtered_results = [
+                    email for email in filtered_results
+                    if email.get("created_at") and datetime.fromisoformat(email["created_at"].replace("Z", "+00:00")) >= cutoff
+                ]
+
+        # Sender filter
+        senders = filters.get("senders", [])
+        if senders:
+            filtered_results = [
+                email for email in filtered_results
+                if any(sender.lower() in email.get("sender", "").lower() for sender in senders)
+            ]
+
+        # Attachment filter
+        has_attachment = filters.get("hasAttachment")
+        if has_attachment is not None:
+            filtered_results = [
+                email for email in filtered_results
+                if email.get("has_attachment", False) == has_attachment
+            ]
+
+        # Limit results
+        filtered_results = filtered_results[:limit]
+
+        print(f"[InstantSearch] Returning {len(filtered_results)} results")
+
+        return {
+            "results": filtered_results,
+            "total": len(filtered_results)
+        }
+
+    except Exception as e:
+        print(f"[ERROR] Exception in /instant-search: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
