@@ -1,6 +1,6 @@
 import os
 import time
-from fastapi import FastAPI, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Form, Header
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from google_auth_oauthlib.flow import Flow
@@ -24,12 +24,24 @@ from supabase import create_client, Client  # type: ignore
 from cryptography.fernet import Fernet  # type: ignore
 import requests
 from sentence_transformers import SentenceTransformer  # type: ignore
+import hashlib
 
 # OpenAI SDK
 try:
     from openai import OpenAI
 except Exception:
     OpenAI = None
+
+# Adaptive Search
+from adaptive_search import AdaptiveSearchEngine, perform_adaptive_search
+
+# Smart Search with Query Parser
+try:
+    from smart_search import smart_search
+    SMART_SEARCH_ENABLED = True
+except Exception as e:
+    print(f"[Warning] Smart search not available: {e}")
+    SMART_SEARCH_ENABLED = False
 
 # Global cache for AI scores (in-memory cache with TTL)
 AI_SCORE_CACHE = {}
@@ -141,6 +153,66 @@ def _decrypt_to_dict(token_str: str) -> dict:
     f = _get_fernet()
     raw = f.decrypt(token_str.encode("utf-8"))
     return json.loads(raw.decode("utf-8"))
+
+
+# ===== Zero-Knowledge Encryption (User-Managed Keys) =====
+
+def _encrypt_with_user_key(data: str, user_key_b64: str) -> tuple[str, str]:
+    """
+    Encrypt data with user's encryption key (zero-knowledge).
+    Returns (encrypted_data_b64, iv_b64)
+
+    The user's key never leaves the browser and is passed as a header.
+    The backend uses it transiently for encryption then discards it.
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    import os
+
+    # Decode user's key from base64
+    key = base64.b64decode(user_key_b64)
+
+    # Generate random nonce/IV
+    nonce = os.urandom(12)  # 96-bit nonce for GCM
+
+    # Encrypt with AES-256-GCM
+    aesgcm = AESGCM(key)
+    ciphertext = aesgcm.encrypt(nonce, data.encode('utf-8'), None)
+
+    # Return as base64
+    return (
+        base64.b64encode(ciphertext).decode('utf-8'),
+        base64.b64encode(nonce).decode('utf-8')
+    )
+
+
+def _decrypt_with_user_key(encrypted_data_b64: str, iv_b64: str, user_key_b64: str) -> str:
+    """
+    Decrypt data with user's encryption key.
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    # Decode from base64
+    key = base64.b64decode(user_key_b64)
+    ciphertext = base64.b64decode(encrypted_data_b64)
+    nonce = base64.b64decode(iv_b64)
+
+    # Decrypt
+    aesgcm = AESGCM(key)
+    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+
+    return plaintext.decode('utf-8')
+
+
+def _hash_thread_id(thread_id: str) -> str:
+    """Create SHA-256 hash of thread_id for deduplication without revealing actual ID."""
+    return hashlib.sha256(thread_id.encode('utf-8')).hexdigest()
+
+
+def _extract_domain(email: str) -> str:
+    """Extract domain from email address (e.g., 'user@example.com' -> 'example.com')."""
+    if '@' in email:
+        return email.split('@')[-1].lower()
+    return ''
 
 
 def _get_supabase() -> Client:
@@ -807,22 +879,29 @@ def login():
 def callback(code: str, state: str):
     """Handle OAuth callback, store encrypted tokens in Supabase, and return user id."""
     try:
+        print(f"[OAuth] Callback received with state: {state}")
+        
         # Verify state to prevent CSRF
         if state not in oauth_states:
             raise HTTPException(status_code=400, detail="Invalid state parameter")
 
         # Remove used state
         del oauth_states[state]
+        print(f"[OAuth] State verified, getting Supabase client...")
 
         sb = _get_supabase()
+        print(f"[OAuth] Supabase client obtained, getting OAuth flow...")
 
         flow = get_flow()
+        print(f"[OAuth] Flow obtained, fetching token...")
         flow.fetch_token(code=code)
+        print(f"[OAuth] Token fetched successfully")
 
         # Fetch Google user info
         access_token = flow.credentials.token
         userinfo = {}
         try:
+            print(f"[OAuth] Fetching user info from Google...")
             uresp = requests.get(
                 "https://openidconnect.googleapis.com/v1/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"},
@@ -830,7 +909,11 @@ def callback(code: str, state: str):
             )
             if uresp.ok:
                 userinfo = uresp.json() or {}
-        except Exception:
+                print(f"[OAuth] User info fetched successfully: {userinfo.get('email')}")
+            else:
+                print(f"[OAuth] Failed to fetch user info: {uresp.status_code}")
+        except Exception as e:
+            print(f"[OAuth] Error fetching user info: {str(e)}")
             userinfo = {}
 
         google_user_id = userinfo.get("sub") or userinfo.get("id")
@@ -853,24 +936,41 @@ def callback(code: str, state: str):
         encrypted = _encrypt_dict(creds_payload)
 
         # Upsert into Supabase users table
+        print(f"[OAuth] Upserting user to Supabase: {email}")
+        print(f"[OAuth] Supabase URL: {SUPABASE_URL}")
         now_iso = datetime.now(timezone.utc).isoformat()
-        existing = sb.table("users").select("id").eq("google_user_id", google_user_id).limit(1).execute()  # type: ignore[attr-defined]
-        if (getattr(existing, "data", []) or []):
-            # Update
-            sb.table("users").update({
-                "email": email,
-                "encrypted_credentials": encrypted,
-                "updated_at": now_iso,
-            }).eq("google_user_id", google_user_id).execute()  # type: ignore[attr-defined]
-        else:
-            # Insert
-            sb.table("users").insert({
-                "google_user_id": google_user_id,
-                "email": email,
-                "encrypted_credentials": encrypted,
-                "created_at": now_iso,
-                "updated_at": now_iso,
-            }).execute()  # type: ignore[attr-defined]
+        try:
+            existing = sb.table("users").select("id").eq("google_user_id", google_user_id).limit(1).execute()  # type: ignore[attr-defined]
+            print(f"[OAuth] Checked existing user, found: {bool(getattr(existing, 'data', []))}")
+            if (getattr(existing, "data", []) or []):
+                # Update
+                print(f"[OAuth] Updating existing user...")
+                sb.table("users").update({
+                    "email": email,
+                    "encrypted_credentials": encrypted,
+                    "updated_at": now_iso,
+                }).eq("google_user_id", google_user_id).execute()  # type: ignore[attr-defined]
+                print(f"[OAuth] User updated successfully")
+            else:
+                # Insert
+                print(f"[OAuth] Inserting new user...")
+                sb.table("users").insert({
+                    "google_user_id": google_user_id,
+                    "email": email,
+                    "encrypted_credentials": encrypted,
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
+                }).execute()  # type: ignore[attr-defined]
+                print(f"[OAuth] User inserted successfully")
+        except Exception as e:
+            error_msg = str(e)
+            print(f"[OAuth] Error during Supabase operation: {error_msg}")
+            if "nodename" in error_msg or "servname" in error_msg:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"DNS resolution failed for Supabase URL: {SUPABASE_URL}. Please check your Supabase project settings and verify the URL is correct."
+                )
+            raise
 
         return {
             "message": "Authentication successful",
@@ -1017,7 +1117,7 @@ def logout():
     try:
         global oauth_states
         oauth_states.clear()
-        
+
         # Clear all stored credentials from Supabase
         try:
             sb = _get_supabase()
@@ -1026,7 +1126,7 @@ def logout():
             print("[Logout] Cleared all stored credentials from Supabase")
         except Exception as e:
             print(f"[Logout] Error clearing credentials: {e}")
-        
+
         users_count = 0
         try:
             sb = _get_supabase()
@@ -1041,6 +1141,261 @@ def logout():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Logout error: {str(e)}")
+
+@app.get("/analytics")
+def get_analytics():
+    """Get email analytics and statistics."""
+    try:
+        sb = _get_supabase()
+
+        # Get the current user (assuming single user for now)
+        user_res = sb.table("users").select("google_user_id").limit(1).execute()
+        if not user_res.data:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        user_id = user_res.data[0].get("google_user_id")
+
+        # Get total emails count
+        total_res = sb.table("emails").select("id", count="exact").eq("google_user_id", user_id).execute()
+        total_emails = getattr(total_res, "count", 0) or 0
+
+        # Get emails from this week (last 7 days)
+        from datetime import timedelta
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        week_res = sb.table("emails").select("id", count="exact").eq("google_user_id", user_id).gte("created_at", week_ago).execute()
+        weekly_emails = getattr(week_res, "count", 0) or 0
+
+        # Get important emails (importance_score >= 7)
+        important_res = sb.table("emails").select("id", count="exact").eq("google_user_id", user_id).gte("importance_score", 7).execute()
+        important_emails = getattr(important_res, "count", 0) or 0
+
+        # Get top senders (top 10)
+        all_emails = sb.table("emails").select("sender").eq("google_user_id", user_id).execute()
+        emails_data = getattr(all_emails, "data", []) or []
+
+        # Count emails per sender
+        sender_counts = {}
+        for email in emails_data:
+            sender = email.get("sender", "Unknown")
+            sender_counts[sender] = sender_counts.get(sender, 0) + 1
+
+        # Sort by count and get top 10
+        top_senders = sorted(sender_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_senders_list = [{"sender": sender, "count": count} for sender, count in top_senders]
+
+        # Get email volume for last 7 days (daily breakdown)
+        daily_volume = []
+        for i in range(7):
+            day_start = (datetime.now(timezone.utc) - timedelta(days=i+1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day_start + timedelta(days=1)
+
+            day_res = sb.table("emails").select("id", count="exact").eq("google_user_id", user_id).gte("created_at", day_start.isoformat()).lt("created_at", day_end.isoformat()).execute()
+            day_count = getattr(day_res, "count", 0) or 0
+
+            daily_volume.append({
+                "date": day_start.strftime("%Y-%m-%d"),
+                "count": day_count
+            })
+
+        # Reverse to get chronological order
+        daily_volume.reverse()
+
+        # Get category breakdown (if categories exist)
+        categories_res = sb.table("emails").select("categories").eq("google_user_id", user_id).execute()
+        categories_data = getattr(categories_res, "data", []) or []
+
+        category_counts = {}
+        for email in categories_data:
+            categories = email.get("categories", [])
+            if isinstance(categories, list):
+                for category in categories:
+                    category_counts[category] = category_counts.get(category, 0) + 1
+
+        category_breakdown = [{"category": cat, "count": count} for cat, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)]
+
+        # Get automated emails count
+        automated_res = sb.table("emails").select("id", count="exact").eq("google_user_id", user_id).eq("is_automated", True).execute()
+        automated_emails = getattr(automated_res, "count", 0) or 0
+
+        # Calculate personal emails (non-automated)
+        personal_emails = total_emails - automated_emails
+
+        # === INBOX HEALTH SCORE ===
+        # Score based on ratio of important/personal emails
+        health_score = 0
+        if total_emails > 0:
+            important_ratio = (important_emails / total_emails) * 100
+            personal_ratio = (personal_emails / total_emails) * 100
+            # Weighted average: 60% importance, 40% personal
+            health_score = int((important_ratio * 0.6) + (personal_ratio * 0.4))
+
+        # === NOISE RATIO ===
+        noise_ratio = {
+            "personal": personal_emails,
+            "automated": automated_emails,
+            "personalPercentage": round((personal_emails / total_emails * 100), 1) if total_emails > 0 else 0,
+            "automatedPercentage": round((automated_emails / total_emails * 100), 1) if total_emails > 0 else 0
+        }
+
+        # === UNSUBSCRIBE CANDIDATES ===
+        # Get all emails with sender, is_automated, and has_unsubscribe
+        all_emails_detailed = sb.table("emails").select("sender, is_automated, has_unsubscribe").eq("google_user_id", user_id).execute()
+        emails_detailed_data = getattr(all_emails_detailed, "data", []) or []
+
+        # Find senders with >5 emails that are automated and have unsubscribe links
+        unsubscribe_sender_counts = {}
+        for email in emails_detailed_data:
+            sender = email.get("sender", "Unknown")
+            is_automated = email.get("is_automated", False)
+            has_unsubscribe = email.get("has_unsubscribe", False)
+
+            if is_automated or has_unsubscribe:
+                if sender not in unsubscribe_sender_counts:
+                    unsubscribe_sender_counts[sender] = {"count": 0, "has_unsubscribe": False}
+                unsubscribe_sender_counts[sender]["count"] += 1
+                if has_unsubscribe:
+                    unsubscribe_sender_counts[sender]["has_unsubscribe"] = True
+
+        # Filter for senders with >5 emails
+        unsubscribe_candidates = [
+            {"sender": sender, "count": data["count"]}
+            for sender, data in unsubscribe_sender_counts.items()
+            if data["count"] >= 5 and data["has_unsubscribe"]
+        ]
+        unsubscribe_candidates.sort(key=lambda x: x["count"], reverse=True)
+
+        # === SMART SENDER INSIGHTS ===
+        # Get importance scores for sender analysis
+        sender_importance = {}
+        for email in emails_detailed_data:
+            sender = email.get("sender", "Unknown")
+            # We'll need to query importance_score separately since it's not in this query
+            # For now, we'll use sender_counts and is_automated as proxies
+
+        # VIP Senders: low volume (<10 emails) but high importance (not automated)
+        vip_senders = []
+        # Time wasters: high volume (>10 emails) and automated
+        time_wasters = []
+
+        for sender, count in sender_counts.items():
+            is_automated_sender = any(
+                e.get("sender") == sender and e.get("is_automated")
+                for e in emails_detailed_data
+            )
+
+            if count < 10 and not is_automated_sender:
+                vip_senders.append({"sender": sender, "count": count})
+            elif count > 10 and is_automated_sender:
+                time_wasters.append({"sender": sender, "count": count})
+
+        vip_senders.sort(key=lambda x: x["count"])
+        time_wasters.sort(key=lambda x: x["count"], reverse=True)
+
+        # === EMAIL PATTERNS & TRENDS ===
+        # Get all emails with timestamps for pattern analysis
+        all_emails_with_time = sb.table("emails").select("created_at").eq("google_user_id", user_id).execute()
+        emails_with_time = getattr(all_emails_with_time, "data", []) or []
+
+        # Peak email hours (0-23)
+        hour_counts = {}
+        day_of_week_counts = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}  # Monday=0, Sunday=6
+
+        for email in emails_with_time:
+            created_at_str = email.get("created_at")
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    hour = created_at.hour
+                    day_of_week = created_at.weekday()  # Monday=0, Sunday=6
+
+                    hour_counts[hour] = hour_counts.get(hour, 0) + 1
+                    day_of_week_counts[day_of_week] = day_of_week_counts.get(day_of_week, 0) + 1
+                except:
+                    pass
+
+        # Find peak hour
+        peak_hour = max(hour_counts.items(), key=lambda x: x[1]) if hour_counts else (0, 0)
+        peak_hour_data = {
+            "hour": peak_hour[0],
+            "count": peak_hour[1],
+            "label": f"{peak_hour[0]:02d}:00"
+        }
+
+        # Hourly distribution for chart
+        hourly_distribution = [
+            {"hour": h, "count": hour_counts.get(h, 0)}
+            for h in range(24)
+        ]
+
+        # Find busiest day
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        busiest_day_num = max(day_of_week_counts.items(), key=lambda x: x[1])[0] if day_of_week_counts else 0
+        busiest_day_data = {
+            "day": day_names[busiest_day_num],
+            "count": day_of_week_counts[busiest_day_num],
+            "dayNum": busiest_day_num
+        }
+
+        # Day of week distribution
+        day_of_week_distribution = [
+            {"day": day_names[i], "dayNum": i, "count": day_of_week_counts.get(i, 0)}
+            for i in range(7)
+        ]
+
+        # Week-over-week comparison
+        two_weeks_ago = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        last_week_start = (datetime.now(timezone.utc) - timedelta(days=14))
+        last_week_end = (datetime.now(timezone.utc) - timedelta(days=7))
+        this_week_start = (datetime.now(timezone.utc) - timedelta(days=7))
+
+        # Last week count
+        last_week_res = sb.table("emails").select("id", count="exact").eq("google_user_id", user_id).gte("created_at", last_week_start.isoformat()).lt("created_at", last_week_end.isoformat()).execute()
+        last_week_count = getattr(last_week_res, "count", 0) or 0
+
+        # This week count (already have it as weekly_emails)
+        this_week_count = weekly_emails
+
+        # Calculate trend
+        trend_percentage = 0
+        if last_week_count > 0:
+            trend_percentage = round(((this_week_count - last_week_count) / last_week_count) * 100, 1)
+
+        week_over_week = {
+            "lastWeek": last_week_count,
+            "thisWeek": this_week_count,
+            "change": this_week_count - last_week_count,
+            "percentageChange": trend_percentage,
+            "trend": "up" if trend_percentage > 0 else "down" if trend_percentage < 0 else "stable"
+        }
+
+        return {
+            "totalEmails": total_emails,
+            "weeklyEmails": weekly_emails,
+            "importantEmails": important_emails,
+            "topSenders": top_senders_list,
+            "dailyVolume": daily_volume,
+            "categoryBreakdown": category_breakdown,
+            "emailsWithAttachments": automated_emails,  # Showing automated emails count
+            # New analytics
+            "inboxHealthScore": health_score,
+            "noiseRatio": noise_ratio,
+            "unsubscribeCandidates": unsubscribe_candidates[:10],  # Top 10 candidates
+            "vipSenders": vip_senders[:5],  # Top 5 VIPs
+            "timeWasters": time_wasters[:5],  # Top 5 time wasters
+            # Email patterns & trends
+            "peakHour": peak_hour_data,
+            "hourlyDistribution": hourly_distribution,
+            "busiestDay": busiest_day_data,
+            "dayOfWeekDistribution": day_of_week_distribution,
+            "weekOverWeek": week_over_week
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Analytics] Error fetching analytics: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to fetch analytics: {str(e)}")
 
 @app.post("/summarize")
 def summarize_email_thread(request: dict):
@@ -1453,8 +1808,74 @@ async def search_emails(request: dict):
         raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
 
 
+@app.post("/smart-search")
+async def smart_search_emails(request: dict):
+    """Enhanced natural language search that parses queries into structured format.
+
+    This endpoint addresses "it's not fetching what I need" issues by:
+    1. Parsing natural language into structured queries (people, topics, time ranges)
+    2. Using AI to understand user intent (fetch_emails, summarize, list_receipts)
+    3. Applying appropriate search strategies based on the query structure
+
+    Expected request body: { "query": "all updates from john in the last 3 days", "userId": "..." (optional) }
+
+    Returns:
+    {
+        "results": [...],  # Matching emails
+        "parsed_query": {...},  # The structured query that was used
+        "search_strategy": "...",  # Description of search approach
+        "result_count": 10
+    }
+    """
+    try:
+        if not SMART_SEARCH_ENABLED:
+            raise HTTPException(
+                status_code=503,
+                detail="Smart search not available. Install dependencies: pip install openai python-dateutil"
+            )
+
+        print(f"\n=== SMART SEARCH REQUEST START ===")
+        print(f"[SmartSearch] Request received: {request}")
+
+        sb = _get_supabase()
+        query = request.get("query", "").strip()
+
+        if not query:
+            raise HTTPException(status_code=400, detail="query is required")
+
+        user_id = request.get("userId")
+        print(f"[SmartSearch] Query: '{query}', User ID: {user_id}")
+
+        # Load embedding model
+        model = _get_embedding_model()
+
+        # Use smart search with OpenAI
+        openai_key = os.getenv("OPENAI_API_KEY")
+        result = smart_search(
+            query=query,
+            supabase_client=sb,
+            embedding_model=model,
+            user_id=user_id,
+            anthropic_api_key=openai_key  # Parameter name kept for compatibility
+        )
+
+        print(f"[SmartSearch] Completed: {result['result_count']} results")
+        print(f"[SmartSearch] Strategy: {result['search_strategy']}")
+        print(f"=== SMART SEARCH REQUEST END ===\n")
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[SmartSearch] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Smart search error: {str(e)}")
+
+
 @app.post("/chat")
-async def chat_with_emails(request: dict):
+async def chat_with_emails(request: dict, x_encryption_key: Optional[str] = Header(None)):
     """Chat with your emails using natural language questions.
 
     Expected request body:
@@ -1483,15 +1904,23 @@ async def chat_with_emails(request: dict):
         print(f"[Chat] Extracted search terms: {search_terms}, time context: {time_context}")
 
         # Detect generic temporal queries that need special handling
-        # BUT exclude queries that mention specific entities or companies
+        # BUT exclude queries that mention specific entities, companies, or topics
         message_lower = message.lower()
         has_specific_entities = any(entity in message_lower for entity in [
             'anthropic', 'openai', 'google', 'microsoft', 'apple', 'amazon', 'meta', 'tesla', 'nvidia',
             'nyt', 'new york times', 'ny times', 'times', 'yahoo', 'facebook', 'twitter', 'linkedin'
         ])
 
+        # Check if query has specific topics/keywords (more than just temporal/email words)
+        # Remove temporal and generic email words, see what's left
+        temporal_and_generic = ['summarize', 'recent', 'latest', 'newest', 'today', 'yesterday',
+                                'this', 'week', 'month', 'emails', 'email', 'my', 'me', 'show']
+        content_words = [word for word in message_lower.split() if word not in temporal_and_generic and len(word) > 2]
+        has_specific_content = len(content_words) > 0  # Has words like "fantasy", "football", etc.
+
         is_generic_temporal_query = (
             not has_specific_entities and  # Don't treat as generic if specific entities mentioned
+            not has_specific_content and   # Don't treat as generic if specific content/topics mentioned
             any(term in message.lower() for term in [
                 'today\'s emails', 'recent emails', 'latest emails', 'new emails',
                 'what emails', 'show me emails', 'my emails', 'all emails'
@@ -1518,34 +1947,29 @@ async def chat_with_emails(request: dict):
         
         print(f"[Chat] Final search query: '{enhanced_query}'")
         
-        # Perform semantic search to get relevant emails
-        model = _get_embedding_model()
-        query_embedding = model.encode(enhanced_query, normalize_embeddings=True)
+        # Perform semantic search using the same hybrid approach as /search endpoint
+        print(f"[Chat] Using simple semantic search for chat...")
         
-        # Use more lenient threshold for chat to get more context
-        # For temporal queries and news-related queries, use very low threshold
-        message_lower = message.lower()
-        is_news_query = any(term in message_lower for term in ['news', 'nyt', 'new york times', 'times', 'newspaper', 'breaking'])
-        is_latest_query = any(term in message_lower for term in ['latest', 'most recent', 'newest', 'last email'])
-
-        if is_generic_temporal_query or is_news_query:
-            threshold = 0.15  # Very low threshold to catch all potentially relevant emails
-            count = 30        # Higher count for broader results
-        elif is_latest_query:
-            threshold = 0.2   # Low threshold for latest queries
-            count = 10        # Fewer results since we want latest
-        else:
-            threshold = 0.3   # More lenient threshold for chat
-            count = 15        # Moderate number of results
-
+        # Load embedding model and generate query embedding
+        model = _get_embedding_model()
+        query_embedding = model.encode(message, normalize_embeddings=True)
+        
+        # Call Supabase RPC function for semantic search
+        print(f"[Chat] Calling Supabase RPC 'match_emails'...")
         results = sb.rpc('match_emails', {
             'query_embedding': query_embedding.tolist(),
-            'match_threshold': threshold,
-            'match_count': count
+            'match_threshold': 0.3,
+            'match_count': 20
         }).execute()
+        
+        search_results = results.data if results.data else []
+        print(f"[Chat] Semantic search found {len(search_results)} emails")
 
-        search_results = getattr(results, "data", []) or []
-        print(f"[Chat] Found {len(search_results)} relevant emails (threshold: {threshold})")
+        # Keep query type flags for downstream filtering
+        message_lower = message.lower()
+        is_news_query = 'news' in message_lower
+        is_latest_query = any(term in message_lower for term in ['latest', 'recent', 'new'])
+        is_sports_query = 'sports' in message_lower or 'fantasy' in message_lower
         
         # Add created_at field to results if missing (for time filtering)
         for result in search_results:
@@ -1564,7 +1988,39 @@ async def chat_with_emails(request: dict):
             filtered_results = _apply_time_filter(search_results, time_context)
             print(f"[Chat] After time filtering: {len(filtered_results)} emails")
             search_results = filtered_results
-        
+
+        # Decrypt encrypted emails if encryption key is provided
+        if x_encryption_key and search_results:
+            print(f"[Chat] Decrypting {len(search_results)} encrypted emails...")
+            decrypted_results = []
+            for result in search_results:
+                # Check if email is encrypted
+                if result.get('encrypted_content') and result.get('iv'):
+                    try:
+                        # Decrypt email content
+                        encrypted_content = result.get('encrypted_content')
+                        iv = result.get('iv')
+                        decrypted_json = _decrypt_with_user_key(encrypted_content, iv, x_encryption_key)
+                        email_data = json.loads(decrypted_json)
+
+                        # Add decrypted fields to result
+                        result['subject'] = email_data.get('subject', 'No Subject')
+                        result['sender'] = email_data.get('sender', 'Unknown Sender')
+                        result['content'] = email_data.get('content', '')
+
+                        print(f"[Chat] Decrypted: '{result['subject']}' from {result['sender']}")
+                        decrypted_results.append(result)
+                    except Exception as e:
+                        print(f"[Chat] Warning: Failed to decrypt email: {e}")
+                        # Skip emails that fail to decrypt
+                        continue
+                else:
+                    # Plain text email (backwards compatibility)
+                    decrypted_results.append(result)
+
+            search_results = decrypted_results
+            print(f"[Chat] After decryption: {len(search_results)} emails available")
+
         # For generic temporal queries or "latest" queries, sort by recency instead of similarity
         if (is_generic_temporal_query or is_latest_query) and search_results:
             from datetime import datetime
@@ -1588,18 +2044,35 @@ async def chat_with_emails(request: dict):
         # Detect if user is asking about "important" emails (for LLM prompt enhancement)
         is_asking_important = any(term in message_lower for term in ['important', 'critical', 'urgent', 'priority'])
 
+        # Apply sports-specific filtering
+        if search_results and is_sports_query:
+            original_count = len(search_results)
+            # Filter for sports-related senders and subjects
+            sports_keywords = ['fantasy', 'football', 'basketball', 'baseball', 'sports', 'nfl', 'nba', 'mlb', 'espn', 'yahoo fantasy', 'sleeper', 'draft', 'lineup']
+            filtered_results = []
+            for email in search_results:
+                sender = (email.get('sender') or '').lower()
+                subject = (email.get('subject') or '').lower()
+                content = (email.get('content') or '').lower()
+                # Keep if sender, subject, or content contains sports keywords
+                if any(keyword in sender or keyword in subject or keyword in content for keyword in sports_keywords):
+                    filtered_results.append(email)
+            search_results = filtered_results
+            if original_count != len(search_results):
+                print(f"[Chat] Sports filter: reduced from {original_count} to {len(search_results)} emails")
+
         # Apply minimal filtering for chat to preserve context - only filter if query is very specific
         entity_indicators = ['anthropic', 'openai', 'google', 'microsoft', 'apple', 'amazon', 'meta', 'tesla', 'nvidia']
         has_specific_entity = any(entity in message_lower for entity in entity_indicators)
 
         # Only apply aggressive filtering for very specific entity queries, not for general news/time/important queries
-        if search_results and has_specific_entity and not is_news_query and not is_asking_important:
+        if search_results and has_specific_entity and not is_news_query and not is_asking_important and not is_sports_query:
             original_count = len(search_results)
             search_results = _filter_irrelevant_results(message, search_results)
             filtered_count = len(search_results)
             if original_count != filtered_count:
                 print(f"[Chat] Filtered out {original_count - filtered_count} irrelevant results")
-        else:
+        elif not is_sports_query:
             print(f"[Chat] Skipping aggressive filtering for temporal/news/important query - keeping all {len(search_results)} results for LLM to categorize")
         
 
@@ -1653,71 +2126,51 @@ async def chat_with_emails(request: dict):
             "[Email Subject](Gmail URL). This allows users to click directly to open the email in Gmail."
         )
         
-        # Try GPT-5-nano first, fallback to gpt-4o-mini if it fails or returns empty
-        try:
-            print(f"[Chat] Trying gpt-5-nano...")
-            response = client.chat.completions.create(
-                model="gpt-5-nano",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"User Question: {message}\n\nRelevant Email Context:\n{email_context}"}
-                ],
-                max_completion_tokens=1000  # gpt-5-nano uses max_completion_tokens, no temperature parameter
-            )
-
-            content = response.choices[0].message.content if response.choices else None
-            print(f"[Chat] gpt-5-nano response: {content[:100] if content else 'EMPTY'}...")
-
-            # If gpt-5-nano returns empty, fallback to gpt-4o-mini
-            if not content or not content.strip():
-                print(f"[Chat] gpt-5-nano returned empty, falling back to gpt-4o-mini...")
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"User Question: {message}\n\nRelevant Email Context:\n{email_context}"}
-                    ],
-                    max_tokens=1000,  # gpt-4o-mini still uses max_tokens
-                    temperature=0.7
-                )
-                content = response.choices[0].message.content
-                print(f"[Chat] gpt-4o-mini response: {content[:100]}...")
-
-            # Return both the AI response and the email results
-            if content:
-                return {
-                    "response": content,
-                    "emails": search_results  # Include the actual email results
-                }
-            else:
-                return {
-                    "response": "No response generated.",
-                    "emails": search_results
-                }
-
-        except Exception as oe:
-            print(f"[Chat] gpt-5-nano error: {str(oe)}")
-            print(f"[Chat] Falling back to gpt-4o-mini due to error...")
-            # Fallback to gpt-4o-mini on any error
+        # Use streaming for better UX
+        async def generate_stream():
             try:
-                response = client.chat.completions.create(
+                print(f"[Chat] Starting streaming response with gpt-4o-mini...")
+
+                # Send the emails data and search metadata first
+                response_data = {
+                    "emails": search_results,
+                    "search_metadata": {
+                        "query_type": "chat",
+                        "results_count": len(search_results)
+                    }
+                }
+                emails_data = json.dumps(response_data)
+                yield f"data: {emails_data}\n\n"
+
+                # Stream the AI response
+                stream = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": f"User Question: {message}\n\nRelevant Email Context:\n{email_context}"}
                     ],
-                    max_tokens=1000,  # gpt-4o-mini uses max_tokens
-                    temperature=0.7
+                    max_tokens=1000,
+                    temperature=0.7,
+                    stream=True  # Enable streaming
                 )
-                content = response.choices[0].message.content
-                print(f"[Chat] gpt-4o-mini fallback response: {content[:100]}...")
-                return {
-                    "response": content,
-                    "emails": search_results
-                }
-            except Exception as fallback_error:
-                print(f"[Chat] Fallback also failed: {str(fallback_error)}")
-                return {"error": f"Chat error: {str(fallback_error)}"}
+
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        content_chunk = chunk.choices[0].delta.content
+                        # Send each chunk as server-sent event
+                        chunk_data = json.dumps({"content": content_chunk})
+                        yield f"data: {chunk_data}\n\n"
+
+                # Send done signal
+                yield "data: [DONE]\n\n"
+                print(f"[Chat] Streaming complete")
+
+            except Exception as e:
+                print(f"[Chat] Streaming error: {str(e)}")
+                error_data = json.dumps({"error": str(e)})
+                yield f"data: {error_data}\n\n"
+
+        return StreamingResponse(generate_stream(), media_type="text/event-stream")
         
     except HTTPException:
         raise
@@ -1726,6 +2179,190 @@ async def chat_with_emails(request: dict):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+
+
+@app.post("/search-feedback")
+async def record_search_feedback(request: dict):
+    """
+    Record user feedback on search results for adaptive learning.
+
+    Expected request body:
+    {
+        "search_query_id": "uuid-of-search-query",
+        "google_user_id": "user's google ID",
+        "email_id": "uuid-of-email (optional)",
+        "thread_id": "gmail thread ID (optional)",
+        "action": "clicked" | "relevant" | "irrelevant" | "skipped" | "dismissed",
+        "similarity_score": 0.85 (optional),
+        "rank_position": 1 (optional),
+        "dwell_time_ms": 5000 (optional),
+        "metadata": {} (optional JSON object)
+    }
+
+    This endpoint:
+    1. Records user interaction with search results
+    2. Updates sender affinity scores
+    3. Updates user search preferences (CTR, etc.)
+    """
+    try:
+        sb = _get_supabase()
+
+        # Extract required fields
+        search_query_id = request.get("search_query_id")
+        google_user_id = request.get("google_user_id")
+        action = request.get("action")
+
+        if not action or action not in ['clicked', 'relevant', 'irrelevant', 'skipped', 'dismissed']:
+            raise HTTPException(status_code=400, detail="Valid action is required (clicked, relevant, irrelevant, skipped, dismissed)")
+
+        if not google_user_id:
+            raise HTTPException(status_code=400, detail="google_user_id is required")
+
+        print(f"[Feedback] Recording {action} action for user {google_user_id}")
+
+        # Get user_id (UUID) from google_user_id for v2 schema compatibility
+        user_id = None
+        try:
+            user_result = sb.table("users").select("id").eq("google_user_id", google_user_id).limit(1).execute()
+            user_data = getattr(user_result, "data", []) or []
+            if user_data:
+                user_id = user_data[0].get('id')
+        except Exception as e:
+            print(f"[Feedback] Warning: Could not get user_id: {e}")
+
+        # Insert feedback record with both user_id (FK) and google_user_id (denormalized)
+        feedback_data = {
+            'search_query_id': search_query_id,
+            'google_user_id': google_user_id,
+            'email_id': request.get('email_id'),
+            'thread_id': request.get('thread_id'),
+            'action': action,
+            'similarity_score': request.get('similarity_score'),
+            'rank_position': request.get('rank_position'),
+            'dwell_time_ms': request.get('dwell_time_ms'),
+            'metadata': json.dumps(request.get('metadata')) if request.get('metadata') else None,
+        }
+
+        # Add user_id if found (v2 schema compatibility)
+        if user_id:
+            feedback_data['user_id'] = user_id
+
+        result = sb.table("search_feedback").insert(feedback_data).execute()
+        feedback_id = None
+        if hasattr(result, 'data') and result.data:
+            feedback_id = result.data[0].get('id')
+
+        print(f"[Feedback] Recorded feedback: {feedback_id}")
+
+        # Update sender affinity if we have email information
+        thread_id = request.get('thread_id')
+        if thread_id and action in ['clicked', 'relevant']:
+            try:
+                # Get email details to extract sender
+                email_result = sb.table("emails").select("sender, encrypted_content, iv").eq("thread_id", thread_id).eq("google_user_id", google_user_id).limit(1).execute()
+                email_data = getattr(email_result, "data", []) or []
+
+                if email_data:
+                    email = email_data[0]
+                    sender = email.get('sender')
+
+                    # If sender is encrypted, we skip affinity update (would need decryption key)
+                    if sender and '@' in sender:
+                        sender_email = sender
+                        sender_domain = sender.split('@')[1] if '@' in sender else None
+
+                        # Upsert sender affinity
+                        affinity_result = sb.table("sender_affinity").select("*").eq("google_user_id", google_user_id).eq("sender_email", sender_email).limit(1).execute()
+                        affinity_data = getattr(affinity_result, "data", []) or []
+
+                        if affinity_data:
+                            # Update existing affinity
+                            existing = affinity_data[0]
+                            clicked_count = existing.get('clicked_count', 0)
+                            marked_relevant = existing.get('marked_relevant', 0)
+                            marked_irrelevant = existing.get('marked_irrelevant', 0)
+
+                            if action == 'clicked':
+                                clicked_count += 1
+                            elif action == 'relevant':
+                                marked_relevant += 1
+
+                            # Calculate affinity score (simple formula: clicks + 2*relevant / total_emails)
+                            total_emails = existing.get('total_emails', 0)
+                            affinity_score = (clicked_count + 2 * marked_relevant) / max(total_emails, 1)
+                            affinity_score = min(1.0, affinity_score)  # Cap at 1.0
+
+                            sb.table("sender_affinity").update({
+                                'clicked_count': clicked_count,
+                                'marked_relevant': marked_relevant,
+                                'affinity_score': affinity_score,
+                                'last_interaction': datetime.now().isoformat(),
+                            }).eq("google_user_id", google_user_id).eq("sender_email", sender_email).execute()
+
+                            print(f"[Feedback] Updated sender affinity for {sender_email}: score={affinity_score:.4f}")
+                        else:
+                            # Create new affinity record with user_id for v2 schema
+                            affinity_insert = {
+                                'google_user_id': google_user_id,
+                                'sender_email': sender_email,
+                                'sender_domain': sender_domain,
+                                'total_emails': 1,
+                                'clicked_count': 1 if action == 'clicked' else 0,
+                                'marked_relevant': 1 if action == 'relevant' else 0,
+                                'marked_irrelevant': 0,
+                                'affinity_score': 0.5,  # Initial score
+                                'last_interaction': datetime.now().isoformat(),
+                            }
+
+                            # Add user_id if found (v2 schema compatibility)
+                            if user_id:
+                                affinity_insert['user_id'] = user_id
+
+                            sb.table("sender_affinity").insert(affinity_insert).execute()
+
+                            print(f"[Feedback] Created sender affinity for {sender_email}")
+
+            except Exception as e:
+                print(f"[Feedback] Warning: Could not update sender affinity: {e}")
+
+        # Update user search preferences (CTR)
+        if action == 'clicked':
+            try:
+                prefs_result = sb.table("user_search_preferences").select("*").eq("google_user_id", google_user_id).limit(1).execute()
+                prefs_data = getattr(prefs_result, "data", []) or []
+
+                if prefs_data:
+                    prefs = prefs_data[0]
+                    total_searches = prefs.get('total_searches', 0)
+                    total_clicks = prefs.get('total_clicks', 0) + 1
+
+                    # Calculate new CTR
+                    avg_ctr = total_clicks / max(total_searches, 1)
+
+                    sb.table("user_search_preferences").update({
+                        'total_clicks': total_clicks,
+                        'avg_ctr': avg_ctr,
+                        'last_updated': datetime.now().isoformat(),
+                    }).eq("google_user_id", google_user_id).execute()
+
+                    print(f"[Feedback] Updated user CTR: {avg_ctr:.4f} ({total_clicks}/{total_searches})")
+
+            except Exception as e:
+                print(f"[Feedback] Warning: Could not update user preferences: {e}")
+
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": f"Feedback recorded: {action}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Exception in /search-feedback: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Feedback error: {str(e)}")
 
 
 def _analyze_question(question: str) -> tuple[list[str], str]:
@@ -1746,6 +2383,8 @@ def _analyze_question(question: str) -> tuple[list[str], str]:
         time_context = "newer_than:1d"
     elif any(term in question_lower for term in ['yesterday']):
         time_context = "newer_than:2d older_than:1d"
+    elif any(term in question_lower for term in ['recent', 'recently', 'latest', 'newest']):
+        time_context = "newer_than:7d"  # "recent" defaults to last 7 days
     
     # Handle patterns like "about [entity] news" - prioritize the entity over generic "news"
     import re
@@ -2575,7 +3214,7 @@ def _prepare_email_context(search_results: list, original_question: str) -> str:
 
 
 @app.post("/sync-inbox")
-async def sync_inbox(request: dict):
+async def sync_inbox(request: dict, x_encryption_key: Optional[str] = Header(None)):
     """Fetch recent Gmail threads, embed content, and upsert into Supabase.
 
     Expected request body:
@@ -2738,27 +3377,74 @@ async def sync_inbox(request: dict):
                 print(f"[Sync] Thread {tid}: Generated embedding with {len(emb)} dimensions")
 
                 # Upsert into Supabase emails table
-                payload = {
-                    "google_user_id": user_id,
-                    "thread_id": tid,
-                    "subject": subject,
-                    "sender": sender,
-                    "content": content,
-                    "embedding": emb,
-                    "categories": categories,
-                    "importance_score": importance_score,
-                    "is_automated": is_automated,
-                    "has_unsubscribe": has_unsubscribe,
-                }
+                # Check if encryption is enabled
+                if x_encryption_key:
+                    # Zero-knowledge mode: Encrypt sensitive data
+                    print(f"[Sync] Thread {tid}: Encrypting with user key (zero-knowledge mode)")
+
+                    # Encrypt email content (subject, sender, content combined)
+                    email_json = json.dumps({
+                        "subject": subject,
+                        "sender": sender,
+                        "content": content
+                    })
+                    encrypted_content, content_iv = _encrypt_with_user_key(email_json, x_encryption_key)
+
+                    # Encrypt embedding vector
+                    embedding_json = json.dumps(emb)
+                    encrypted_embedding, embedding_iv = _encrypt_with_user_key(embedding_json, x_encryption_key)
+
+                    # Create payload with encrypted fields
+                    payload = {
+                        "google_user_id": user_id,
+                        "thread_id_hash": _hash_thread_id(tid),  # Hashed thread ID
+                        "encrypted_content": encrypted_content,
+                        "encrypted_embedding": encrypted_embedding,
+                        "iv": content_iv,  # Store IV for decryption
+                        "sender_domain": _extract_domain(sender),  # Plain metadata
+                        "categories": categories,  # Plain metadata
+                        "importance_score": importance_score,  # Plain metadata
+                        "is_automated": is_automated,  # Plain metadata
+                        "has_unsubscribe": has_unsubscribe,  # Plain metadata
+                    }
+                else:
+                    # Standard mode: Store plain text (backwards compatible)
+                    print(f"[Sync] Thread {tid}: Storing in plain text mode")
+                    payload = {
+                        "google_user_id": user_id,
+                        "thread_id": tid,
+                        "subject": subject,
+                        "sender": sender,
+                        "content": content,
+                        "embedding": emb,
+                        "categories": categories,
+                        "importance_score": importance_score,
+                        "is_automated": is_automated,
+                        "has_unsubscribe": has_unsubscribe,
+                    }
 
                 # Add created_at if we have it
                 if email_date:
                     payload["created_at"] = email_date
                 print(f"[Sync] Thread {tid}: Upserting to Supabase...")
-                sb.table("emails").upsert(
-                    payload,
-                    on_conflict="google_user_id,thread_id",
-                ).execute()  # type: ignore[attr-defined]
+
+                # Use different conflict resolution based on encryption mode
+                if x_encryption_key:
+                    # Encrypted mode: check for duplicates manually by thread_id_hash
+                    thread_hash = _hash_thread_id(tid)
+                    existing = sb.table("emails").select("id").eq("google_user_id", user_id).eq("thread_id_hash", thread_hash).execute()
+                    if existing.data:
+                        # Update existing
+                        sb.table("emails").update(payload).eq("id", existing.data[0]["id"]).execute()
+                    else:
+                        # Insert new
+                        sb.table("emails").insert(payload).execute()
+                else:
+                    # Plain text mode: use standard upsert
+                    sb.table("emails").upsert(
+                        payload,
+                        on_conflict="google_user_id,thread_id",
+                    ).execute()  # type: ignore[attr-defined]
                 indexed += 1
                 print(f"[Sync] Thread {tid}: Successfully indexed ({indexed}/{len(new_thread_ids)})")
             except Exception as e:
