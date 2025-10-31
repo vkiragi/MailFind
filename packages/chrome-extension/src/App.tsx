@@ -4,6 +4,20 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
 import InstantSearch from '@/components/InstantSearch'
+import { PasswordSetup } from '@/components/PasswordSetup'
+import { UnlockModal } from '@/components/UnlockModal'
+import {
+  isPasswordProtected,
+  isUnlocked,
+  unlock,
+  lock,
+  getEncryptionKeyAsBase64,
+  setupPasswordProtection,
+  hasLegacyEncryption,
+  migrateLegacyKey,
+  getPasswordHint,
+  resetAutoLock
+} from '@/utils/security'
 
 // Notification types
 type NotificationType = 'success' | 'error' | 'info' | 'warning'
@@ -79,6 +93,40 @@ function App() {
   const [userEmail, setUserEmail] = useState<string>('')
   const [settingsLoading, setSettingsLoading] = useState(false)
 
+  // Security state
+  const [isLocked, setIsLocked] = useState(true)
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
+  const [passwordHint, setPasswordHint] = useState<string | null>(null)
+  const [isMigration, setIsMigration] = useState(false)
+
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState<{
+    totalEmails: number
+    weeklyEmails: number
+    importantEmails: number
+    topSenders: Array<{sender: string, count: number}>
+    dailyVolume: Array<{date: string, count: number}>
+    categoryBreakdown: Array<{category: string, count: number}>
+    emailsWithAttachments: number
+    inboxHealthScore: number
+    noiseRatio: {
+      personal: number
+      automated: number
+      personalPercentage: number
+      automatedPercentage: number
+    }
+    unsubscribeCandidates: Array<{sender: string, count: number}>
+    vipSenders: Array<{sender: string, count: number}>
+    timeWasters: Array<{sender: string, count: number}>
+    peakHour: {hour: number, count: number, label: string}
+    hourlyDistribution: Array<{hour: number, count: number}>
+    busiestDay: {day: string, count: number, dayNum: number}
+    dayOfWeekDistribution: Array<{day: string, dayNum: number, count: number}>
+    weekOverWeek: {lastWeek: number, thisWeek: number, change: number, percentageChange: number, trend: string}
+  } | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
   // Toast notifications
   const { toast } = useToast()
 
@@ -138,6 +186,76 @@ function App() {
     }
   };
 
+  // Check security status
+  const checkSecurityStatus = async () => {
+    console.log('🔐 [Security] Checking security status...');
+
+    try {
+      // Check if password protection is set up
+      const hasPassword = await isPasswordProtected();
+
+      if (!hasPassword) {
+        // Check for legacy encryption
+        const hasLegacy = await hasLegacyEncryption();
+
+        if (hasLegacy) {
+          console.log('🔄 [Security] Legacy encryption found, showing migration flow');
+          setIsMigration(true);
+          setShowPasswordSetup(true);
+          setIsLocked(true);
+        } else {
+          console.log('🆕 [Security] No encryption found, showing initial setup');
+          setIsMigration(false);
+          setShowPasswordSetup(true);
+          setIsLocked(true);
+        }
+      } else {
+        // Password protection exists, check if unlocked
+        const unlocked = isUnlocked();
+
+        if (!unlocked) {
+          console.log('🔒 [Security] Locked, showing unlock modal');
+          setIsLocked(true);
+          setShowUnlockModal(true);
+
+          // Load password hint
+          const hint = await getPasswordHint();
+          setPasswordHint(hint);
+        } else {
+          console.log('🔓 [Security] Already unlocked');
+          setIsLocked(false);
+          setShowUnlockModal(false);
+
+          // Initialize auto-lock
+          await resetAutoLock();
+        }
+      }
+    } catch (error) {
+      console.error('❌ [Security] Failed to check security status:', error);
+    }
+  };
+
+  // Load analytics data
+  const loadAnalytics = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/analytics', {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAnalyticsData(data);
+      } else {
+        console.error('Failed to load analytics:', response.status);
+      }
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   // Check authentication status on component mount
   const checkAuthStatus = async () => {
     try {
@@ -168,9 +286,79 @@ function App() {
     }
   };
 
+  // Security handlers
+  const handlePasswordSetup = async (password: string, hint?: string) => {
+    try {
+      if (isMigration) {
+        // Migrate legacy key
+        const success = await migrateLegacyKey(password, hint);
+        if (success) {
+          console.log('✅ [Security] Legacy key migrated successfully');
+          setShowPasswordSetup(false);
+          setIsLocked(false);
+          setIsMigration(false);
+
+          // Initialize auto-lock
+          await resetAutoLock();
+
+          addNotification('success', 'Password protection enabled successfully');
+        } else {
+          console.error('❌ [Security] Migration failed');
+          addNotification('error', 'Failed to migrate encryption key');
+        }
+      } else {
+        // Initial setup
+        await setupPasswordProtection(password, hint);
+        console.log('✅ [Security] Password protection setup successfully');
+        setShowPasswordSetup(false);
+        setIsLocked(false);
+
+        // Initialize auto-lock
+        await resetAutoLock();
+
+        addNotification('success', 'Password protection enabled successfully');
+      }
+    } catch (error) {
+      console.error('❌ [Security] Password setup failed:', error);
+      addNotification('error', 'Failed to setup password protection');
+      // Don't rethrow - let the PasswordSetup component handle the error
+    }
+  };
+
+  const handleUnlock = async (password: string): Promise<boolean> => {
+    try {
+      const success = await unlock(password);
+      if (success) {
+        console.log('✅ [Security] Unlocked successfully');
+        setIsLocked(false);
+        setShowUnlockModal(false);
+
+        // Initialize auto-lock
+        await resetAutoLock();
+
+        addNotification('success', 'Unlocked successfully');
+        return true;
+      } else {
+        console.log('❌ [Security] Unlock failed - incorrect password');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ [Security] Unlock error:', error);
+      return false;
+    }
+  };
+
+  const handleLock = () => {
+    lock();
+    setIsLocked(true);
+    setShowUnlockModal(true);
+    addNotification('info', 'MailFind has been locked');
+  };
+
   // Check auth status when component mounts
   useEffect(() => {
     checkAuthStatus();
+    checkSecurityStatus();
   }, []);
 
   // Auto-sync when authenticated and haven't synced yet
@@ -180,10 +368,17 @@ function App() {
       const timer = setTimeout(() => {
         autoSyncInbox();
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated, hasAutoSynced]);
+
+  // Load analytics when analytics tab is selected
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'analytics') {
+      loadAnalytics();
+    }
+  }, [isAuthenticated, activeTab]);
 
   const handleLogin = async () => {
     setIsLoading(true)
@@ -293,13 +488,37 @@ function App() {
 
   const performSync = async (range: '24h' | '7d' | '30d', showAlert: boolean = true) => {
     console.log(`📥 [Sync] Starting inbox sync for ${range}...`);
-    
+
     try {
+      // Get encryption key from security module (zero-knowledge mode)
+      let encryptionKey: string | null = null
+      try {
+        encryptionKey = await getEncryptionKeyAsBase64()
+        if (encryptionKey) {
+          console.log('🔐 [Sync] Encryption enabled - using zero-knowledge mode')
+          console.log(`🔐 [Sync] Key length: ${encryptionKey.length} bytes`)
+
+          // Reset auto-lock on activity
+          await resetAutoLock()
+        } else {
+          console.warn('⚠️ [Sync] No encryption key available (locked)')
+        }
+      } catch (error) {
+        console.warn('⚠️ [Sync] Failed to get encryption key:', error)
+        encryptionKey = null
+      }
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+
+      if (encryptionKey) {
+        headers['X-Encryption-Key'] = encryptionKey
+      }
+
       const response = await fetch('http://localhost:8000/sync-inbox', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ range }),
         credentials: 'include'
       });
@@ -357,34 +576,112 @@ function App() {
 
   const handleChat = async () => {
     if (!chatInput.trim()) return;
-    
+
     setIsChatting(true)
     const userMessage = chatInput.trim()
     setChatInput('')
-    
+
     // Add user message to chat
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
-    
-    console.log('💬 [Chat] Starting chat with:', userMessage);
-    
+
+    console.log('💬 [Chat] Starting streaming chat with:', userMessage);
+
     try {
+      // Get encryption key from security module for decryption
+      let encryptionKey: string | null = null
+      try {
+        encryptionKey = await getEncryptionKeyAsBase64()
+        if (encryptionKey) {
+          console.log('🔐 [Chat] Encryption key retrieved for decryption')
+
+          // Reset auto-lock on activity
+          await resetAutoLock()
+        } else {
+          console.warn('⚠️ [Chat] No encryption key available (locked)')
+        }
+      } catch (error) {
+        console.warn('⚠️ [Chat] Failed to get encryption key:', error)
+        encryptionKey = null
+      }
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+
+      if (encryptionKey) {
+        headers['X-Encryption-Key'] = encryptionKey
+      }
+
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ message: userMessage }),
         credentials: 'include'
       });
-      
-      if (response.ok) {
-        // Parse JSON response
-        const data = await response.json()
-        const assistantMessage = data.response || data.error || 'No response'
-        const emails = data.emails || []
 
-        // Add assistant message with emails
-        setChatMessages(prev => [...prev, { role: 'assistant', content: assistantMessage, emails }])
+      if (response.ok && response.body) {
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let streamedContent = ''
+        let emails: any[] = []
+        let assistantMessageIndex = -1
+
+        // Add an empty assistant message that we'll update as we stream
+        setChatMessages(prev => {
+          const newMessages: Array<{role: 'user' | 'assistant', content: string, emails?: any[]}> = [...prev, { role: 'assistant' as const, content: '', emails: [] }]
+          assistantMessageIndex = newMessages.length - 1
+          return newMessages
+        })
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value)
+          const lines = chunk.split('\n')
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+
+              if (data === '[DONE]') {
+                console.log('✅ [Chat] Streaming complete');
+                break
+              }
+
+              try {
+                const parsed = JSON.parse(data)
+
+                if (parsed.emails) {
+                  // First message contains the emails
+                  emails = parsed.emails
+                  console.log('📧 [Chat] Received', emails.length, 'emails');
+                } else if (parsed.content) {
+                  // Stream content chunks
+                  streamedContent += parsed.content
+
+                  // Update the message in real-time
+                  setChatMessages(prev => {
+                    const updated = [...prev]
+                    if (assistantMessageIndex >= 0 && assistantMessageIndex < updated.length) {
+                      updated[assistantMessageIndex] = {
+                        role: 'assistant',
+                        content: streamedContent,
+                        emails: emails
+                      }
+                    }
+                    return updated
+                  })
+                } else if (parsed.error) {
+                  console.error('❌ [Chat] Stream error:', parsed.error)
+                  throw new Error(parsed.error)
+                }
+              } catch (e) {
+                console.warn('⚠️ [Chat] Failed to parse stream data:', data)
+              }
+            }
+          }
+        }
 
         console.log('✅ [Chat] Chat successful with', emails.length, 'emails');
       } else {
@@ -578,10 +875,8 @@ function App() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="block bg-slate-800/50 hover:bg-slate-600 border border-slate-600 rounded-lg p-2 transition-colors overflow-hidden cursor-pointer"
-                                        style={{ pointerEvents: 'auto' }}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          window.open(`https://mail.google.com/mail/u/0/#inbox/${email.thread_id}`, '_blank');
                                         }}
                                       >
                                         <div className="text-sm font-medium text-slate-100 truncate">
@@ -802,6 +1097,28 @@ function App() {
                   </div>
                 </div>
 
+                {/* Security Actions */}
+                <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                  <div className="flex items-center gap-x-2 font-semibold mb-3">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Security
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleLock}
+                      disabled={isLocked}
+                      className="w-full flex items-center justify-center gap-x-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-sm py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      {isLocked ? 'Locked' : 'Lock MailFind'}
+                    </button>
+                  </div>
+                </div>
+
                 {/* Logout */}
                 <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
                   <button
@@ -820,45 +1137,423 @@ function App() {
 
             {/* Analytics Tab */}
             {activeTab === 'analytics' && (
-              <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-x-2 font-semibold mb-3">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    Email Analytics
+              <div className="space-y-3">
+                {analyticsLoading ? (
+                  <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl text-center">
+                    <div className="flex items-center justify-center gap-2 text-slate-400">
+                      <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                      <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                    </div>
+                    <div className="text-sm text-slate-400 mt-2">Loading analytics...</div>
                   </div>
+                ) : analyticsData ? (
+                  <>
+                    {/* Key Metrics Cards */}
+                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-x-2 font-semibold">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                          Email Analytics
+                        </div>
+                        <button
+                          onClick={loadAnalytics}
+                          className="text-xs text-slate-400 hover:text-violet-400 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gradient-to-br from-violet-600/20 to-violet-600/5 rounded-lg p-3 border border-violet-600/30">
-                      <div className="text-2xl font-bold text-violet-400">---</div>
-                      <div className="text-xs text-slate-400 mt-1">Total Emails</div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-gradient-to-br from-violet-600/20 to-violet-600/5 rounded-lg p-3 border border-violet-600/30">
+                          <div className="text-2xl font-bold text-violet-400">{analyticsData.totalEmails.toLocaleString()}</div>
+                          <div className="text-xs text-slate-400 mt-1">Total Emails</div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-blue-600/20 to-blue-600/5 rounded-lg p-3 border border-blue-600/30">
+                          <div className="text-2xl font-bold text-blue-400">{analyticsData.weeklyEmails.toLocaleString()}</div>
+                          <div className="text-xs text-slate-400 mt-1">This Week</div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-green-600/20 to-green-600/5 rounded-lg p-3 border border-green-600/30">
+                          <div className="text-2xl font-bold text-green-400">{analyticsData.importantEmails.toLocaleString()}</div>
+                          <div className="text-xs text-slate-400 mt-1">Important</div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-amber-600/20 to-amber-600/5 rounded-lg p-3 border border-amber-600/30">
+                          <div className="text-2xl font-bold text-amber-400">{analyticsData.emailsWithAttachments.toLocaleString()}</div>
+                          <div className="text-xs text-slate-400 mt-1">Automated</div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-600/5 rounded-lg p-3 border border-blue-600/30">
-                      <div className="text-2xl font-bold text-blue-400">---</div>
-                      <div className="text-xs text-slate-400 mt-1">This Week</div>
+                    {/* Inbox Health Score */}
+                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                      <div className="flex items-center gap-x-2 font-semibold mb-3">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Inbox Health Score
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="relative w-32 h-32">
+                          <svg className="w-full h-full transform -rotate-90">
+                            <circle
+                              cx="64"
+                              cy="64"
+                              r="56"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              fill="none"
+                              className="text-slate-700"
+                            />
+                            <circle
+                              cx="64"
+                              cy="64"
+                              r="56"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              fill="none"
+                              strokeDasharray={`${2 * Math.PI * 56}`}
+                              strokeDashoffset={`${2 * Math.PI * 56 * (1 - analyticsData.inboxHealthScore / 100)}`}
+                              className={`transition-all ${
+                                analyticsData.inboxHealthScore >= 70 ? 'text-green-500' :
+                                analyticsData.inboxHealthScore >= 40 ? 'text-yellow-500' :
+                                'text-red-500'
+                              }`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className={`text-3xl font-bold ${
+                                analyticsData.inboxHealthScore >= 70 ? 'text-green-400' :
+                                analyticsData.inboxHealthScore >= 40 ? 'text-yellow-400' :
+                                'text-red-400'
+                              }`}>
+                                {analyticsData.inboxHealthScore}
+                              </div>
+                              <div className="text-[10px] text-slate-400">/ 100</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm text-slate-300 mb-2">
+                            {analyticsData.inboxHealthScore >= 70 && "🎉 Excellent! Your inbox is well-managed."}
+                            {analyticsData.inboxHealthScore >= 40 && analyticsData.inboxHealthScore < 70 && "⚠️ Good, but room for improvement."}
+                            {analyticsData.inboxHealthScore < 40 && "📉 Your inbox needs attention."}
+                          </div>
+                          <div className="text-xs text-slate-400 space-y-1">
+                            <div>• {analyticsData.noiseRatio.personalPercentage}% personal emails</div>
+                            <div>• {((analyticsData.importantEmails / analyticsData.totalEmails) * 100).toFixed(1)}% important</div>
+                            {analyticsData.unsubscribeCandidates.length > 0 && (
+                              <div>• {analyticsData.unsubscribeCandidates.length} cleanup opportunities</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-green-600/20 to-green-600/5 rounded-lg p-3 border border-green-600/30">
-                      <div className="text-2xl font-bold text-green-400">---</div>
-                      <div className="text-xs text-slate-400 mt-1">Important</div>
+                    {/* Noise Ratio */}
+                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                      <div className="flex items-center gap-x-2 font-semibold mb-3">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                        </svg>
+                        Personal vs Automated
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-violet-400">Personal</span>
+                            <span className="text-slate-400 font-mono">{analyticsData.noiseRatio.personal} ({analyticsData.noiseRatio.personalPercentage}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-700 rounded-full h-2 mb-3">
+                            <div
+                              className="bg-violet-500 h-2 rounded-full transition-all"
+                              style={{ width: `${analyticsData.noiseRatio.personalPercentage}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-amber-400">Automated</span>
+                            <span className="text-slate-400 font-mono">{analyticsData.noiseRatio.automated} ({analyticsData.noiseRatio.automatedPercentage}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-700 rounded-full h-2">
+                            <div
+                              className="bg-amber-500 h-2 rounded-full transition-all"
+                              style={{ width: `${analyticsData.noiseRatio.automatedPercentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-600/5 rounded-lg p-3 border border-yellow-600/30">
-                      <div className="text-2xl font-bold text-yellow-400">---</div>
-                      <div className="text-xs text-slate-400 mt-1">Top Sender</div>
+                    {/* Unsubscribe Candidates */}
+                    {analyticsData.unsubscribeCandidates.length > 0 && (
+                      <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                        <div className="flex items-center gap-x-2 font-semibold mb-3">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Cleanup Opportunities
+                        </div>
+                        <div className="text-xs text-slate-400 mb-2">
+                          These senders send frequent automated emails with unsubscribe links:
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {analyticsData.unsubscribeCandidates.slice(0, 5).map((candidate, index) => (
+                            <div key={index} className="flex items-center justify-between bg-slate-700/30 rounded-lg p-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs text-slate-300 truncate">{candidate.sender}</div>
+                                <div className="text-[10px] text-slate-500">{candidate.count} emails</div>
+                              </div>
+                              <button className="text-[10px] bg-red-600/20 hover:bg-red-600/30 text-red-400 px-2 py-1 rounded transition-colors">
+                                Unsubscribe
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Smart Sender Insights */}
+                    {(analyticsData.vipSenders.length > 0 || analyticsData.timeWasters.length > 0) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* VIP Senders */}
+                        {analyticsData.vipSenders.length > 0 && (
+                          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                            <div className="flex items-center gap-x-2 font-semibold mb-2 text-sm">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                              <span className="text-xs">VIP Senders</span>
+                            </div>
+                            <div className="space-y-1">
+                              {analyticsData.vipSenders.slice(0, 3).map((vip, index) => (
+                                <div key={index} className="text-[10px] text-slate-400 truncate">
+                                  • {vip.sender} ({vip.count})
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Time Wasters */}
+                        {analyticsData.timeWasters.length > 0 && (
+                          <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                            <div className="flex items-center gap-x-2 font-semibold mb-2 text-sm">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="text-xs">High Volume</span>
+                            </div>
+                            <div className="space-y-1">
+                              {analyticsData.timeWasters.slice(0, 3).map((waster, index) => (
+                                <div key={index} className="text-[10px] text-slate-400 truncate">
+                                  • {waster.sender} ({waster.count})
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Top Senders */}
+                    {analyticsData.topSenders.length > 0 && (
+                      <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                        <div className="flex items-center gap-x-2 font-semibold mb-3">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          Top Senders
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {analyticsData.topSenders.map((sender, index) => {
+                            const maxCount = analyticsData.topSenders[0].count
+                            const percentage = (sender.count / maxCount) * 100
+                            return (
+                              <div key={index} className="flex items-center gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs text-slate-300 truncate">{sender.sender}</div>
+                                  <div className="w-full bg-slate-700 rounded-full h-1.5 mt-1">
+                                    <div
+                                      className="bg-violet-500 h-1.5 rounded-full transition-all"
+                                      style={{ width: `${percentage}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-slate-400 font-mono">{sender.count}</div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Daily Volume Chart */}
+                    {analyticsData.dailyVolume.length > 0 && (
+                      <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                        <div className="flex items-center gap-x-2 font-semibold mb-3">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                          </svg>
+                          Last 7 Days
+                        </div>
+                        <div className="flex items-end justify-between gap-1 h-32">
+                          {analyticsData.dailyVolume.map((day, index) => {
+                            const maxCount = Math.max(...analyticsData.dailyVolume.map(d => d.count))
+                            const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0
+                            const date = new Date(day.date)
+                            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
+                            return (
+                              <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                                <div className="w-full flex items-end justify-center h-24">
+                                  <div
+                                    className="w-full bg-gradient-to-t from-violet-600 to-violet-400 rounded-t transition-all hover:from-violet-500 hover:to-violet-300"
+                                    style={{ height: `${height}%`, minHeight: day.count > 0 ? '4px' : '0' }}
+                                    title={`${day.count} emails on ${day.date}`}
+                                  ></div>
+                                </div>
+                                <div className="text-[10px] text-slate-400">{dayName}</div>
+                                <div className="text-[9px] text-slate-500 font-mono">{day.count}</div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Email Patterns & Trends */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Peak Hour */}
+                      <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                        <div className="flex items-center gap-x-2 font-semibold mb-2 text-sm">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                          <span className="text-xs">Peak Hour</span>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-400">{analyticsData.peakHour.label}</div>
+                          <div className="text-[10px] text-slate-400 mt-1">{analyticsData.peakHour.count} emails</div>
+                        </div>
+                      </div>
+
+                      {/* Busiest Day */}
+                      <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                        <div className="flex items-center gap-x-2 font-semibold mb-2 text-sm">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-xs">Busiest Day</span>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-400">{analyticsData.busiestDay.day}</div>
+                          <div className="text-[10px] text-slate-400 mt-1">{analyticsData.busiestDay.count} emails</div>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Week-over-Week Trend */}
+                    <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                      <div className="flex items-center gap-x-2 font-semibold mb-3">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        Week-over-Week Trend
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="text-xs text-slate-400 mb-1">Last Week</div>
+                          <div className="text-lg font-bold text-slate-300">{analyticsData.weekOverWeek.lastWeek}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {analyticsData.weekOverWeek.trend === 'up' && (
+                            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                            </svg>
+                          )}
+                          {analyticsData.weekOverWeek.trend === 'down' && (
+                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                          )}
+                          {analyticsData.weekOverWeek.trend === 'stable' && (
+                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+                            </svg>
+                          )}
+                          <div className={`text-sm font-bold ${
+                            analyticsData.weekOverWeek.trend === 'up' ? 'text-red-400' :
+                            analyticsData.weekOverWeek.trend === 'down' ? 'text-green-400' :
+                            'text-slate-400'
+                          }`}>
+                            {analyticsData.weekOverWeek.percentageChange > 0 ? '+' : ''}{analyticsData.weekOverWeek.percentageChange}%
+                          </div>
+                        </div>
+                        <div className="flex-1 text-right">
+                          <div className="text-xs text-slate-400 mb-1">This Week</div>
+                          <div className="text-lg font-bold text-slate-300">{analyticsData.weekOverWeek.thisWeek}</div>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-2 text-center">
+                        {analyticsData.weekOverWeek.trend === 'up' && `${analyticsData.weekOverWeek.change} more emails than last week`}
+                        {analyticsData.weekOverWeek.trend === 'down' && `${Math.abs(analyticsData.weekOverWeek.change)} fewer emails than last week`}
+                        {analyticsData.weekOverWeek.trend === 'stable' && 'Same volume as last week'}
+                      </div>
+                    </div>
+
+                    {/* Category Breakdown */}
+                    {analyticsData.categoryBreakdown.length > 0 && (
+                      <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                        <div className="flex items-center gap-x-2 font-semibold mb-3">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                          Categories
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {analyticsData.categoryBreakdown.slice(0, 6).map((cat, index) => (
+                            <div key={index} className="bg-slate-700/30 rounded-lg p-2">
+                              <div className="text-xs text-slate-300 truncate capitalize">{cat.category}</div>
+                              <div className="text-lg font-bold text-violet-400 mt-1">{cat.count}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl text-center">
+                    <div className="text-sm text-slate-400">No analytics data available. Sync your inbox to see analytics.</div>
                   </div>
-
-                  <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                    <div className="text-sm text-slate-400">Coming soon: Email trends, sender statistics, and more insights</div>
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* Password Setup Modal */}
+      {showPasswordSetup && (
+        <PasswordSetup
+          onSetup={handlePasswordSetup}
+          isMigration={isMigration}
+        />
+      )}
+
+      {/* Unlock Modal */}
+      {showUnlockModal && (
+        <UnlockModal
+          onUnlock={handleUnlock}
+          passwordHint={passwordHint}
+        />
       )}
 
       <Toaster />
