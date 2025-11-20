@@ -3,7 +3,6 @@ import './App.css'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Toaster } from '@/components/ui/toaster'
-import InstantSearch from '@/components/InstantSearch'
 import { PasswordSetup } from '@/components/PasswordSetup'
 import { UnlockModal } from '@/components/UnlockModal'
 import {
@@ -77,21 +76,21 @@ const MarkdownText = ({ text }: { text: string }) => {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [syncLoading, setSyncLoading] = useState(false)
-  const [syncRange, setSyncRange] = useState<'24h' | '7d' | '30d'>('24h')
   const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string, emails?: any[]}>>([])
   const [chatInput, setChatInput] = useState('')
   const [isChatting, setIsChatting] = useState(false)
   const [hasAutoSynced, setHasAutoSynced] = useState(false)
   const [isAutoSyncing, setIsAutoSyncing] = useState(false)
   const [chatHeight, setChatHeight] = useState(240) // Initial height in pixels
-  const [activeTab, setActiveTab] = useState<'search' | 'chat' | 'settings' | 'analytics'>('search')
+  const [activeTab, setActiveTab] = useState<'chat' | 'settings' | 'analytics'>('chat')
 
   // Settings state
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false)
   const [syncFrequency, setSyncFrequency] = useState<'15min' | '30min' | '1hr' | '6hr'>('1hr')
   const [userEmail, setUserEmail] = useState<string>('')
   const [settingsLoading, setSettingsLoading] = useState(false)
+  const [manualSyncRange, setManualSyncRange] = useState<'24h' | '7d' | '30d'>('24h')
+  const [isManualSyncing, setIsManualSyncing] = useState(false)
 
   // Security state
   const [isLocked, setIsLocked] = useState(true)
@@ -204,14 +203,14 @@ function App() {
           setShowPasswordSetup(true);
           setIsLocked(true);
         } else {
-          console.log('🆕 [Security] No encryption found, showing initial setup');
+          console.log('🆕 [Security] No encryption found, will show setup after OAuth');
+          // Don't show password setup yet - wait for authentication
           setIsMigration(false);
-          setShowPasswordSetup(true);
           setIsLocked(true);
         }
       } else {
-        // Password protection exists, check if unlocked
-        const unlocked = isUnlocked();
+        // Password protection exists, check if unlocked (session key exists)
+        const unlocked = await isUnlocked();
 
         if (!unlocked) {
           console.log('🔒 [Security] Locked, showing unlock modal');
@@ -222,7 +221,7 @@ function App() {
           const hint = await getPasswordHint();
           setPasswordHint(hint);
         } else {
-          console.log('🔓 [Security] Already unlocked');
+          console.log('🔓 [Security] Already unlocked (session key found)');
           setIsLocked(false);
           setShowUnlockModal(false);
 
@@ -348,8 +347,8 @@ function App() {
     }
   };
 
-  const handleLock = () => {
-    lock();
+  const handleLock = async () => {
+    await lock();
     setIsLocked(true);
     setShowUnlockModal(true);
     addNotification('info', 'MailFind has been locked');
@@ -413,6 +412,14 @@ function App() {
                 setIsAuthenticated(true);
                 oauthWindow.close();
                 console.log('🔒 [OAuth] Popup window closed');
+                
+                // Check if password protection needs to be set up
+                const hasPassword = await isPasswordProtected();
+                if (!hasPassword) {
+                  console.log('🔐 [OAuth] No password protection, showing setup modal');
+                  setShowPasswordSetup(true);
+                  setIsMigration(false);
+                }
               } else {
                 console.log(`⏳ [OAuth] Still waiting... (${status.authenticated_users} users, ${status.active_states} states)`);
               }
@@ -547,19 +554,9 @@ function App() {
     }
   }
 
-  const handleSyncInbox = async () => {
-    setSyncLoading(true)
-    try {
-      await performSync(syncRange, true);
-    } finally {
-      setSyncLoading(false);
-      console.log('🏁 [Sync] Manual sync flow completed');
-    }
-  }
-
   const autoSyncInbox = async () => {
     if (hasAutoSynced) return; // Prevent multiple auto-syncs
-    
+
     setIsAutoSyncing(true);
     console.log('🔄 [Auto-Sync] Starting automatic sync for last 24 hours...');
     try {
@@ -571,6 +568,19 @@ function App() {
       // Don't show error alert for auto-sync, just log it
     } finally {
       setIsAutoSyncing(false);
+    }
+  }
+
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    console.log(`🔄 [Manual-Sync] Starting manual sync for ${manualSyncRange}...`);
+    try {
+      await performSync(manualSyncRange, true);
+      console.log('🏁 [Manual-Sync] Manual sync completed');
+    } catch (error) {
+      console.error('💥 [Manual-Sync] Manual sync failed:', error);
+    } finally {
+      setIsManualSyncing(false);
     }
   }
 
@@ -706,9 +716,6 @@ function App() {
         <h1 className="text-2xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-500">
           MailFind
         </h1>
-        <p className="text-sm text-slate-400 text-center -mt-1">
-          AI-powered email assistant
-        </p>
       </div>
 
       {!isAuthenticated ? (
@@ -741,20 +748,7 @@ function App() {
           )}
 
           {/* Tab Navigation */}
-          <div className="grid grid-cols-4 gap-2 flex-shrink-0">
-            <button
-              onClick={() => setActiveTab('search')}
-              className={`flex flex-col items-center justify-center gap-y-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'search'
-                  ? 'bg-violet-600/20 text-violet-400 ring-2 ring-violet-400/50'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span>Search</span>
-            </button>
+          <div className="grid grid-cols-3 gap-2 flex-shrink-0">
             <button
               onClick={() => setActiveTab('chat')}
               className={`flex flex-col items-center justify-center gap-y-1 py-2 rounded-lg text-xs font-medium transition-all ${
@@ -799,44 +793,6 @@ function App() {
 
           {/* Tab Content */}
           <div className="flex flex-col gap-y-3 flex-1 overflow-y-auto min-h-0">
-            {/* Search Tab */}
-            {activeTab === 'search' && (
-              <div className="space-y-4">
-                {/* Instant Search Section */}
-                <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
-                  <InstantSearch />
-                </div>
-
-                {/* Sync Inbox Section */}
-                <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
-                  <div className="flex items-center gap-x-2 font-semibold">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                    </svg>
-                    Sync Inbox
-                  </div>
-                  <div className="grid grid-cols-3 gap-x-2">
-                    <button onClick={() => setSyncRange('24h')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='24h' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                      24h
-                    </button>
-                    <button onClick={() => setSyncRange('7d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='7d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                      7d
-                    </button>
-                    <button onClick={() => setSyncRange('30d')} className={`text-xs font-semibold py-2 rounded-lg transition-colors ${syncRange==='30d' ? 'bg-slate-600 text-slate-100' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                      30d
-                    </button>
-                  </div>
-                  <button
-                    onClick={handleSyncInbox}
-                    disabled={syncLoading}
-                    className="bg-violet-600 text-white font-bold py-2 rounded-lg hover:bg-violet-500 transition-colors disabled:bg-slate-600"
-                  >
-                    {syncLoading ? 'Syncing...' : 'Sync Inbox'}
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Chat Tab */}
             {activeTab === 'chat' && (
               <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex flex-col gap-y-3">
@@ -939,22 +895,28 @@ function App() {
                     <div className="text-xs text-slate-400 mb-2">Try asking:</div>
                     <div className="grid grid-cols-1 gap-2">
                       <button
-                        onClick={() => setChatInput("What emails did I receive this week about NYT news?")}
+                        onClick={() => setChatInput("Show me emails from @github.com")}
                         className="text-left text-xs bg-slate-700 hover:bg-slate-600 rounded-lg p-2 transition-colors"
                       >
-                        📰 "What emails did I receive this week about NYT news?"
+                        🔍 "Show me emails from @github.com"
                       </button>
                       <button
-                        onClick={() => setChatInput("Summarize my recent fantasy football emails")}
+                        onClick={() => setChatInput("What emails did I get today?")}
                         className="text-left text-xs bg-slate-700 hover:bg-slate-600 rounded-lg p-2 transition-colors"
                       >
-                        🏈 "Summarize my recent fantasy football emails"
+                        📅 "What emails did I get today?"
                       </button>
                       <button
-                        onClick={() => setChatInput("What important emails did I get today?")}
+                        onClick={() => setChatInput("Show me recent newsletters")}
                         className="text-left text-xs bg-slate-700 hover:bg-slate-600 rounded-lg p-2 transition-colors"
                       >
-                        📧 "What important emails did I get today?"
+                        📰 "Show me recent newsletters"
+                      </button>
+                      <button
+                        onClick={() => setChatInput("What important emails did I receive this week?")}
+                        className="text-left text-xs bg-slate-700 hover:bg-slate-600 rounded-lg p-2 transition-colors"
+                      >
+                        ⭐ "What important emails did I receive this week?"
                       </button>
                     </div>
                   </div>
@@ -967,7 +929,7 @@ function App() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleChat()}
-                    placeholder="Ask about your emails... (e.g., 'What emails did I get this week about NYT news?')"
+                    placeholder="Search or ask about your emails... (e.g., 'Show me emails from @github.com')"
                     className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
                   <button
@@ -1008,13 +970,76 @@ function App() {
                   </div>
                 </div>
 
+                {/* Manual Sync */}
+                <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                  <div className="flex items-center gap-x-2 font-semibold mb-3">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    Manual Sync
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-xs text-slate-400">Sync emails from your Gmail inbox</div>
+
+                    {/* Time Range Selection */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setManualSyncRange('24h')}
+                        className={`text-xs font-semibold py-2 rounded-lg transition-colors ${
+                          manualSyncRange === '24h'
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        }`}
+                      >
+                        Last 24h
+                      </button>
+                      <button
+                        onClick={() => setManualSyncRange('7d')}
+                        className={`text-xs font-semibold py-2 rounded-lg transition-colors ${
+                          manualSyncRange === '7d'
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        }`}
+                      >
+                        Last 7 days
+                      </button>
+                      <button
+                        onClick={() => setManualSyncRange('30d')}
+                        className={`text-xs font-semibold py-2 rounded-lg transition-colors ${
+                          manualSyncRange === '30d'
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        }`}
+                      >
+                        Last 30 days
+                      </button>
+                    </div>
+
+                    {/* Sync Button */}
+                    <button
+                      onClick={handleManualSync}
+                      disabled={isManualSyncing}
+                      className="w-full bg-violet-600 hover:bg-violet-500 text-white font-medium py-2 rounded-lg transition-colors disabled:bg-slate-600 disabled:cursor-not-allowed"
+                    >
+                      {isManualSyncing ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Syncing...
+                        </div>
+                      ) : (
+                        'Sync Now'
+                      )}
+                    </button>
+                  </div>
+                </div>
+
                 {/* Sync Settings */}
                 <div className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
                   <div className="flex items-center gap-x-2 font-semibold mb-3">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Sync Preferences
+                    Auto-Sync Preferences
                   </div>
                   <div className="space-y-3">
                     {/* Auto-sync Toggle */}
