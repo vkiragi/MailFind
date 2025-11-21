@@ -622,10 +622,13 @@ function App() {
         headers['X-Encryption-Key'] = encryptionKey
       }
 
-      const response = await fetch('http://localhost:8000/chat', {
+      const response = await fetch('http://localhost:8000/unified-search', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ 
+          query: userMessage,
+          mode: 'chat'  // Use chat mode for streaming conversational response
+        }),
         credentials: 'include'
       });
 

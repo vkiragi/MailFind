@@ -106,3 +106,16 @@ packages/**/.cache/
 # Re-ignore venv inside packages
 packages/**/.venv/
 packages/**/.venv/**
+
+# Docker
+*.dockerfile
+docker-compose.override.yml
+
+# Kubernetes
+k8s/secrets.yaml
+k8s/*.secret.yaml
+
+# Container registries
+.dockerconfigjson
+packages/backend/.env
+*.log

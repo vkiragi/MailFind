@@ -830,7 +830,11 @@ def _create_enhanced_embedding_text(subject: str, content: str, sender: str) -> 
     parts = []
     if subject:
         parts.append(f"Subject: {subject}")
-    if sender_domain:
+    # FIXED: Include full sender string (Name <email>) so sender names like "Handshake" are indexed
+    if sender:
+        parts.append(f"From: {sender}")
+    elif sender_domain:
+        # Fallback to domain only if no sender provided
         parts.append(f"From: {sender_domain}")
     if context_keywords:
         parts.append(f"Keywords: {' '.join(set(context_keywords))}")
@@ -1170,16 +1174,30 @@ def get_analytics():
         important_emails = getattr(important_res, "count", 0) or 0
 
         # Get top senders (top 10)
-        all_emails = sb.table("emails").select("sender").eq("google_user_id", user_id).execute()
+        all_emails = sb.table("emails").select("sender, sender_domain").eq("google_user_id", user_id).execute()
         emails_data = getattr(all_emails, "data", []) or []
 
         # Count emails per sender
         sender_counts = {}
-        for email in emails_data:
-            sender = email.get("sender", "Unknown")
-            sender_counts[sender] = sender_counts.get(sender, 0) + 1
+        unknown_count = 0  # Track emails with no sender info
 
-        # Sort by count and get top 10
+        for email in emails_data:
+            sender = email.get("sender")
+            sender_domain = email.get("sender_domain")
+
+            # Use sender if available, fallback to sender_domain, skip if both are empty
+            if sender and sender.strip():
+                display_name = sender
+            elif sender_domain and sender_domain.strip():
+                display_name = sender_domain
+            else:
+                # Count unknown senders separately but don't include in top senders list
+                unknown_count += 1
+                continue
+
+            sender_counts[display_name] = sender_counts.get(display_name, 0) + 1
+
+        # Sort by count and get top 10 (excluding unknown senders)
         top_senders = sorted(sender_counts.items(), key=lambda x: x[1], reverse=True)[:10]
         top_senders_list = [{"sender": sender, "count": count} for sender, count in top_senders]
 
@@ -1239,22 +1257,31 @@ def get_analytics():
 
         # === UNSUBSCRIBE CANDIDATES ===
         # Get all emails with sender, is_automated, and has_unsubscribe
-        all_emails_detailed = sb.table("emails").select("sender, is_automated, has_unsubscribe").eq("google_user_id", user_id).execute()
+        all_emails_detailed = sb.table("emails").select("sender, sender_domain, is_automated, has_unsubscribe").eq("google_user_id", user_id).execute()
         emails_detailed_data = getattr(all_emails_detailed, "data", []) or []
 
         # Find senders with >5 emails that are automated and have unsubscribe links
         unsubscribe_sender_counts = {}
         for email in emails_detailed_data:
-            sender = email.get("sender", "Unknown")
+            sender = email.get("sender")
+            sender_domain = email.get("sender_domain")
             is_automated = email.get("is_automated", False)
             has_unsubscribe = email.get("has_unsubscribe", False)
 
+            # Use sender if available, fallback to sender_domain, skip if both empty
+            if sender and sender.strip():
+                display_name = sender
+            elif sender_domain and sender_domain.strip():
+                display_name = sender_domain
+            else:
+                continue  # Skip emails with no sender info
+
             if is_automated or has_unsubscribe:
-                if sender not in unsubscribe_sender_counts:
-                    unsubscribe_sender_counts[sender] = {"count": 0, "has_unsubscribe": False}
-                unsubscribe_sender_counts[sender]["count"] += 1
+                if display_name not in unsubscribe_sender_counts:
+                    unsubscribe_sender_counts[display_name] = {"count": 0, "has_unsubscribe": False}
+                unsubscribe_sender_counts[display_name]["count"] += 1
                 if has_unsubscribe:
-                    unsubscribe_sender_counts[sender]["has_unsubscribe"] = True
+                    unsubscribe_sender_counts[display_name]["has_unsubscribe"] = True
 
         # Filter for senders with >5 emails
         unsubscribe_candidates = [
@@ -1265,28 +1292,24 @@ def get_analytics():
         unsubscribe_candidates.sort(key=lambda x: x["count"], reverse=True)
 
         # === SMART SENDER INSIGHTS ===
-        # Get importance scores for sender analysis
-        sender_importance = {}
-        for email in emails_detailed_data:
-            sender = email.get("sender", "Unknown")
-            # We'll need to query importance_score separately since it's not in this query
-            # For now, we'll use sender_counts and is_automated as proxies
-
         # VIP Senders: low volume (<10 emails) but high importance (not automated)
         vip_senders = []
         # Time wasters: high volume (>10 emails) and automated
         time_wasters = []
 
-        for sender, count in sender_counts.items():
+        for display_name, count in sender_counts.items():
+            # Check if this sender/domain is automated
+            # Match against both sender and sender_domain fields
             is_automated_sender = any(
-                e.get("sender") == sender and e.get("is_automated")
+                (e.get("sender") == display_name or e.get("sender_domain") == display_name)
+                and e.get("is_automated")
                 for e in emails_detailed_data
             )
 
             if count < 10 and not is_automated_sender:
-                vip_senders.append({"sender": sender, "count": count})
+                vip_senders.append({"sender": display_name, "count": count})
             elif count > 10 and is_automated_sender:
-                time_wasters.append({"sender": sender, "count": count})
+                time_wasters.append({"sender": display_name, "count": count})
 
         vip_senders.sort(key=lambda x: x["count"])
         time_wasters.sort(key=lambda x: x["count"], reverse=True)
@@ -1872,6 +1895,258 @@ async def smart_search_emails(request: dict):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Smart search error: {str(e)}")
+
+
+@app.post("/unified-search")
+async def unified_search(
+    request: dict, 
+    x_encryption_key: Optional[str] = Header(None)
+):
+    """
+    Unified search endpoint that combines the best of /search, /smart-search, and /chat.
+    
+    Features:
+    - Hybrid search (vector + keyword + AI re-ranking) for better accuracy
+    - Natural language parsing for understanding intent
+    - Dual response modes: structured results or conversational streaming
+    
+    Request body:
+    {
+        "query": "what is that email about handshake delaying payments",
+        "mode": "search" | "chat",  # Default: "chat"
+        "userId": "..." (optional)
+    }
+    
+    Response modes:
+    - "search": Returns structured JSON results (like /search endpoint)
+    - "chat": Returns streaming conversational response (like /chat endpoint)
+    
+    This endpoint solves the semantic search weakness by adding keyword search fallback,
+    so queries like "handshake delaying payments" will find exact keyword matches even
+    if the embedding model doesn't capture the semantic meaning perfectly.
+    """
+    try:
+        sb = _get_supabase()
+        query = request.get("query", "").strip()
+        mode = request.get("mode", "chat")  # Default to chat mode
+        user_id = request.get("userId")
+        
+        if not query:
+            raise HTTPException(status_code=400, detail="query is required")
+        
+        print(f"\n=== UNIFIED SEARCH START (mode: {mode}) ===")
+        print(f"[UnifiedSearch] Query: '{query}', User ID: {user_id}")
+        
+        # STEP 1: Parse query intent
+        search_intent = _parse_search_intent(query)
+        category_filter = search_intent.get('category_filter')
+        search_terms = search_intent.get('search_terms', query)
+        print(f"[UnifiedSearch] Search intent: {search_intent}")
+        
+        # STEP 2: Enhanced query processing and embedding generation
+        model = _get_embedding_model()
+        enhanced_query = _enhance_search_query(search_terms)
+        query_embedding = model.encode(enhanced_query, normalize_embeddings=True)
+        
+        print(f"[UnifiedSearch] Enhanced query: '{enhanced_query}'")
+        
+        # STEP 3: HYBRID SEARCH - Vector + Keyword + AI Re-ranking
+        print(f"[UnifiedSearch] Performing hybrid search...")
+        
+        # 3a. Vector Search with adaptive thresholds
+        is_news_query = any(term in search_terms.lower() for term in ['news', 'update', 'recent', 'latest'])
+        entity_indicators = ['anthropic', 'openai', 'google', 'handshake', 'microsoft', 'apple', 'amazon', 'meta', 'tesla', 'nvidia']
+        has_specific_entity = any(entity in search_terms.lower() for entity in entity_indicators)
+        
+        if has_specific_entity:
+            match_threshold = 0.35  # Higher threshold for entity queries
+            match_count = 15
+            print(f"[UnifiedSearch] Entity-specific query detected, using threshold: {match_threshold}")
+        else:
+            match_threshold = 0.4 if is_news_query else 0.45
+            match_count = 12
+        
+        vector_results = sb.rpc('match_emails', {
+            'query_embedding': query_embedding.tolist(),
+            'match_threshold': match_threshold,
+            'match_count': match_count
+        }).execute()
+        
+        vector_candidates = getattr(vector_results, "data", []) or []
+        print(f"[UnifiedSearch] Vector search: {len(vector_candidates)} candidates")
+        
+        # 3b. Keyword Search - This catches exact matches like "handshake"
+        keyword_candidates = _perform_keyword_search(sb, query, user_id)
+        print(f"[UnifiedSearch] Keyword search: {len(keyword_candidates)} candidates")
+        
+        # 3c. Combine candidates (deduplicate by thread_id)
+        all_candidates = _combine_search_candidates(vector_candidates, keyword_candidates)
+        print(f"[UnifiedSearch] Combined: {len(all_candidates)} unique candidates")
+        
+        if not all_candidates:
+            search_results = []
+            print(f"[UnifiedSearch] No candidates found from either search method")
+        else:
+            # 3d. Pre-filter to remove clearly irrelevant results
+            filtered_candidates = _prefilter_candidates(all_candidates, query)
+            print(f"[UnifiedSearch] After pre-filtering: {len(filtered_candidates)} candidates")
+            
+            # 3e. AI Re-ranking for final precision
+            search_results = _ai_rerank_candidates(filtered_candidates, query)
+            max_results = 8 if is_news_query else 6
+            search_results = search_results[:max_results]
+            
+            print(f"[UnifiedSearch] Final results after AI re-ranking: {len(search_results)} emails")
+        
+        # Log top results for debugging
+        if search_results:
+            for i, result in enumerate(search_results[:3]):
+                print(f"[UnifiedSearch] Result {i+1}: '{result.get('subject', 'N/A')}' (score: {result.get('relevance_score', 'N/A')})")
+        
+        # STEP 4: Decrypt emails if encryption key provided
+        if x_encryption_key and search_results:
+            print(f"[UnifiedSearch] Decrypting {len(search_results)} emails...")
+            decrypted_results = []
+            for result in search_results:
+                if result.get('encrypted_content') and result.get('iv'):
+                    try:
+                        encrypted_content = result.get('encrypted_content')
+                        iv = result.get('iv')
+                        decrypted_json = _decrypt_with_user_key(encrypted_content, iv, x_encryption_key)
+                        email_data = json.loads(decrypted_json)
+                        result['subject'] = email_data.get('subject', 'No Subject')
+                        result['sender'] = email_data.get('sender', 'Unknown Sender')
+                        result['content'] = email_data.get('content', '')
+                        decrypted_results.append(result)
+                        print(f"[UnifiedSearch] Decrypted: '{result['subject']}'")
+                    except Exception as e:
+                        print(f"[UnifiedSearch] Decryption failed: {e}")
+                        continue
+                else:
+                    decrypted_results.append(result)
+            search_results = decrypted_results
+            print(f"[UnifiedSearch] After decryption: {len(search_results)} emails available")
+        
+        # STEP 5: Return based on mode
+        if mode == "search":
+            # Return structured results like /search endpoint
+            result_data = {
+                "status": "success",
+                "query": query,
+                "enhanced_query": enhanced_query,
+                "results": search_results,
+                "count": len(search_results),
+                "search_type": "hybrid_ai_reranked",
+            }
+            
+            if category_filter:
+                result_data["category_filter"] = category_filter
+            
+            print(f"[UnifiedSearch] Returning structured results: {len(search_results)} emails")
+            print(f"=== UNIFIED SEARCH END ===\n")
+            return result_data
+        
+        elif mode == "chat":
+            # Return streaming conversational response like /chat endpoint
+            email_context = _prepare_email_context(search_results, query)
+            print(f"[UnifiedSearch] Prepared email context: {len(email_context)} characters")
+            
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key or OpenAI is None:
+                raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+            
+            client = OpenAI(api_key=api_key)
+            
+            # Detect if user is asking about important emails
+            query_lower = query.lower()
+            is_asking_important = any(term in query_lower for term in ['important', 'critical', 'urgent', 'priority'])
+            
+            # Create system prompt
+            system_prompt = (
+                "You are a helpful email assistant that can answer questions about the user's emails. "
+                "You have access to relevant email context and should provide conversational, helpful responses. "
+                "When answering questions about specific time periods (like 'this week' or 'last month'), "
+                "focus on the most recent and relevant emails. Be concise but informative, and if you don't "
+                "have enough information, say so clearly. "
+            )
+            
+            if is_asking_important:
+                system_prompt += (
+                    "\n\nIMPORTANT: The user asked about 'important' emails. Categorize the emails into: "
+                    "\n\n**Important emails** (mention these first):"
+                    "\n1) Personal emails from real people (not automated/marketing)"
+                    "\n2) Work-related communications from colleagues/clients"
+                    "\n3) Financial alerts (bills, payments, receipts)"
+                    "\n4) Account notifications (password resets, security alerts)"
+                    "\n5) Travel confirmations and tickets"
+                    "\n\n**Less important** (newsletters/promotional - mention these briefly if present):"
+                    "\n- Newsletters, promotional emails, marketing content, social media notifications, automated digests"
+                    "\n\nIf there are NO important emails, say so clearly, but still mention what other emails they received. "
+                    "For example: 'You received 5 emails today, but they are all newsletters and promotional content: [list them]'"
+                )
+            
+            system_prompt += (
+                "\n\nIMPORTANT: When mentioning emails, always include the Gmail URL as a clickable link using markdown format: "
+                "[Email Subject](Gmail URL). This allows users to click directly to open the email in Gmail."
+            )
+            
+            # Stream the response
+            async def generate_stream():
+                try:
+                    print(f"[UnifiedSearch] Starting streaming response with gpt-4o-mini...")
+                    
+                    # Send emails data and metadata first
+                    response_data = {
+                        "emails": search_results,
+                        "search_metadata": {
+                            "query_type": "unified_hybrid",
+                            "results_count": len(search_results),
+                            "search_type": "hybrid_ai_reranked"
+                        }
+                    }
+                    emails_data = json.dumps(response_data)
+                    yield f"data: {emails_data}\n\n"
+                    
+                    # Stream AI response
+                    stream = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": f"User Question: {query}\n\nRelevant Email Context:\n{email_context}"}
+                        ],
+                        max_tokens=1000,
+                        temperature=0.7,
+                        stream=True
+                    )
+                    
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            content_chunk = chunk.choices[0].delta.content
+                            chunk_data = json.dumps({"content": content_chunk})
+                            yield f"data: {chunk_data}\n\n"
+                    
+                    # Send done signal
+                    yield "data: [DONE]\n\n"
+                    print(f"[UnifiedSearch] Streaming complete")
+                    print(f"=== UNIFIED SEARCH END ===\n")
+                    
+                except Exception as e:
+                    print(f"[UnifiedSearch] Streaming error: {str(e)}")
+                    error_data = json.dumps({"error": str(e)})
+                    yield f"data: {error_data}\n\n"
+            
+            return StreamingResponse(generate_stream(), media_type="text/event-stream")
+        
+        else:
+            raise HTTPException(status_code=400, detail="Invalid mode. Use 'search' or 'chat'")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[UnifiedSearch] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Unified search error: {str(e)}")
 
 
 @app.post("/chat")
