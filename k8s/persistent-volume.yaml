@@ -1,0 +1,39 @@
+# PersistentVolumeClaim for Backend Logs
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mailfind-backend-logs
+  namespace: mailfind
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+
+---
+# Optional: StatefulSet for Backend if you need persistent storage
+# Uncomment and use this instead of Deployment if you need persistent state
+#
+# apiVersion: apps/v1
+# kind: StatefulSet
+# metadata:
+#   name: mailfind-backend-stateful
+#   namespace: mailfind
+# spec:
+#   serviceName: mailfind-backend
+#   replicas: 2
+#   selector:
+#     matchLabels:
+#       app: mailfind
+#       component: backend
+#   volumeClaimTemplates:
+#   - metadata:
+#       name: logs
+#     spec:
+#       accessModes: [ "ReadWriteOnce" ]
+#       resources:
+#         requests:
+#           storage: 5Gi
+

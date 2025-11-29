@@ -7,12 +7,14 @@ MailFind is an MVP that lets you index and semantically search your Gmail, and g
 
 ## Features
 
+- **AI Chat Interface**: Primary way to search and interact with your emails using natural language
 - **Gmail Integration**: Secure OAuth authentication with Google
-- **Semantic Search**: AI-powered search through your emails using embeddings
+- **Natural Language Search**: Ask questions or search with queries like "Show me emails from @github.com" or "What did I get today?"
 - **Email Summarization**: Generate concise summaries of email threads
-- **Chatbot Interface**: Ask natural language questions about your emails (e.g., "What emails did I get this week about NYT news?")
 - **Time-aware Queries**: Smart detection of time-based questions (this week, last month, today, etc.)
 - **Streaming Responses**: Real-time chat responses for better user experience
+- **Zero-Knowledge Encryption**: Password-protected client-side encryption for privacy
+- **Analytics Dashboard**: Insights about your inbox patterns and trends
 
 ## Prerequisites
 
@@ -23,10 +25,37 @@ MailFind is an MVP that lets you index and semantically search your Gmail, and g
 - OpenAI API key
 - Chrome browser (for loading the extension)
 
+**For Docker/Kubernetes deployment** (optional):
+- Docker 20.10+ and Docker Compose 2.0+ (for local development)
+- kubectl and a Kubernetes cluster (for production deployment)
+
 ## Repository layout
 
 - packages/backend: FastAPI app (`main.py`), `requirements.txt`
 - packages/chrome-extension: React + Vite + Tailwind extension
+- k8s/: Kubernetes manifests for production deployment
+- scripts/: Helper scripts for Docker and Kubernetes deployment
+
+## Deployment Options
+
+MailFind can be deployed in three ways:
+
+1. **Local Development** (Traditional): Run backend and frontend directly on your machine
+2. **Docker Compose** (Recommended for local development): Containerized local setup
+3. **Kubernetes** (Production): Scalable production deployment
+
+### Quick Start with Docker
+
+For the fastest local setup using Docker:
+
+```bash
+# Quick start with Docker Compose
+./scripts/local-docker-start.sh
+```
+
+See [DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md) for detailed Docker instructions.
+
+For production Kubernetes deployment, see [DOCKER_KUBERNETES_GUIDE.md](./DOCKER_KUBERNETES_GUIDE.md).
 
 ## 1) Backend setup
 
@@ -75,13 +104,14 @@ Health check: `GET http://localhost:8000/` returns `{ "status": "ok" }`.
 - Check status: `GET http://localhost:8000/auth/status`
 - Clear tokens and state: `POST http://localhost:8000/logout`
 
-### Index, search, and summarize endpoints
+### Core endpoints
 
-- POST `/sync-inbox` → Fetch recent Gmail threads and upsert into Supabase. Body: `{ "range": "24h|7d|30d", "userId": "optional-google-user-id" }`.
-- POST `/search` → Semantic search. Body: `{ "query": "...", "userId": "optional" }`.
+- POST `/sync-inbox` → Fetch recent Gmail threads and upsert into Supabase. Body: `{ "range": "24h|7d|30d", "userId": "optional-google-user-id" }`. Accepts `X-Encryption-Key` header for zero-knowledge encryption.
+- POST `/chat` → Primary interface for searching and chatting with emails using natural language. Body: `{ "message": "Show me emails from @github.com", "userId": "optional" }`. Supports encrypted emails with `X-Encryption-Key` header.
 - POST `/summarize` → Summarize a thread by message ID (backend resolves thread). Body: `{ "messageId": "...", "userId": "optional" }`.
 - POST `/summarize-content` → Summarize raw content. Body: `{ "content": "..." }`.
-- POST `/chat` → Chat with your emails using natural language. Body: `{ "message": "What emails did I get this week about NYT news?", "userId": "optional" }`.
+- GET `/analytics` → Get inbox analytics and insights.
+- GET `/autocomplete` → Get autocomplete suggestions for search queries.
 
 Note: The backend expects at least one authenticated user stored in Supabase to access Gmail API.
 
@@ -126,10 +156,12 @@ This will produce a `dist/` folder.
 
 ## 4) Running end-to-end locally
 
-- Start backend on port 8000.
+- Start backend on port 8000 (use `python start_server.py` for auto port detection).
 - Ensure `.env` includes Supabase, Google, OpenAI, and ENCRYPTION_KEY values.
 - Load the Chrome extension build into Chrome.
-- Visit `http://localhost:8000/login` to authenticate once; then use the extension or curl the endpoints to sync/search/summarize.
+- Visit `http://localhost:8000/login` to authenticate once.
+- Use the Chat interface in the extension to search and interact with your emails.
+- The extension will auto-sync your last 24 hours of emails on first load.
 
 ## Troubleshooting
 
@@ -139,7 +171,46 @@ This will produce a `dist/` folder.
 - OpenAI errors/timeouts: Confirm `OPENAI_API_KEY` is set; transient errors can happen.
 - Chrome extension not loading: Make sure you load the built `dist/` folder, not the `src/` directory.
 
+## Docker & Kubernetes Deployment
+
+### Docker Compose (Local Development)
+
+For containerized local development:
+
+```bash
+# Using helper script
+./scripts/local-docker-start.sh
+
+# Or directly
+docker-compose up -d
+```
+
+Services will be available at:
+- Backend: http://localhost:8000
+- Frontend: http://localhost:3000
+
+See [DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md) for details.
+
+### Kubernetes (Production)
+
+For production deployment:
+
+```bash
+# Build and push images
+./scripts/build-images.sh --registry your-registry --tag v1.0.0 --push
+
+# Create secrets
+./scripts/create-k8s-secrets.sh
+
+# Deploy to cluster
+./scripts/deploy-k8s.sh
+```
+
+See [DOCKER_KUBERNETES_GUIDE.md](./DOCKER_KUBERNETES_GUIDE.md) for comprehensive Kubernetes deployment guide.
+
 ## Notes
 
 - The backend CORS allows `http://localhost:5173`, `http://127.0.0.1:5173`, and `https://mail.google.com`.
 - The backend also attempts to load `.env` from repo root if present.
+- Docker images are multi-stage builds optimized for production.
+- Kubernetes manifests include HPA, network policies, and security best practices.

@@ -1,0 +1,55 @@
+# Kustomization file for easy deployment management
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mailfind
+
+resources:
+- namespace.yaml
+- configmap.yaml
+# Note: secrets.yaml should be created from secrets.yaml.template
+# - secrets.yaml
+- backend-deployment.yaml
+- backend-service.yaml
+- frontend-deployment.yaml
+- frontend-service.yaml
+- ingress.yaml
+- hpa.yaml
+- network-policy.yaml
+- persistent-volume.yaml
+
+# Common labels to apply to all resources
+commonLabels:
+  app: mailfind
+  managed-by: kustomize
+
+# Images (update these with your registry)
+images:
+- name: mailfind-backend
+  newName: your-registry/mailfind-backend
+  newTag: latest
+- name: mailfind-frontend
+  newName: your-registry/mailfind-frontend
+  newTag: latest
+
+# ConfigMap generator (alternative to configmap.yaml)
+# configMapGenerator:
+# - name: mailfind-config
+#   literals:
+#   - ENVIRONMENT=production
+#   - LOG_LEVEL=info
+
+# Namespace-wide resource limits
+# patches:
+# - patch: |-
+#     apiVersion: v1
+#     kind: ResourceQuota
+#     metadata:
+#       name: mailfind-quota
+#     spec:
+#       hard:
+#         requests.cpu: "10"
+#         requests.memory: 20Gi
+#         limits.cpu: "20"
+#         limits.memory: 40Gi
+
