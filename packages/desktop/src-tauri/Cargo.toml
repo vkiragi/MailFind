@@ -1,0 +1,62 @@
+[package]
+name = "mailfind"
+version = "0.1.0"
+description = "MailFind - private semantic search over iCloud Mail"
+authors = ["MailFind"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "mailfind_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+thiserror = "1"
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+dirs = "5"
+parking_lot = "0.12"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# DB
+rusqlite = { version = "0.31", features = ["bundled", "chrono", "serde_json"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.24"
+
+# HTTP / Ollama
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Mail. imap's default features include `tls` (native-tls), which is what we
+# want for iCloud (port 993, implicit TLS).
+imap = "2"
+native-tls = "0.2"
+mail-parser = "0.9"
+
+# Credentials. Default features include the platform-native backend (macOS
+# Keychain on Apple targets, Secret Service on Linux, Credential Manager on
+# Windows).
+keyring = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+strip = true

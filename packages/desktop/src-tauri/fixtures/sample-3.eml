@@ -1,0 +1,23 @@
+From: Alex Chen <alex@example.com>
+To: you@icloud.com
+Subject: Re: Contract review
+Date: Fri, 2 May 2026 11:24:00 -0700
+Message-ID: <contract-3@example.com>
+In-Reply-To: <contract-2@example.com>
+References: <contract-1@example.com> <contract-2@example.com>
+Content-Type: text/plain; charset=utf-8
+
+Hey,
+
+I went through the latest contract draft. Two things stood out:
+
+1. Section 4.2 still references the old delivery date (March 15). Please
+   update it to reflect the new milestone schedule we agreed on.
+2. The indemnity clause is fine as-is, but legal wants us to add a cap
+   equal to fees paid in the prior twelve months.
+
+If we can land both updates today, I think we are good to send to their
+counsel by Monday morning.
+
+Thanks,
+Alex
