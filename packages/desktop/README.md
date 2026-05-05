@@ -18,7 +18,7 @@ semantic search** over your iCloud Mail.
 
   ```bash
   ollama pull nomic-embed-text
-  ollama pull qwen2.5:3b-instruct
+  ollama pull granite4.1:3b
   ```
 
 - macOS recommended for v1 (uses macOS Keychain for credential storage via

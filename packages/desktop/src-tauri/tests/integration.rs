@@ -122,7 +122,7 @@ fn migrations_create_expected_tables_and_seed_defaults() {
     let embedding_model = queries::get_setting(&conn, "embedding_model").unwrap();
     assert_eq!(embedding_model.as_deref(), Some("nomic-embed-text"));
     let chat_model = queries::get_setting(&conn, "chat_model").unwrap();
-    assert!(chat_model.as_deref().unwrap_or("").starts_with("qwen"));
+    assert!(chat_model.as_deref().unwrap_or("").starts_with("granite"));
 }
 
 #[test]

@@ -186,7 +186,7 @@ impl OllamaClient {
 }
 
 fn model_present(models: &[String], wanted: &str) -> bool {
-    // Ollama returns full tags like `qwen2.5:3b-instruct`; we accept either
+    // Ollama returns full tags like `granite4.1:3b`; we accept either
     // an exact match or a prefix match on the base name.
     let base = wanted.split(':').next().unwrap_or(wanted);
     models

@@ -13,7 +13,7 @@ Built with Tauri 2 (Rust) + React. Embeddings and answers are powered by a local
 
   ```bash
   ollama pull nomic-embed-text
-  ollama pull qwen2.5:3b-instruct
+  ollama pull granite4.1:3b
   ```
 
 - An iCloud app-specific password — generate one at <https://appleid.apple.com>.
