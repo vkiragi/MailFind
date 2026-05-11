@@ -6,12 +6,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, State};
 use uuid::Uuid;
 
 use crate::credentials;
 use crate::db::queries::{self, AccountRow, NewAccount};
 use crate::error::{AppError, AppResult};
+use crate::mail::sync::SyncWindow;
 use crate::mail::{fixtures, sync};
 use crate::qa::AnswerOutcome;
 use crate::search::{self, SearchOutcome};
@@ -190,8 +191,59 @@ pub fn sync_status(
 pub async fn sync_now(
     account_id: String,
     full_resync: bool,
+    window: Option<SyncWindow>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> AppResult<SyncStatusOut> {
+    // Guard 1: refuse if a sync is already running for this account, or if
+    // the server has us in cooldown. Holding the mutex briefly while we check
+    // and reserve the in-progress slot is fine — the actual sync runs after
+    // the lock drops.
+    let mut clear_persisted_cooldown = false;
+    {
+        let mut guard = state.sync_guard.lock();
+        let now_ms = crate::state::now_unix_ms();
+        if let Some(&until_ms) = guard.cooldown_until_ms.get(&account_id) {
+            if now_ms < until_ms {
+                let remaining_secs = ((until_ms - now_ms) / 1000).max(0);
+                let mins = (remaining_secs + 59) / 60;
+                return Err(AppError::RateLimited(format!(
+                    "iCloud is throttling this account. Try again in ~{mins} minute{} (we paused syncs to let it recover).",
+                    if mins == 1 { "" } else { "s" }
+                )));
+            }
+            guard.cooldown_until_ms.remove(&account_id);
+            clear_persisted_cooldown = true;
+        }
+        if guard.in_progress.contains_key(&account_id) {
+            return Err(AppError::InvalidInput(
+                "a sync is already running for this account".into(),
+            ));
+        }
+        guard.in_progress.insert(account_id.clone(), ());
+    }
+    if clear_persisted_cooldown {
+        let key = format!("{}{}", crate::state::COOLDOWN_KEY_PREFIX, account_id);
+        if let Ok(conn) = state.db.write() {
+            let _ = conn.execute("DELETE FROM app_settings WHERE key = ?1", [&key]);
+        }
+    }
+
+    // Drop guard reservation when we leave this function, regardless of how.
+    struct InProgressGuard {
+        sync_guard: Arc<parking_lot::Mutex<crate::state::SyncGuard>>,
+        account_id: String,
+    }
+    impl Drop for InProgressGuard {
+        fn drop(&mut self) {
+            self.sync_guard.lock().in_progress.remove(&self.account_id);
+        }
+    }
+    let _in_progress = InProgressGuard {
+        sync_guard: Arc::clone(&state.sync_guard),
+        account_id: account_id.clone(),
+    };
+
     let account = {
         let conn = state.db.read()?;
         queries::fetch_account(&conn, &account_id)?
@@ -202,7 +254,27 @@ pub async fn sync_now(
     let ollama = Arc::clone(&state.ollama);
     let acct_clone = account.clone();
     let acct_id = account.id.clone();
-    let sync_outcome = sync::run_sync(&db, acct_clone, full_resync).await?;
+    let window = window.unwrap_or_default();
+    let sync_result = sync::run_sync(app, &db, acct_clone, full_resync, window).await;
+
+    // If the server rate-limited us, lock this account out for 10 minutes so
+    // the user (or any retry) can't hammer it back into a deeper hole. The
+    // cooldown is also persisted to SQLite so it survives app restarts —
+    // otherwise a quick restart would let the user bypass the guard.
+    if let Err(AppError::RateLimited(_)) = &sync_result {
+        let until_ms = crate::state::now_unix_ms() + 10 * 60 * 1000;
+        state
+            .sync_guard
+            .lock()
+            .cooldown_until_ms
+            .insert(account_id.clone(), until_ms);
+        let key = format!("{}{}", crate::state::COOLDOWN_KEY_PREFIX, account_id);
+        if let Ok(conn) = state.db.write() {
+            let _ = queries::set_setting(&conn, &key, &until_ms.to_string());
+        }
+        tracing::warn!(account = %account_id, "applied 10-minute cooldown after rate limit");
+    }
+    let sync_outcome = sync_result?;
     tracing::info!(
         account = %acct_id,
         imported = sync_outcome.imported,
@@ -270,6 +342,24 @@ pub fn ingest_fixture(
 pub fn total_messages(state: State<AppState>) -> AppResult<i64> {
     let conn = state.db.read()?;
     Ok(queries::message_count(&conn)?)
+}
+
+/// Returns the unix-millis timestamp at which the account's sync cooldown
+/// ends, or 0 if there's no active cooldown. The frontend uses this on mount
+/// so it can show the correct countdown after an app restart.
+#[tauri::command]
+pub fn sync_cooldown_until(
+    account_id: String,
+    state: State<AppState>,
+) -> AppResult<i64> {
+    let guard = state.sync_guard.lock();
+    let now = crate::state::now_unix_ms();
+    let until = guard
+        .cooldown_until_ms
+        .get(&account_id)
+        .copied()
+        .unwrap_or(0);
+    Ok(if until > now { until } else { 0 })
 }
 
 fn default_host_for(email: &str) -> String {

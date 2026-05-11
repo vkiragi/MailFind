@@ -38,6 +38,7 @@ pub fn run() {
             commands::ask_question,
             commands::ingest_fixture,
             commands::total_messages,
+            commands::sync_cooldown_until,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

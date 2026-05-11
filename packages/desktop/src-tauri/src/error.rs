@@ -24,6 +24,9 @@ pub enum AppError {
     #[error("imap error: {0}")]
     Imap(String),
 
+    #[error("rate limited by mail server: {0}")]
+    RateLimited(String),
+
     #[error("mail parsing error: {0}")]
     MailParse(String),
 

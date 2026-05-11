@@ -65,41 +65,89 @@ pub fn list_mailboxes(session: &mut ImapSession) -> AppResult<Vec<MailboxSummary
     Ok(out)
 }
 
-/// Fetch the most recent `limit` messages in `mailbox`, returning their UID and
-/// raw RFC822 bytes. Used for the simple "pull recent mail" sync path. A real
-/// product would track per-mailbox UIDNEXT for incremental sync; we keep that
-/// state in the `mailboxes` table and pass `since_uid` to limit the range.
-pub fn fetch_recent(
+/// Search for UIDs in `mailbox` with INTERNALDATE on or after `since_date`,
+/// optionally limited to UIDs greater than `since_uid` (incremental).
+/// `since_date` must be in IMAP date format: `DD-Mon-YYYY`.
+pub fn search_since_date(
     session: &mut ImapSession,
     mailbox: &str,
+    since_date: &str,
     since_uid: Option<u32>,
-    limit: u32,
-) -> AppResult<Vec<FetchedMessage>> {
-    let state = session
+) -> AppResult<Vec<u32>> {
+    session
         .select(mailbox)
         .map_err(|e| AppError::Imap(format!("select: {e}")))?;
 
-    let uid_next = state.uid_next.unwrap_or(1);
-    if uid_next <= 1 {
-        return Ok(vec![]);
+    let mut criterion = format!("SINCE {}", since_date);
+    if let Some(uid) = since_uid {
+        criterion.push_str(&format!(" UID {}:*", uid.saturating_add(1)));
     }
-    let lower = match since_uid {
-        Some(u) => u.saturating_add(1),
-        None => uid_next.saturating_sub(limit),
-    };
-    let upper = uid_next.saturating_sub(1);
-    if lower > upper {
-        return Ok(vec![]);
-    }
+    let uids = session
+        .uid_search(&criterion)
+        .map_err(|e| AppError::Imap(format!("uid_search: {e}")))?;
+    let mut sorted: Vec<u32> = uids.into_iter().collect();
+    sorted.sort_unstable();
+    Ok(sorted)
+}
 
-    let range = format!("{}:{}", lower, upper);
-    let fetches = session
-        .uid_fetch(&range, "(UID RFC822)")
-        .map_err(|e| AppError::Imap(format!("uid_fetch: {e}")))?;
+/// Fetch the given UIDs in batches over a single, long-lived IMAP session.
+/// iCloud throttles per-account *new* connections aggressively
+/// (`[UNAVAILABLE]` responses, then cooldown), so we never reconnect — we
+/// keep the existing session and pace the FETCHes with a small delay.
+/// On a transient `[UNAVAILABLE]` response, we sleep 30s and retry the same
+/// batch once before giving up with a friendly error.
+pub fn fetch_uids_batched(
+    session: &mut ImapSession,
+    uids: &[u32],
+    batch_size: usize,
+    mut on_batch: impl FnMut(usize, usize),
+) -> AppResult<Vec<FetchedMessage>> {
+    use std::thread::sleep;
+    use std::time::Duration;
 
-    let mut out = Vec::new();
-    for f in fetches.iter() {
-        out.push(parse_fetch(f)?);
+    const INTER_BATCH_DELAY: Duration = Duration::from_millis(250);
+    const RATE_LIMIT_BACKOFF: Duration = Duration::from_secs(30);
+
+    let mut out = Vec::with_capacity(uids.len());
+    let total = uids.len();
+
+    for (i, chunk) in uids.chunks(batch_size.max(1)).enumerate() {
+        if i > 0 {
+            sleep(INTER_BATCH_DELAY);
+        }
+        let range = chunk
+            .iter()
+            .map(|u| u.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+
+        let fetches = match session.uid_fetch(&range, "(UID BODY.PEEK[])") {
+            Ok(f) => f,
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("UNAVAILABLE") {
+                    tracing::warn!(
+                        ?e,
+                        backoff_secs = RATE_LIMIT_BACKOFF.as_secs(),
+                        "iCloud rate-limited; backing off"
+                    );
+                    sleep(RATE_LIMIT_BACKOFF);
+                    session.uid_fetch(&range, "(UID BODY.PEEK[])").map_err(|e| {
+                        AppError::RateLimited(format!(
+                            "iCloud is throttling this account. Try again in 10 minutes \
+                             with a smaller window. Details: {e}"
+                        ))
+                    })?
+                } else {
+                    return Err(AppError::Imap(format!("uid_fetch: {e}")));
+                }
+            }
+        };
+
+        for f in fetches.iter() {
+            out.push(parse_fetch(f)?);
+        }
+        on_batch(out.len(), total);
     }
     Ok(out)
 }

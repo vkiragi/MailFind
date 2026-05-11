@@ -75,6 +75,31 @@ export interface AddAccountRequest {
   imap_port?: number | null;
 }
 
+export type SyncWindow =
+  | "day"
+  | "week"
+  | "two_weeks"
+  | "month"
+  | "three_months";
+
+export type SyncPhase =
+  | "connecting"
+  | "searching"
+  | "fetching"
+  | "storing"
+  | "done"
+  | "failed";
+
+export interface SyncProgress {
+  account_id: string;
+  phase: SyncPhase;
+  total: number | null;
+  current: number;
+  message: string | null;
+}
+
+export const SYNC_PROGRESS_EVENT = "sync:progress";
+
 export interface IngestFixtureRequest {
   account_id: string;
   path: string;
@@ -100,8 +125,11 @@ export const api = {
   syncStatus: (accountId: string | null = null) =>
     invoke<SyncStatus>("sync_status", { accountId }),
 
-  syncNow: (accountId: string, fullResync: boolean = false) =>
-    invoke<SyncStatus>("sync_now", { accountId, fullResync }),
+  syncNow: (
+    accountId: string,
+    fullResync: boolean = false,
+    window: SyncWindow = "month",
+  ) => invoke<SyncStatus>("sync_now", { accountId, fullResync, window }),
 
   modelStatus: () => invoke<ModelStatus>("model_status"),
 
@@ -115,4 +143,7 @@ export const api = {
     invoke<IngestFixtureResponse>("ingest_fixture", { req }),
 
   totalMessages: () => invoke<number>("total_messages"),
+
+  syncCooldownUntil: (accountId: string) =>
+    invoke<number>("sync_cooldown_until", { accountId }),
 };

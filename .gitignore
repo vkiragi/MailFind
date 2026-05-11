@@ -1,6 +1,9 @@
 # Development Plan - Keep this private
 DEVELOPMENT_PLAN.md
 
+# Local Claude Code settings
+.claude/
+
 # macOS
 .DS_Store
 .AppleDouble
