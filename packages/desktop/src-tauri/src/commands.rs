@@ -350,12 +350,6 @@ pub async fn search_messages(
     limit: Option<usize>,
     state: State<'_, AppState>,
 ) -> AppResult<SearchOutcome> {
-    // Embed any backlog first so the dense pass has something to work with.
-    if let Ok(n) = search::ensure_embeddings(&state.db, &state.ollama, 64).await {
-        if n > 0 {
-            state.bump_counts_version();
-        }
-    }
     search::search(&state.db, Some(&state.ollama), &query, limit.unwrap_or(20)).await
 }
 
@@ -365,11 +359,6 @@ pub async fn ask_question(
     limit: Option<usize>,
     state: State<'_, AppState>,
 ) -> AppResult<AnswerOutcome> {
-    if let Ok(n) = search::ensure_embeddings(&state.db, &state.ollama, 64).await {
-        if n > 0 {
-            state.bump_counts_version();
-        }
-    }
     crate::qa::ask(&state.db, &state.ollama, &question, limit.unwrap_or(8)).await
 }
 
