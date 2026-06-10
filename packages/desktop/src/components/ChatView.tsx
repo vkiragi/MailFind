@@ -3,7 +3,7 @@ import { Send } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api, type AnswerResponse } from "@/lib/api";
+import { api, openInMail, type AnswerResponse } from "@/lib/api";
 
 export default function ChatView() {
   const [question, setQuestion] = useState("");
@@ -68,7 +68,23 @@ export default function ChatView() {
                   {entry.citations.map((c) => (
                     <div
                       key={c.message_id}
-                      className="rounded-md border border-border p-2 text-xs"
+                      role={c.rfc822_message_id ? "button" : undefined}
+                      tabIndex={c.rfc822_message_id ? 0 : undefined}
+                      onClick={() => openInMail(c.rfc822_message_id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openInMail(c.rfc822_message_id);
+                        }
+                      }}
+                      className={`rounded-md border border-border p-2 text-xs ${
+                        c.rfc822_message_id
+                          ? "cursor-pointer transition-colors hover:bg-muted/40"
+                          : ""
+                      }`}
+                      title={
+                        c.rfc822_message_id ? "Open in Apple Mail" : undefined
+                      }
                     >
                       <div className="truncate font-semibold">{c.subject}</div>
                       <div className="truncate text-muted-foreground">

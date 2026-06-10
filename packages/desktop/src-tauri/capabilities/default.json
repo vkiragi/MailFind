@@ -6,6 +6,11 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "shell:default",
+    {
+      "identifier": "shell:allow-open",
+      "allow": [{ "url": "^message:" }, { "url": "^https?://" }]
+    }
   ]
 }

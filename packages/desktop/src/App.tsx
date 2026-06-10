@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Inbox, MessageCircle, Search, Settings as SettingsIcon } from "lucide-react";
+import { Inbox, MessageCircle, Plus, Search, Settings as SettingsIcon } from "lucide-react";
 
 import AccountSetup from "@/components/AccountSetup";
 import SyncPanel from "@/components/SyncPanel";
 import SearchView from "@/components/SearchView";
 import ChatView from "@/components/ChatView";
 import ModelStatusBadge from "@/components/ModelStatusBadge";
+import { Button } from "@/components/ui/button";
 
 import { api, type AccountSummary } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ export default function App() {
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [tab, setTab] = useState<Tab>("search");
   const [tickle, setTickle] = useState(0);
+  const [showAddAccount, setShowAddAccount] = useState(false);
 
   const reload = async () => {
     setLoadingAccounts(true);
@@ -81,7 +83,23 @@ export default function App() {
                     onChange={() => setTickle((n) => n + 1)}
                   />
                 ))}
-                <AccountSetup onAdded={reload} />
+                {showAddAccount ? (
+                  <AccountSetup
+                    onAdded={() => {
+                      setShowAddAccount(false);
+                      reload();
+                    }}
+                  />
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddAccount(true)}
+                    className="w-full"
+                  >
+                    <Plus className="mr-1 size-4" />
+                    Add another account
+                  </Button>
+                )}
               </div>
             )}
           </>

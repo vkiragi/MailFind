@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api, type MessageHit } from "@/lib/api";
+import { api, openInMail, type MessageHit } from "@/lib/api";
 
 export default function SearchView() {
   const [query, setQuery] = useState("");
@@ -68,7 +68,26 @@ export default function SearchView() {
 
       <div className="space-y-2">
         {results.map((hit) => (
-          <Card key={hit.message_id}>
+          <Card
+            key={hit.message_id}
+            role={hit.rfc822_message_id ? "button" : undefined}
+            tabIndex={hit.rfc822_message_id ? 0 : undefined}
+            onClick={() => openInMail(hit.rfc822_message_id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openInMail(hit.rfc822_message_id);
+              }
+            }}
+            className={
+              hit.rfc822_message_id
+                ? "cursor-pointer transition-colors hover:bg-muted/40"
+                : ""
+            }
+            title={
+              hit.rfc822_message_id ? "Open in Apple Mail" : undefined
+            }
+          >
             <CardContent className="space-y-1 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="truncate text-sm font-semibold">

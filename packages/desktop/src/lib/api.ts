@@ -1,4 +1,28 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open as openExternal } from "@tauri-apps/plugin-shell";
+
+/**
+ * Opens a message in Apple Mail via the `message:` URL scheme. macOS registers
+ * Mail.app as the handler by default; if the user has a different mail client,
+ * it'll route there instead. Falls back silently if the Message-ID is missing
+ * or no handler is registered.
+ */
+export async function openInMail(rfc822MessageId: string | null): Promise<void> {
+  if (!rfc822MessageId) return;
+  // Strip any surrounding angle brackets — Message-IDs are sometimes stored as
+  // `<foo@example.com>` but the URL scheme wants the raw value.
+  const id = rfc822MessageId.replace(/^<|>$/g, "");
+  try {
+    await openExternal(`message:%3C${encodeURIComponent(id)}%3E`);
+  } catch {
+    // Fallback for clients that don't expect the URL-encoded brackets.
+    try {
+      await openExternal(`message:${id}`);
+    } catch {
+      // No handler / scheme rejected — nothing we can do client-side.
+    }
+  }
+}
 
 export interface AccountSummary {
   id: string;
