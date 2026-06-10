@@ -10,6 +10,7 @@ use crate::search::{self, MessageHit};
 #[derive(Debug, Clone, Serialize)]
 pub struct AnswerCitation {
     pub message_id: String,
+    pub rfc822_message_id: Option<String>,
     pub subject: String,
     pub sender: String,
     pub date: String,
@@ -72,6 +73,7 @@ pub async fn ask(
         .take(top_k)
         .map(|h| AnswerCitation {
             message_id: h.message_id.clone(),
+            rfc822_message_id: h.rfc822_message_id.clone(),
             subject: h.subject.clone(),
             sender: h.sender.clone(),
             date: h.date.clone(),

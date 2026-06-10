@@ -182,6 +182,96 @@ fn format_addresses(addr: Option<&Address>) -> Vec<String> {
     }
 }
 
+/// Strip inline CSS rules (`@media`/`.selector { … }`) that bleed into
+/// `body_plain` of marketing/transactional email. These flood the FTS index
+/// with junk tokens like `!important`, hex colors, and CSS keywords that
+/// match unrelated user queries (e.g. "important emails" matched eBay device
+/// alerts solely on `!important;` declarations in the embedded styles).
+///
+/// Walks the string with brace-depth tracking. For each balanced `{…}`
+/// block, drops it if the contents look CSS-shaped (contains both `:` and
+/// `;`). Also rewinds to drop the preceding selector tokens (e.g.
+/// `.mh_N1_accountGeneric .title a`). Conservative: never strips a `{…}`
+/// block that doesn't look like CSS (e.g. code snippets, JSON in body).
+pub fn strip_css(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let n = chars.len();
+    let mut keep = vec![true; n];
+    let mut i = 0;
+    while i < n {
+        if chars[i] != '{' {
+            i += 1;
+            continue;
+        }
+        // Find matching `}` with depth tracking.
+        let mut depth = 1;
+        let mut j = i + 1;
+        while j < n {
+            match chars[j] {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            j += 1;
+        }
+        if depth != 0 {
+            i += 1;
+            continue;
+        }
+        // chars[i..=j] is a balanced `{...}` block.
+        let inner: String = chars[i + 1..j].iter().collect();
+        let css_like = inner.contains(':') && inner.contains(';');
+        if !css_like {
+            i = j + 1;
+            continue;
+        }
+        for k in i..=j {
+            keep[k] = false;
+        }
+        // Walk back over selector tokens. Selectors are runs of identifier-ish
+        // chars plus `.`, `#`, `:`, `*`, `,`, `>`, `+`, `~`, `(`, `)`, spaces,
+        // and the `@media (...)` prefix. Stop at newline or a sentence-ending
+        // punctuation that is followed by whitespace (i.e. the end of real
+        // prose).
+        let mut k = i;
+        while k > 0 {
+            let prev = chars[k - 1];
+            if prev == '\n' {
+                break;
+            }
+            // Sentence end: `.`, `!`, or `?` followed by whitespace (real prose
+            // boundary) — but only when the char itself isn't part of a CSS
+            // token like `.foo` or `!important`. We've already passed any
+            // such CSS by now since they're inside braces; here we're scanning
+            // backwards through selector text only.
+            if matches!(prev, '.' | '!' | '?')
+                && chars
+                    .get(k)
+                    .map(|c| c.is_whitespace())
+                    .unwrap_or(true)
+                && k >= 2
+                && !chars[k - 2].is_whitespace()
+                && chars[k - 2].is_alphabetic()
+            {
+                break;
+            }
+            keep[k - 1] = false;
+            k -= 1;
+        }
+        i = j + 1;
+    }
+    chars
+        .iter()
+        .zip(keep.iter())
+        .filter_map(|(c, &k)| if k { Some(*c) } else { None })
+        .collect()
+}
+
 /// Collapse whitespace and trim to `max_chars` characters.
 pub fn compact_text(s: &str, max_chars: usize) -> String {
     let mut buf = String::with_capacity(s.len().min(max_chars + 64));
@@ -238,5 +328,31 @@ This is a test message body.\r\n";
         let s = parsed.snippet();
         assert!(s.contains("test message"));
         assert!(!s.contains("\r\n"));
+    }
+
+    #[test]
+    fn strip_css_removes_inline_rules() {
+        // Real eBay device-alert sample (truncated).
+        let input = "Here's what you need to know.\n\
+@media (prefers-color-scheme:dark) { .mgh{background:#212121!important;} } \
+Let's make sure this was you \
+.mh_N1_accountGeneric .title a:focus, .mh_N1_accountGeneric .subcopy a:focus, \
+.mh_N1_accountGeneric .legalese a:focus{outline:3px solid #000000!important;padding:0px!important;} \
+.mh_N1_accountGeneric .title a{color:#111820!important;} \
+Time of sign-in Mar 11, 2026.";
+        let out = strip_css(input);
+        // The signal we care about: the literal `!important` flood is gone.
+        assert!(!out.contains("!important"), "CSS leaked through: {out}");
+        // And real prose survives.
+        assert!(out.contains("what you need to know"));
+        assert!(out.contains("Time of sign-in"));
+    }
+
+    #[test]
+    fn strip_css_preserves_non_css_braces() {
+        // Code snippets / JSON in prose shouldn't be touched.
+        let input = "Here is some json: { \"name\": \"alice\" } and that's all.";
+        let out = strip_css(input);
+        assert!(out.contains("\"name\""), "stripped non-CSS braces: {out}");
     }
 }

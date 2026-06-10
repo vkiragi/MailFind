@@ -33,6 +33,7 @@ pub struct MessageRow {
     pub id: String,
     pub account_id: String,
     pub thread_id: Option<String>,
+    pub rfc822_message_id: Option<String>,
     pub subject: String,
     pub sender: String,
     pub sender_email: Option<String>,
@@ -40,6 +41,10 @@ pub struct MessageRow {
     pub date: String,
     pub snippet: String,
     pub body_preview: String,
+    /// Heuristic "this is a newsletter / automated / bulk" flag computed at
+    /// query time. Drives a score penalty in hybrid search so personal mail
+    /// outranks mailing-list mail on equal keyword/vector match.
+    pub is_bulk: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -277,7 +282,14 @@ pub fn fetch_messages(
     let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!(
         "SELECT id, account_id, thread_id, subject, sender, sender_email,
-                recipients, received_at, snippet, body_plain
+                recipients, received_at, snippet, body_plain, rfc822_message_id,
+                CASE WHEN LOWER(COALESCE(body_plain, '')) LIKE '%unsubscribe%'
+                       OR LOWER(COALESCE(sender_email, '')) LIKE 'noreply%'
+                       OR LOWER(COALESCE(sender_email, '')) LIKE 'no-reply%'
+                       OR LOWER(COALESCE(sender_email, '')) LIKE 'newsletter%'
+                       OR LOWER(COALESCE(sender_email, '')) LIKE 'mailer%'
+                       OR LOWER(COALESCE(sender_email, '')) LIKE '%notifications@%'
+                     THEN 1 ELSE 0 END AS is_bulk
          FROM messages WHERE id IN ({})",
         placeholders
     );
@@ -321,10 +333,12 @@ fn message_from_row(row: &rusqlite::Row) -> rusqlite::Result<MessageRow> {
         Some(b) => truncate_str(b, 360),
         None => String::new(),
     };
+    let is_bulk: i64 = row.get(11).unwrap_or(0);
     Ok(MessageRow {
         id: row.get(0)?,
         account_id: row.get(1)?,
         thread_id: row.get(2)?,
+        rfc822_message_id: row.get(10)?,
         subject: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
         sender: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
         sender_email: row.get(5)?,
@@ -332,6 +346,7 @@ fn message_from_row(row: &rusqlite::Row) -> rusqlite::Result<MessageRow> {
         date: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
         snippet: snippet_value,
         body_preview,
+        is_bulk: is_bulk != 0,
     })
 }
 
@@ -348,6 +363,25 @@ pub fn embedded_message_count(conn: &Connection) -> AppResult<i64> {
         |row| row.get(0),
     )?;
     Ok(count)
+}
+
+/// Whether a message with this RFC822 `Message-ID` already exists for the
+/// account. Used for cross-source dedup: the same message can arrive both via
+/// a local import (no `mailbox_id`/`imap_uid`) and via IMAP sync, and the
+/// `(account_id, mailbox_id, imap_uid)` UNIQUE constraint treats NULLs as
+/// distinct, so it cannot catch that case on its own.
+pub fn message_exists_by_rfc822(
+    conn: &Connection,
+    account_id: &str,
+    rfc822_message_id: &str,
+) -> AppResult<bool> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM messages
+         WHERE account_id = ?1 AND rfc822_message_id = ?2",
+        params![account_id, rfc822_message_id],
+        |row| row.get(0),
+    )?;
+    Ok(count > 0)
 }
 
 pub fn account_message_count(conn: &Connection, account_id: &str) -> AppResult<i64> {

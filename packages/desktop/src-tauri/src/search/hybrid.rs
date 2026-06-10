@@ -10,6 +10,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use crate::db::queries::{self, ChunkWithEmbedding, MessageRow};
@@ -22,6 +23,7 @@ pub struct MessageHit {
     pub message_id: String,
     pub account_id: String,
     pub thread_id: Option<String>,
+    pub rfc822_message_id: Option<String>,
     pub subject: String,
     pub sender: String,
     pub sender_email: Option<String>,
@@ -45,6 +47,26 @@ pub struct SearchOutcome {
 }
 
 const RRF_K: f32 = 60.0;
+// Lexical hits beat semantic hits on ties. Most user queries are at least
+// partly keyword-shaped ("tldr", a name, an order number) — a noisy nearest-
+// neighbor at rank 0 shouldn't outrank a perfect FTS match. Tuned so a top
+// keyword hit dominates a single top vector hit but doesn't drown out a
+// message that hits BOTH modalities.
+const KW_RRF_WEIGHT: f32 = 2.0;
+const VEC_RRF_WEIGHT: f32 = 1.0;
+// Vector candidates below this cosine similarity are dropped before fusion.
+// Otherwise sparse-corpus noise (e.g. before background embedding catches up)
+// can rank above real matches just by being "the least-bad of what's
+// embedded".
+const VEC_SIM_FLOOR: f32 = 0.5;
+// Recency half-life in days for the exponential decay applied to the fused
+// score. A message sent τ days ago is worth half a freshly sent one. Email
+// is intrinsically time-sensitive — "important" almost always implies recent.
+const RECENCY_TAU_DAYS: f32 = 180.0;
+// Score multiplier applied to bulk/newsletter mail. <1 demotes; 0 would hide
+// them entirely. 0.4 lets bulk still surface on overwhelming keyword/vector
+// match (e.g. a query *about* a newsletter) without dominating real mail.
+const BULK_PENALTY: f32 = 0.4;
 
 pub async fn search(
     db: &Database,
@@ -65,7 +87,9 @@ pub async fn search(
         });
     }
 
-    let candidate_pool = (limit * 5).max(40);
+    // Wider than just `limit * 5` so a recent, non-bulk message buried at rank
+    // ~30 still has a chance to climb back into the top-K after demotion.
+    let candidate_pool = (limit * 10).max(80);
 
     // Keyword pass.
     let keyword_chunks: Vec<(String, f64)> = {
@@ -96,16 +120,26 @@ pub async fn search(
         }
     }
 
-    // Fuse at the message level using reciprocal rank fusion.
+    // Fuse at the message level using weighted reciprocal rank fusion.
     let mut fused: HashMap<String, FusedScore> = HashMap::new();
     for (rank, (msg_id, _bm25)) in keyword_chunks.iter().enumerate() {
         let entry = fused.entry(msg_id.clone()).or_default();
-        entry.score += 1.0 / (RRF_K + rank as f32 + 1.0);
-        entry.keyword_rank = Some(rank);
+        entry.score += KW_RRF_WEIGHT / (RRF_K + rank as f32 + 1.0);
+        // Track the best (lowest) rank across all matching chunks for this
+        // message, not the last one we happened to iterate.
+        entry.keyword_rank = Some(
+            entry
+                .keyword_rank
+                .map(|r| r.min(rank))
+                .unwrap_or(rank),
+        );
     }
     for (rank, (msg_id, sim)) in vector_chunks.iter().enumerate() {
+        if *sim < VEC_SIM_FLOOR {
+            continue;
+        }
         let entry = fused.entry(msg_id.clone()).or_default();
-        entry.score += 1.0 / (RRF_K + rank as f32 + 1.0);
+        entry.score += VEC_RRF_WEIGHT / (RRF_K + rank as f32 + 1.0);
         entry.similarity = Some(entry.similarity.map(|s| s.max(*sim)).unwrap_or(*sim));
         entry.vector_rank = Some(rank);
     }
@@ -121,21 +155,37 @@ pub async fn search(
         });
     }
 
-    let mut ranked: Vec<(String, FusedScore)> = fused.into_iter().collect();
-    ranked.sort_by(|a, b| {
-        b.1.score
-            .partial_cmp(&a.1.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    ranked.truncate(limit);
-
-    let ids: Vec<String> = ranked.iter().map(|(id, _)| id.clone()).collect();
+    // Fetch the message rows for the candidate pool (not yet truncated to
+    // `limit`) so we can apply recency / bulk multipliers — these may reorder
+    // results enough that a candidate outside the original top-K ends up in
+    // the final top-K.
+    let ids: Vec<String> = fused.keys().cloned().collect();
     let messages = {
         let conn = db.read()?;
         queries::fetch_messages(&conn, &ids)?
     };
     let by_id: HashMap<String, MessageRow> =
         messages.into_iter().map(|m| (m.id.clone(), m)).collect();
+
+    let now = Utc::now();
+    let mut ranked: Vec<(String, FusedScore)> = fused
+        .into_iter()
+        .map(|(id, mut s)| {
+            if let Some(m) = by_id.get(&id) {
+                s.score *= recency_factor(&m.date, now);
+                if m.is_bulk {
+                    s.score *= BULK_PENALTY;
+                }
+            }
+            (id, s)
+        })
+        .collect();
+    ranked.sort_by(|a, b| {
+        b.1.score
+            .partial_cmp(&a.1.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    ranked.truncate(limit);
 
     let kw_total = keyword_chunks.len().max(1) as f32;
     let results: Vec<MessageHit> = ranked
@@ -145,6 +195,7 @@ pub async fn search(
                 message_id: m.id.clone(),
                 account_id: m.account_id.clone(),
                 thread_id: m.thread_id.clone(),
+                rfc822_message_id: m.rfc822_message_id.clone(),
                 subject: m.subject.clone(),
                 sender: m.sender.clone(),
                 sender_email: m.sender_email.clone(),
@@ -177,6 +228,20 @@ struct FusedScore {
     similarity: Option<f32>,
     keyword_rank: Option<usize>,
     vector_rank: Option<usize>,
+}
+
+/// Exponential decay by message age. A blank or unparseable date returns 1.0
+/// so undated mail is never silently demoted to zero.
+fn recency_factor(sent_at: &str, now: DateTime<Utc>) -> f32 {
+    if sent_at.is_empty() {
+        return 1.0;
+    }
+    let sent = match DateTime::parse_from_rfc3339(sent_at) {
+        Ok(d) => d.with_timezone(&Utc),
+        Err(_) => return 1.0,
+    };
+    let age_days = (now - sent).num_days().max(0) as f32;
+    (-age_days / RECENCY_TAU_DAYS).exp()
 }
 
 /// Cosine-similarity scan. For each chunk we keep the best chunk per message,
