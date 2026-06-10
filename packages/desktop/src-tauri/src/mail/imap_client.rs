@@ -96,20 +96,25 @@ pub fn search_since_date(
 /// keep the existing session and pace the FETCHes with a small delay.
 /// On a transient `[UNAVAILABLE]` response, we sleep 30s and retry the same
 /// batch once before giving up with a friendly error.
+///
+/// Each fetched batch is handed to `on_batch(batch, fetched_so_far, total)`
+/// instead of being accumulated, so the caller can persist as it goes and
+/// memory stays bounded by the batch size. A callback error aborts the
+/// remaining batches.
 pub fn fetch_uids_batched(
     session: &mut ImapSession,
     uids: &[u32],
     batch_size: usize,
-    mut on_batch: impl FnMut(usize, usize),
-) -> AppResult<Vec<FetchedMessage>> {
+    mut on_batch: impl FnMut(Vec<FetchedMessage>, usize, usize) -> AppResult<()>,
+) -> AppResult<()> {
     use std::thread::sleep;
     use std::time::Duration;
 
     const INTER_BATCH_DELAY: Duration = Duration::from_millis(250);
     const RATE_LIMIT_BACKOFF: Duration = Duration::from_secs(30);
 
-    let mut out = Vec::with_capacity(uids.len());
     let total = uids.len();
+    let mut fetched_so_far = 0;
 
     for (i, chunk) in uids.chunks(batch_size.max(1)).enumerate() {
         if i > 0 {
@@ -144,12 +149,14 @@ pub fn fetch_uids_batched(
             }
         };
 
+        let mut batch = Vec::with_capacity(chunk.len());
         for f in fetches.iter() {
-            out.push(parse_fetch(f)?);
+            batch.push(parse_fetch(f)?);
         }
-        on_batch(out.len(), total);
+        fetched_so_far += batch.len();
+        on_batch(batch, fetched_so_far, total)?;
     }
-    Ok(out)
+    Ok(())
 }
 
 fn parse_fetch(f: &Fetch) -> AppResult<FetchedMessage> {

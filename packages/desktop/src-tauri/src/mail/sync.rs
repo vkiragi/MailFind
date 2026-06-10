@@ -3,6 +3,8 @@
 //! tracking, deletions, expunge handling) plugs into this same flow without
 //! the search/Q&A layers caring.
 
+use std::sync::Arc;
+
 use chrono::{Duration, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -13,7 +15,7 @@ use crate::credentials;
 use crate::db::queries::{self, AccountRow, NewChunk};
 use crate::db::Database;
 use crate::error::{AppError, AppResult};
-use crate::mail::imap_client::{self, FetchedMessage, ImapConfig};
+use crate::mail::imap_client::{self, ImapConfig};
 use crate::mail::parser::{compact_text, parse_rfc822, strip_css};
 use crate::search::chunking;
 
@@ -96,7 +98,7 @@ pub struct SyncOutcome {
 
 pub async fn run_sync(
     app: AppHandle,
-    db: &Database,
+    db: &Arc<Database>,
     account: AccountRow,
     full_resync: bool,
     window: SyncWindow,
@@ -150,7 +152,7 @@ pub async fn run_sync(
 
 async fn run_sync_inner(
     app: &AppHandle,
-    db: &Database,
+    db: &Arc<Database>,
     account: &AccountRow,
     full_resync: bool,
     window: SyncWindow,
@@ -169,6 +171,7 @@ async fn run_sync_inner(
         load_last_seen_uid(db, &account.id, PRIMARY_MAILBOX)?
     };
     let since_date = window.since_date();
+    let mailbox_id = ensure_mailbox(db, &account.id, PRIMARY_MAILBOX)?;
 
     emit_progress(
         app,
@@ -181,14 +184,21 @@ async fn run_sync_inner(
         },
     );
 
+    // The whole fetch→parse→store pipeline runs inside spawn_blocking, one
+    // batch at a time: each fetched batch is persisted (and the UID watermark
+    // advanced) before the next FETCH is issued. Memory stays bounded by the
+    // batch size, and a failure mid-sync keeps everything already stored —
+    // the next sync resumes from the last durable batch instead of
+    // re-fetching from scratch.
     let app_for_blocking = app.clone();
-    let account_id_for_blocking = account.id.clone();
-    let messages = tokio::task::spawn_blocking(move || -> AppResult<Vec<FetchedMessage>> {
+    let account_id = account.id.clone();
+    let db_for_blocking = Arc::clone(db);
+    let outcome = tokio::task::spawn_blocking(move || -> AppResult<SyncOutcome> {
         let mut session = imap_client::connect(&cfg)?;
         emit_progress(
             &app_for_blocking,
             SyncProgress {
-                account_id: account_id_for_blocking.clone(),
+                account_id: account_id.clone(),
                 phase: SyncPhase::Searching,
                 total: None,
                 current: 0,
@@ -201,153 +211,145 @@ async fn run_sync_inner(
             &since_date,
             last_seen,
         )?;
-        let total = uids.len();
         emit_progress(
             &app_for_blocking,
             SyncProgress {
-                account_id: account_id_for_blocking.clone(),
+                account_id: account_id.clone(),
                 phase: SyncPhase::Fetching,
-                total: Some(total),
+                total: Some(uids.len()),
                 current: 0,
                 message: None,
             },
         );
+
+        let mut imported = 0usize;
+        let mut skipped = 0usize;
+        let mut max_uid = last_seen.unwrap_or(0);
+        let mut watermark_written = max_uid;
+        let mut processed = 0usize;
+
         let result = imap_client::fetch_uids_batched(
             &mut session,
             &uids,
             FETCH_BATCH_SIZE,
-            |done, total| {
+            |batch, fetched_so_far, total| {
                 emit_progress(
                     &app_for_blocking,
                     SyncProgress {
-                        account_id: account_id_for_blocking.clone(),
+                        account_id: account_id.clone(),
                         phase: SyncPhase::Fetching,
                         total: Some(total),
-                        current: done,
+                        current: fetched_so_far,
                         message: None,
                     },
                 );
+
+                processed += batch.len();
+                for fetched in batch {
+                    let parsed = match parse_rfc822(&fetched.raw) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            tracing::warn!(uid = fetched.uid, ?e, "parse failed; skipping");
+                            skipped += 1;
+                            continue;
+                        }
+                    };
+                    let body = parsed
+                        .body_plain
+                        .clone()
+                        .or_else(|| parsed.body_html.clone())
+                        .unwrap_or_default();
+                    let header_blurb = format!(
+                        "Subject: {}\nFrom: {}\nTo: {}\n",
+                        parsed.subject.clone().unwrap_or_default(),
+                        parsed.sender_display.clone().unwrap_or_default(),
+                        parsed.recipients.clone().unwrap_or_default(),
+                    );
+                    let combined =
+                        format!("{}\n{}", header_blurb, compact_text(&strip_css(&body), 8000));
+                    let chunks = chunking::split(&combined);
+                    let new_msg = parsed.into_new_message(
+                        &account_id,
+                        Some(mailbox_id.clone()),
+                        Some(fetched.uid as i64),
+                    );
+                    let message_id = new_msg.id.clone();
+
+                    // Cross-source dedup: this message may already exist from a local
+                    // Apple Mail import (which carries no mailbox_id/imap_uid, so the
+                    // UNIQUE constraint can't catch it). Skip it, but still advance the
+                    // UID watermark so we don't re-fetch it next sync.
+                    if let Some(rfc822_id) = new_msg.rfc822_message_id.as_deref() {
+                        let conn = db_for_blocking.read()?;
+                        if queries::message_exists_by_rfc822(&conn, &account_id, rfc822_id)? {
+                            skipped += 1;
+                            if fetched.uid > max_uid {
+                                max_uid = fetched.uid;
+                            }
+                            continue;
+                        }
+                    }
+
+                    let mut handle = db_for_blocking.write()?;
+                    let tx = handle.transaction()?;
+                    let inserted = queries::insert_message(&tx, &new_msg)?;
+                    if !inserted {
+                        skipped += 1;
+                        tx.commit()?;
+                        continue;
+                    }
+                    for (i, text) in chunks.into_iter().enumerate() {
+                        queries::insert_chunk(
+                            &tx,
+                            &NewChunk {
+                                message_id: message_id.clone(),
+                                chunk_index: i as i64,
+                                text,
+                                embedding: None,
+                                embedding_model: None,
+                            },
+                        )?;
+                    }
+                    tx.commit()?;
+                    imported += 1;
+                    if fetched.uid > max_uid {
+                        max_uid = fetched.uid;
+                    }
+                }
+
+                // This batch is durable — advance the watermark so a failure
+                // in a later batch doesn't force a re-fetch of this one.
+                if max_uid > watermark_written {
+                    let conn = db_for_blocking.write()?;
+                    conn.execute(
+                        "UPDATE mailboxes SET last_seen_uid = ?1, last_synced_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                         WHERE account_id = ?2 AND name = ?3",
+                        params![max_uid as i64, account_id, PRIMARY_MAILBOX],
+                    )?;
+                    watermark_written = max_uid;
+                }
+
+                emit_progress(
+                    &app_for_blocking,
+                    SyncProgress {
+                        account_id: account_id.clone(),
+                        phase: SyncPhase::Storing,
+                        total: Some(total),
+                        current: processed,
+                        message: None,
+                    },
+                );
+                Ok(())
             },
         );
         imap_client::logout(session);
-        result
+        result?;
+        Ok(SyncOutcome { imported, skipped })
     })
     .await
     .map_err(|e| AppError::Internal(format!("sync task join: {e}")))??;
 
-    if messages.is_empty() {
-        return Ok(SyncOutcome {
-            imported: 0,
-            skipped: 0,
-        });
-    }
-
-    let mailbox_id = ensure_mailbox(db, &account.id, PRIMARY_MAILBOX)?;
-    let mut imported = 0;
-    let mut skipped = 0;
-    let mut max_uid = last_seen.unwrap_or(0);
-    let total_to_store = messages.len();
-
-    emit_progress(
-        app,
-        SyncProgress {
-            account_id: account.id.clone(),
-            phase: SyncPhase::Storing,
-            total: Some(total_to_store),
-            current: 0,
-            message: None,
-        },
-    );
-
-    for (idx, fetched) in messages.into_iter().enumerate() {
-        let parsed = match parse_rfc822(&fetched.raw) {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!(uid = fetched.uid, ?e, "parse failed; skipping");
-                skipped += 1;
-                continue;
-            }
-        };
-        let body = parsed
-            .body_plain
-            .clone()
-            .or_else(|| parsed.body_html.clone())
-            .unwrap_or_default();
-        let header_blurb = format!(
-            "Subject: {}\nFrom: {}\nTo: {}\n",
-            parsed.subject.clone().unwrap_or_default(),
-            parsed.sender_display.clone().unwrap_or_default(),
-            parsed.recipients.clone().unwrap_or_default(),
-        );
-        let combined = format!("{}\n{}", header_blurb, compact_text(&strip_css(&body), 8000));
-        let chunks = chunking::split(&combined);
-        let new_msg = parsed.into_new_message(&account.id, Some(mailbox_id.clone()), Some(fetched.uid as i64));
-        let message_id = new_msg.id.clone();
-
-        // Cross-source dedup: this message may already exist from a local
-        // Apple Mail import (which carries no mailbox_id/imap_uid, so the
-        // UNIQUE constraint can't catch it). Skip it, but still advance the
-        // UID watermark so we don't re-fetch it next sync.
-        if let Some(rfc822_id) = new_msg.rfc822_message_id.as_deref() {
-            let conn = db.read()?;
-            if queries::message_exists_by_rfc822(&conn, &account.id, rfc822_id)? {
-                skipped += 1;
-                if fetched.uid > max_uid {
-                    max_uid = fetched.uid;
-                }
-                continue;
-            }
-        }
-
-        let mut handle = db.write()?;
-        let tx = handle.transaction()?;
-        let inserted = queries::insert_message(&tx, &new_msg)?;
-        if !inserted {
-            skipped += 1;
-            tx.commit()?;
-            continue;
-        }
-        for (i, text) in chunks.into_iter().enumerate() {
-            queries::insert_chunk(
-                &tx,
-                &NewChunk {
-                    message_id: message_id.clone(),
-                    chunk_index: i as i64,
-                    text,
-                    embedding: None,
-                    embedding_model: None,
-                },
-            )?;
-        }
-        tx.commit()?;
-        imported += 1;
-        if fetched.uid > max_uid {
-            max_uid = fetched.uid;
-        }
-        if idx % 10 == 0 || idx + 1 == total_to_store {
-            emit_progress(
-                app,
-                SyncProgress {
-                    account_id: account.id.clone(),
-                    phase: SyncPhase::Storing,
-                    total: Some(total_to_store),
-                    current: idx + 1,
-                    message: None,
-                },
-            );
-        }
-    }
-
-    if max_uid > 0 {
-        let conn = db.write()?;
-        conn.execute(
-            "UPDATE mailboxes SET last_seen_uid = ?1, last_synced_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-             WHERE account_id = ?2 AND name = ?3",
-            params![max_uid as i64, account.id, PRIMARY_MAILBOX],
-        )?;
-    }
-
-    Ok(SyncOutcome { imported, skipped })
+    Ok(outcome)
 }
 
 fn ensure_mailbox(db: &Database, account_id: &str, name: &str) -> AppResult<String> {
