@@ -59,10 +59,17 @@ const VEC_RRF_WEIGHT: f32 = 1.0;
 // can rank above real matches just by being "the least-bad of what's
 // embedded".
 const VEC_SIM_FLOOR: f32 = 0.5;
-// Recency half-life in days for the exponential decay applied to the fused
-// score. A message sent τ days ago is worth half a freshly sent one. Email
-// is intrinsically time-sensitive — "important" almost always implies recent.
+// Recency time constant in days for the exponential decay applied to the
+// fused score. Email is somewhat time-sensitive — recent mail should win
+// among comparable matches.
 const RECENCY_TAU_DAYS: f32 = 180.0;
+// Lower bound on the recency factor: fresh mail is worth at most
+// 1/RECENCY_FLOOR (2×) an arbitrarily old message. RRF scores are flat (rank
+// 0 is only ~1.5× rank 30), so an unbounded decay makes age the dominant sort
+// key — an 18-month-old exact match (×0.05) loses to every recent partial
+// match, and archival mail becomes unfindable. The factor blends toward the
+// floor instead of clipping so ordering among old mail is still age-aware.
+const RECENCY_FLOOR: f32 = 0.5;
 // Score multiplier applied to bulk/newsletter mail. <1 demotes; 0 would hide
 // them entirely. 0.4 lets bulk still surface on overwhelming keyword/vector
 // match (e.g. a query *about* a newsletter) without dominating real mail.
@@ -241,7 +248,7 @@ fn recency_factor(sent_at: &str, now: DateTime<Utc>) -> f32 {
         Err(_) => return 1.0,
     };
     let age_days = (now - sent).num_days().max(0) as f32;
-    (-age_days / RECENCY_TAU_DAYS).exp()
+    RECENCY_FLOOR + (1.0 - RECENCY_FLOOR) * (-age_days / RECENCY_TAU_DAYS).exp()
 }
 
 /// Cosine-similarity scan. For each chunk we keep the best chunk per message,
@@ -299,6 +306,20 @@ fn norm(v: &[f32]) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recency_factor_blends_toward_floor_for_old_mail() {
+        let now = Utc::now();
+        let fresh = (now - chrono::Duration::days(1)).to_rfc3339();
+        let old = (now - chrono::Duration::days(730)).to_rfc3339();
+        let f_fresh = recency_factor(&fresh, now);
+        let f_old = recency_factor(&old, now);
+        assert!(f_fresh > 0.95, "fresh mail should be near 1.0: {f_fresh}");
+        assert!(f_old >= RECENCY_FLOOR, "old mail never below floor: {f_old}");
+        assert!(f_old < f_fresh, "recency still prefers fresh mail");
+        // Undated mail is never demoted.
+        assert_eq!(recency_factor("", now), 1.0);
+    }
 
     #[test]
     fn vector_top_k_returns_best_per_message() {
