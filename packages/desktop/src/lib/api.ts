@@ -30,6 +30,7 @@ export interface MessageHit {
   message_id: string;
   account_id: string;
   thread_id: string | null;
+  rfc822_message_id: string | null;
   subject: string;
   sender: string;
   sender_email: string | null;
@@ -53,6 +54,7 @@ export interface SearchResponse {
 
 export interface AnswerCitation {
   message_id: string;
+  rfc822_message_id: string | null;
   subject: string;
   sender: string;
   date: string;
@@ -111,6 +113,28 @@ export interface IngestFixtureResponse {
   errors: string[];
 }
 
+export interface AppleMailScan {
+  mail_dir: string | null;
+  message_count: number;
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  errors: number;
+}
+
+export interface ImportProgress {
+  account_id: string;
+  total: number;
+  current: number;
+  imported: number;
+  skipped: number;
+  done: boolean;
+}
+
+export const IMPORT_PROGRESS_EVENT = "import:progress";
+
 export const api = {
   greet: (name: string) => invoke<string>("greet", { name }),
 
@@ -141,6 +165,11 @@ export const api = {
 
   ingestFixture: (req: IngestFixtureRequest) =>
     invoke<IngestFixtureResponse>("ingest_fixture", { req }),
+
+  scanAppleMail: () => invoke<AppleMailScan>("scan_apple_mail"),
+
+  importAppleMail: (accountId: string) =>
+    invoke<ImportResult>("import_apple_mail", { accountId }),
 
   totalMessages: () => invoke<number>("total_messages"),
 

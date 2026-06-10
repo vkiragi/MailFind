@@ -18,6 +18,35 @@ use crate::qa::AnswerOutcome;
 use crate::search::{self, SearchOutcome};
 use crate::state::AppState;
 
+/// Returns the cached embedded-chunk count if it was computed at the current
+/// `counts_version`, otherwise calls `compute` and caches the result with the
+/// current version. Writers invalidate by calling `state.bump_counts_version()`
+/// — there's no time-based TTL, so a tab switch with no intervening writes is
+/// instant.
+fn cached_embedded_count(
+    state: &AppState,
+    key: &str,
+    compute: impl FnOnce() -> AppResult<i64>,
+) -> AppResult<i64> {
+    let current = state
+        .counts_version
+        .load(std::sync::atomic::Ordering::Relaxed);
+    {
+        let cache = state.embedded_count_cache.lock();
+        if let Some((stamped, value)) = cache.get(key) {
+            if *stamped == current {
+                return Ok(*value);
+            }
+        }
+    }
+    let value = compute()?;
+    state
+        .embedded_count_cache
+        .lock()
+        .insert(key.to_string(), (current, value));
+    Ok(value)
+}
+
 #[derive(Debug, Deserialize)]
 pub struct AddAccountRequest {
     pub email: String,
@@ -153,6 +182,7 @@ pub fn remove_account(
         let _ = credentials::delete_password(&row.keyring_ref);
         let conn = state.db.write()?;
         queries::delete_account(&conn, &account_id)?;
+        state.bump_counts_version();
     }
     Ok(())
 }
@@ -163,8 +193,6 @@ pub fn sync_status(
     state: State<AppState>,
 ) -> AppResult<SyncStatusOut> {
     let conn = state.db.read()?;
-    let total = queries::message_count(&conn)?;
-    let embedded = queries::embedded_message_count(&conn)?;
     let (account_id, last_sync, is_running, last_error, total, embedded) = match account_id {
         Some(id) => {
             let s = queries::fetch_sync_status(&conn, &id)?;
@@ -172,10 +200,18 @@ pub fn sync_status(
                 .map(|(ls, ir, le)| (ls, ir, le))
                 .unwrap_or((None, false, None));
             let total = queries::account_message_count(&conn, &id)?;
-            let embedded = queries::account_embedded_count(&conn, &id)?;
+            let embedded = cached_embedded_count(&state, &id, || {
+                queries::account_embedded_count(&conn, &id)
+            })?;
             (Some(id), last_sync, is_running, last_error, total, embedded)
         }
-        None => (None, None, false, None, total, embedded),
+        None => {
+            let total = queries::message_count(&conn)?;
+            let embedded = cached_embedded_count(&state, "", || {
+                queries::embedded_message_count(&conn)
+            })?;
+            (None, None, false, None, total, embedded)
+        }
     };
     Ok(SyncStatusOut {
         account_id,
@@ -281,10 +317,15 @@ pub async fn sync_now(
         skipped = sync_outcome.skipped,
         "sync complete"
     );
+    if sync_outcome.imported > 0 {
+        state.bump_counts_version();
+    }
 
     // Best-effort embedding pass after sync.
-    if let Err(e) = search::ensure_embeddings(&db, &ollama, 256).await {
-        tracing::warn!(?e, "post-sync embedding pass failed");
+    match search::ensure_embeddings(&db, &ollama, 256).await {
+        Ok(n) if n > 0 => state.bump_counts_version(),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(?e, "post-sync embedding pass failed"),
     }
 
     sync_status(Some(account_id), state)
@@ -310,7 +351,11 @@ pub async fn search_messages(
     state: State<'_, AppState>,
 ) -> AppResult<SearchOutcome> {
     // Embed any backlog first so the dense pass has something to work with.
-    let _ = search::ensure_embeddings(&state.db, &state.ollama, 64).await;
+    if let Ok(n) = search::ensure_embeddings(&state.db, &state.ollama, 64).await {
+        if n > 0 {
+            state.bump_counts_version();
+        }
+    }
     search::search(&state.db, Some(&state.ollama), &query, limit.unwrap_or(20)).await
 }
 
@@ -320,7 +365,11 @@ pub async fn ask_question(
     limit: Option<usize>,
     state: State<'_, AppState>,
 ) -> AppResult<AnswerOutcome> {
-    let _ = search::ensure_embeddings(&state.db, &state.ollama, 64).await;
+    if let Ok(n) = search::ensure_embeddings(&state.db, &state.ollama, 64).await {
+        if n > 0 {
+            state.bump_counts_version();
+        }
+    }
     crate::qa::ask(&state.db, &state.ollama, &question, limit.unwrap_or(8)).await
 }
 
@@ -331,7 +380,96 @@ pub fn ingest_fixture(
 ) -> AppResult<IngestFixtureResponse> {
     let path = PathBuf::from(req.path);
     let report = fixtures::ingest_path(&state.db, &req.account_id, &path)?;
+    if report.imported > 0 {
+        state.bump_counts_version();
+    }
     Ok(IngestFixtureResponse {
+        imported: report.imported,
+        skipped: report.skipped,
+        errors: report.errors,
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct AppleMailScanOut {
+    /// Absolute path to `~/Library/Mail`, or `None` if Apple Mail isn't set up.
+    pub mail_dir: Option<String>,
+    /// Number of `.emlx` messages discovered on disk.
+    pub message_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportResultOut {
+    pub imported: usize,
+    pub skipped: usize,
+    pub errors: usize,
+}
+
+/// Counts the `.emlx` messages Apple Mail has stored locally so the UI can
+/// show "Found N messages" before the user commits to an import. A count of 0
+/// on a Mac that uses Apple Mail usually means the app lacks Full Disk Access.
+#[tauri::command]
+pub async fn scan_apple_mail() -> AppResult<AppleMailScanOut> {
+    tokio::task::spawn_blocking(|| {
+        let dir = crate::mail::import::apple_mail_dir();
+        let message_count = match &dir {
+            Some(d) => {
+                let mut files = Vec::new();
+                crate::mail::import::collect_emlx(d, &mut files);
+                files.len()
+            }
+            None => 0,
+        };
+        AppleMailScanOut {
+            mail_dir: dir.map(|d| d.display().to_string()),
+            message_count,
+        }
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("apple mail scan join: {e}")))
+}
+
+/// Imports every locally-stored Apple Mail message into `account_id`. Emits
+/// `import:progress` events while running; runs an embedding pass afterwards.
+#[tauri::command]
+pub async fn import_apple_mail(
+    account_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<ImportResultOut> {
+    {
+        let conn = state.db.read()?;
+        queries::fetch_account(&conn, &account_id)?
+            .ok_or_else(|| AppError::NotFound(format!("account {account_id} not found")))?;
+    }
+
+    let db = Arc::clone(&state.db);
+    let acct = account_id.clone();
+    let report = tokio::task::spawn_blocking(move || {
+        crate::mail::import::run_apple_mail_import(&app, &db, &acct)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("apple mail import join: {e}")))??;
+    if report.imported > 0 {
+        state.bump_counts_version();
+    }
+
+    // Best-effort embedding pass so the freshly imported mail is searchable by
+    // vector too. Keyword (FTS) search already works immediately.
+    match search::ensure_embeddings(&state.db, &state.ollama, 256).await {
+        Ok(n) if n > 0 => state.bump_counts_version(),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(?e, "post-import embedding pass failed"),
+    }
+
+    tracing::info!(
+        account = %account_id,
+        imported = report.imported,
+        skipped = report.skipped,
+        errors = report.errors,
+        "apple mail import complete"
+    );
+    Ok(ImportResultOut {
         imported: report.imported,
         skipped: report.skipped,
         errors: report.errors,

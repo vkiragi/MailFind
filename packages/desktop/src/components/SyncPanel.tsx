@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   api,
+  IMPORT_PROGRESS_EVENT,
   SYNC_PROGRESS_EVENT,
   type AccountSummary,
+  type ImportProgress,
+  type ImportResult,
   type SyncProgress,
   type SyncStatus,
-  type SyncWindow,
 } from "@/lib/api";
 
 interface Props {
@@ -17,21 +19,12 @@ interface Props {
   onChange: () => void;
 }
 
-const WINDOW_OPTIONS: Array<{
-  value: SyncWindow | "six_months" | "one_year";
-  label: string;
-  disabled?: boolean;
-}> = [
-  { value: "day", label: "Last day" },
-  { value: "week", label: "Last 7 days" },
-  { value: "two_weeks", label: "Last 2 weeks" },
-  { value: "month", label: "Last month" },
-  { value: "three_months", label: "Last 3 months" },
-  { value: "six_months", label: "Last 6 months (slow — coming soon)", disabled: true },
-  { value: "one_year", label: "Last year (slow — coming soon)", disabled: true },
-];
-
 const COOLDOWN_MS = 10 * 60 * 1000;
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+// On first launch, pull this much history from iCloud. Apple Mail import (if
+// available) typically reaches further back, so this just covers anything the
+// local cache missed.
+const FIRST_RUN_IMAP_WINDOW = "three_months" as const;
 
 function isRateLimited(err: string): boolean {
   const lower = err.toLowerCase();
@@ -42,14 +35,29 @@ function isRateLimited(err: string): boolean {
   );
 }
 
+// Backend returns this when a sync is already in flight for the account.
+// Usually a race between the auto-sync timer and a manual click — not really
+// an error worth showing the user, just refresh status and move on.
+function isAlreadyRunning(err: string): boolean {
+  return err.toLowerCase().includes("sync is already running");
+}
+
 export default function SyncPanel({ account, onChange }: Props) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [window, setWindow] = useState<SyncWindow>("month");
   const [progress, setProgress] = useState<SyncProgress | null>(null);
-  // Wall-clock timestamp until which Sync Now is locally disabled. Backed up
-  // in localStorage so a reload doesn't let the user bypass it.
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(
+    null,
+  );
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  // Guard against re-firing the first-run backfill on every status refresh.
+  // Reset by account.id so switching accounts re-evaluates.
+  const firstRunDone = useRef(false);
+  // Wall-clock timestamp until which Sync is locally disabled. Backed up in
+  // localStorage so a reload doesn't let the user bypass it.
   const [cooldownUntil, setCooldownUntil] = useState<number>(() => {
     const stored = localStorage.getItem(`mf:cooldown:${account.id}`);
     const n = stored ? Number(stored) : 0;
@@ -67,10 +75,8 @@ export default function SyncPanel({ account, onChange }: Props) {
   };
 
   useEffect(() => {
+    firstRunDone.current = false;
     refresh();
-    // Reconcile cooldown with the backend, which is the source of truth and
-    // persists across app restarts. The localStorage fallback only matters
-    // when the backend hasn't loaded yet.
     api
       .syncCooldownUntil(account.id)
       .then((until) => {
@@ -78,32 +84,108 @@ export default function SyncPanel({ account, onChange }: Props) {
           setCooldownUntil(until);
           localStorage.setItem(`mf:cooldown:${account.id}`, String(until));
         } else {
-          // Backend says no cooldown — clear any stale localStorage entry.
           localStorage.removeItem(`mf:cooldown:${account.id}`);
           setCooldownUntil(0);
         }
       })
-      .catch(() => {
-        // Backend unreachable; keep whatever localStorage said.
-      });
+      .catch(() => {});
     const t = setInterval(refresh, 4000);
-    let unlisten: UnlistenFn | undefined;
+    let unlistenSync: UnlistenFn | undefined;
+    let unlistenImport: UnlistenFn | undefined;
     listen<SyncProgress>(SYNC_PROGRESS_EVENT, (e) => {
       if (e.payload.account_id !== account.id) return;
       setProgress(e.payload);
-      // Auto-clear only on success. Failures stay visible so the user can
-      // see what happened; clicking Sync Now again will overwrite it.
       if (e.payload.phase === "done") {
         setTimeout(() => setProgress(null), 2000);
       }
     }).then((fn) => {
-      unlisten = fn;
+      unlistenSync = fn;
+    });
+    listen<ImportProgress>(IMPORT_PROGRESS_EVENT, (e) => {
+      if (e.payload.account_id !== account.id) return;
+      setImportProgress(e.payload);
+      if (e.payload.done) {
+        setTimeout(() => setImportProgress(null), 2000);
+      }
+    }).then((fn) => {
+      unlistenImport = fn;
     });
     return () => {
       clearInterval(t);
-      unlisten?.();
+      unlistenSync?.();
+      unlistenImport?.();
     };
   }, [account.id]);
+
+  // First-run backfill: when this account has no messages yet, populate from
+  // Apple Mail (instant, local) and then run a full IMAP fetch for the
+  // default window so the watermark is established and anything iCloud has
+  // that Apple Mail missed comes through. Dedup on Message-ID keeps this
+  // idempotent if anything overlaps.
+  useEffect(() => {
+    if (firstRunDone.current) return;
+    if (!status) return;
+    if (status.total_messages > 0) {
+      firstRunDone.current = true;
+      return;
+    }
+    firstRunDone.current = true;
+    (async () => {
+      setImporting(true);
+      setError(null);
+      setImportError(null);
+      try {
+        const scan = await api.scanAppleMail();
+        if (scan.mail_dir && scan.message_count > 0) {
+          try {
+            const result = await api.importAppleMail(account.id);
+            setImportResult(result);
+            await refresh();
+            onChange();
+          } catch (err) {
+            setImportError(String(err));
+          }
+        }
+        // Always follow with an IMAP backfill to set up the UID watermark
+        // and catch server-side mail Apple Mail didn't have.
+        await api.syncNow(account.id, true, FIRST_RUN_IMAP_WINDOW);
+        await refresh();
+        onChange();
+      } catch (err) {
+        setError(String(err));
+      } finally {
+        setImporting(false);
+      }
+    })();
+  }, [status, account.id, onChange]);
+
+  // Background auto-sync: incremental fetch every N minutes and whenever the
+  // window regains focus. Skips when busy, already syncing, or in cooldown.
+  useEffect(() => {
+    const tick = async () => {
+      if (busy || importing) return;
+      if (status?.is_running) return;
+      if (cooldownUntil > Date.now()) return;
+      // Don't auto-sync until the first-run backfill has done its job.
+      if (!status || status.total_messages === 0) return;
+      try {
+        await api.syncNow(account.id, false);
+        await refresh();
+        onChange();
+      } catch {
+        // Auto-sync failures are silent — a manual Sync will surface them.
+      }
+    };
+    const t = setInterval(tick, AUTO_SYNC_INTERVAL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [account.id, busy, importing, status, cooldownUntil, onChange]);
 
   // Re-render every second while in cooldown so the countdown ticks down.
   useEffect(() => {
@@ -124,17 +206,22 @@ export default function SyncPanel({ account, onChange }: Props) {
       message: null,
     });
     try {
-      await api.syncNow(account.id, false, window);
+      await api.syncNow(account.id, false);
       await refresh();
       onChange();
     } catch (err) {
       const msg = String(err);
-      setError(msg);
       setProgress(null);
-      if (isRateLimited(msg)) {
-        const until = Date.now() + COOLDOWN_MS;
-        setCooldownUntil(until);
-        localStorage.setItem(`mf:cooldown:${account.id}`, String(until));
+      if (isAlreadyRunning(msg)) {
+        // Auto-sync raced us; the other one will produce results. Just refresh.
+        await refresh();
+      } else {
+        setError(msg);
+        if (isRateLimited(msg)) {
+          const until = Date.now() + COOLDOWN_MS;
+          setCooldownUntil(until);
+          localStorage.setItem(`mf:cooldown:${account.id}`, String(until));
+        }
       }
     } finally {
       setBusy(false);
@@ -173,6 +260,11 @@ export default function SyncPanel({ account, onChange }: Props) {
     }
   };
 
+  const importPct =
+    importProgress && importProgress.total > 0
+      ? Math.min(100, (importProgress.current / importProgress.total) * 100)
+      : 0;
+
   return (
     <Card>
       <CardHeader>
@@ -183,6 +275,37 @@ export default function SyncPanel({ account, onChange }: Props) {
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
+        {(importing || importProgress) && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Setting up your mailbox…</span>
+              <span>
+                {importProgress
+                  ? `${importProgress.current.toLocaleString()} / ${importProgress.total.toLocaleString()}`
+                  : ""}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full bg-primary transition-all ${
+                  importProgress ? "" : "animate-pulse w-1/3"
+                }`}
+                style={importProgress ? { width: `${importPct}%` } : undefined}
+              />
+            </div>
+          </div>
+        )}
+        {importResult && !importing && (
+          <div className="rounded-md border border-green-500/40 bg-green-500/10 p-2 text-xs text-green-700 dark:text-green-400">
+            Loaded {importResult.imported.toLocaleString()} message
+            {importResult.imported === 1 ? "" : "s"} from Apple Mail.
+          </div>
+        )}
+        {importError && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
+            Apple Mail backfill skipped: {importError}
+          </div>
+        )}
         {progress && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
@@ -192,15 +315,13 @@ export default function SyncPanel({ account, onChange }: Props) {
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className={`h-full rounded-full transition-all ${
-                  progress.phase === "failed"
-                    ? "bg-destructive"
-                    : "bg-primary"
-                } ${
-                  progress.total == null ? "animate-pulse w-1/3" : ""
-                }`}
+                  progress.phase === "failed" ? "bg-destructive" : "bg-primary"
+                } ${progress.total == null ? "animate-pulse w-1/3" : ""}`}
                 style={
                   progress.total != null && progress.total > 0
-                    ? { width: `${Math.min(100, (progress.current / progress.total) * 100)}%` }
+                    ? {
+                        width: `${Math.min(100, (progress.current / progress.total) * 100)}%`,
+                      }
                     : undefined
                 }
               />
@@ -248,27 +369,17 @@ export default function SyncPanel({ account, onChange }: Props) {
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-            value={window}
-            onChange={(e) => setWindow(e.target.value as SyncWindow)}
-            disabled={busy || status?.is_running || cooldownUntil > Date.now()}
-          >
-            {WINDOW_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value} disabled={opt.disabled}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
           <Button
             onClick={runSync}
-            disabled={busy || status?.is_running || cooldownUntil > Date.now()}
+            disabled={
+              busy || importing || status?.is_running || cooldownUntil > Date.now()
+            }
           >
             {cooldownUntil > Date.now()
               ? `Wait ${formatRemaining(cooldownUntil - Date.now())}`
               : status?.is_running
                 ? "Syncing…"
-                : "Sync Now"}
+                : "Sync"}
           </Button>
           <Button variant="outline" onClick={ingestFixture} disabled={busy}>
             Import .eml file

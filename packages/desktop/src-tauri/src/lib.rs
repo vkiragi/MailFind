@@ -25,6 +25,13 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .setup({
+            let state = app_state.clone();
+            move |_app| {
+                search::spawn_background_embedder(state);
+                Ok(())
+            }
+        })
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             commands::greet,
@@ -37,6 +44,8 @@ pub fn run() {
             commands::search_messages,
             commands::ask_question,
             commands::ingest_fixture,
+            commands::scan_apple_mail,
+            commands::import_apple_mail,
             commands::total_messages,
             commands::sync_cooldown_until,
         ])

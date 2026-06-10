@@ -14,7 +14,7 @@ use crate::db::queries::{self, AccountRow, NewChunk};
 use crate::db::Database;
 use crate::error::{AppError, AppResult};
 use crate::mail::imap_client::{self, FetchedMessage, ImapConfig};
-use crate::mail::parser::{compact_text, parse_rfc822};
+use crate::mail::parser::{compact_text, parse_rfc822, strip_css};
 use crate::search::chunking;
 
 const PRIMARY_MAILBOX: &str = "INBOX";
@@ -101,12 +101,27 @@ pub async fn run_sync(
     full_resync: bool,
     window: SyncWindow,
 ) -> AppResult<SyncOutcome> {
+    tracing::info!(
+        account = %account.email,
+        full_resync,
+        ?window,
+        "sync starting"
+    );
     {
         let conn = db.write()?;
         queries::upsert_sync_status(&conn, &account.id, true, None, false)?;
     }
 
     let result = run_sync_inner(&app, db, &account, full_resync, window).await;
+    match &result {
+        Ok(outcome) => tracing::info!(
+            account = %account.email,
+            imported = outcome.imported,
+            skipped = outcome.skipped,
+            "sync finished"
+        ),
+        Err(e) => tracing::warn!(account = %account.email, error = %e, "sync failed"),
+    }
 
     {
         let conn = db.write()?;
@@ -264,10 +279,25 @@ async fn run_sync_inner(
             parsed.sender_display.clone().unwrap_or_default(),
             parsed.recipients.clone().unwrap_or_default(),
         );
-        let combined = format!("{}\n{}", header_blurb, compact_text(&body, 8000));
+        let combined = format!("{}\n{}", header_blurb, compact_text(&strip_css(&body), 8000));
         let chunks = chunking::split(&combined);
         let new_msg = parsed.into_new_message(&account.id, Some(mailbox_id.clone()), Some(fetched.uid as i64));
         let message_id = new_msg.id.clone();
+
+        // Cross-source dedup: this message may already exist from a local
+        // Apple Mail import (which carries no mailbox_id/imap_uid, so the
+        // UNIQUE constraint can't catch it). Skip it, but still advance the
+        // UID watermark so we don't re-fetch it next sync.
+        if let Some(rfc822_id) = new_msg.rfc822_message_id.as_deref() {
+            let conn = db.read()?;
+            if queries::message_exists_by_rfc822(&conn, &account.id, rfc822_id)? {
+                skipped += 1;
+                if fetched.uid > max_uid {
+                    max_uid = fetched.uid;
+                }
+                continue;
+            }
+        }
 
         let mut handle = db.write()?;
         let tx = handle.transaction()?;

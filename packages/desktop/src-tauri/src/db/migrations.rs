@@ -18,6 +18,11 @@ const MIGRATIONS: &[Migration] = &[
         description: "initial schema",
         sql: include_str!("schema/001_init.sql"),
     },
+    Migration {
+        version: 2,
+        description: "perf indexes for status counters",
+        sql: include_str!("schema/002_perf_indexes.sql"),
+    },
 ];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {

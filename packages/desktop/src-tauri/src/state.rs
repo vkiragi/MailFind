@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -45,6 +46,24 @@ pub struct AppState {
     pub ollama: Arc<OllamaClient>,
     pub data_dir: PathBuf,
     pub sync_guard: Arc<Mutex<SyncGuard>>,
+    /// Cache for the "Embedded: N" stat. The underlying query
+    /// (COUNT(DISTINCT) over chunks JOIN messages) is ~2s cold on a large DB
+    /// and the UI polls every 4s — so we cache forever and invalidate via
+    /// `bump_counts_version` whenever something writes that changes the
+    /// count. Key `""` is the global tally; other keys are `account_id`.
+    pub embedded_count_cache: Arc<Mutex<HashMap<String, (u64, i64)>>>,
+    /// Monotonic counter bumped by any write that affects message/embedded
+    /// counts. Cached values stamped with a stale version are recomputed.
+    pub counts_version: Arc<AtomicU64>,
+}
+
+impl AppState {
+    /// Mark cached message/embedded counts as stale. Cheap (one atomic add) —
+    /// safe to call after any write path that could have changed those
+    /// counts.
+    pub fn bump_counts_version(&self) {
+        self.counts_version.fetch_add(1, Ordering::Relaxed);
+    }
 }
 
 impl AppState {
@@ -63,6 +82,8 @@ impl AppState {
             ollama: Arc::new(ollama),
             data_dir,
             sync_guard: Arc::new(Mutex::new(sync_guard)),
+            embedded_count_cache: Arc::new(Mutex::new(HashMap::new())),
+            counts_version: Arc::new(AtomicU64::new(0)),
         })
     }
 }
