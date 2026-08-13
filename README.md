@@ -13,8 +13,13 @@ Built with Tauri 2 (Rust) + React. Embeddings and answers are powered by a local
 
   ```bash
   ollama pull nomic-embed-text
-  ollama pull granite4.1:3b
+  ollama pull qwen2.5:7b-instruct
   ```
+
+  The chat model needs ~5.7 GB RAM loaded, plus the embedder — plan on **16 GB
+  of RAM** for headroom (8 GB works but is tight). To trade quality for a smaller
+  footprint, `ollama pull granite4.1:3b` (~3.7 GB) and set `chat_model` in the
+  app's settings accordingly.
 
 - An iCloud app-specific password — generate one at <https://appleid.apple.com>.
 

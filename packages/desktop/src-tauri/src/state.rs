@@ -138,7 +138,7 @@ fn read_ollama_config(db: &Database) -> AppResult<OllamaConfig> {
     let embedding = queries::get_setting(&conn, "embedding_model")?
         .unwrap_or_else(|| "nomic-embed-text".to_string());
     let chat = queries::get_setting(&conn, "chat_model")?
-        .unwrap_or_else(|| "granite4.1:3b".to_string());
+        .unwrap_or_else(|| "qwen2.5:7b-instruct".to_string());
     Ok(OllamaConfig::new(endpoint, embedding, chat))
 }
 

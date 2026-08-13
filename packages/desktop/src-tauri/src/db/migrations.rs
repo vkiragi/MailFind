@@ -23,6 +23,11 @@ const MIGRATIONS: &[Migration] = &[
         description: "perf indexes for status counters",
         sql: include_str!("schema/002_perf_indexes.sql"),
     },
+    Migration {
+        version: 3,
+        description: "default chat model to qwen2.5:7b-instruct",
+        sql: include_str!("schema/003_default_chat_model.sql"),
+    },
 ];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {

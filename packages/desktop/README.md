@@ -18,8 +18,13 @@ semantic search** over your iCloud Mail.
 
   ```bash
   ollama pull nomic-embed-text
-  ollama pull granite4.1:3b
+  ollama pull qwen2.5:7b-instruct
   ```
+
+  The default chat model (`qwen2.5:7b-instruct`) uses ~5.7 GB RAM; with the
+  embedder loaded alongside, 16 GB of RAM is comfortable (8 GB is tight). For a
+  lighter footprint at some quality cost, pull `granite4.1:3b` (~3.7 GB) and
+  change `chat_model` in settings.
 
 - macOS recommended for v1 (uses macOS Keychain for credential storage via
   the `keyring` crate; other platforms use the platform-native backend).
