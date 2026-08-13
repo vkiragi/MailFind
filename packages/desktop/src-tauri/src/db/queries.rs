@@ -394,10 +394,15 @@ pub fn account_message_count(conn: &Connection, account_id: &str) -> AppResult<i
 }
 
 pub fn account_embedded_count(conn: &Connection, account_id: &str) -> AppResult<i64> {
+    // EXISTS instead of JOIN + COUNT(DISTINCT): the latter builds a temp B-tree
+    // to dedup chunk→message fan-out. EXISTS walks the account's messages via
+    // idx_messages_account_date and index-probes idx_chunks_embedded_message,
+    // no temp B-tree — ~2x faster warm on a large corpus.
     let count: i64 = conn.query_row(
-        "SELECT COUNT(DISTINCT m.id)
-         FROM messages m JOIN chunks c ON c.message_id = m.id
-         WHERE m.account_id = ?1 AND c.embedding IS NOT NULL",
+        "SELECT COUNT(*) FROM messages m
+         WHERE m.account_id = ?1
+           AND EXISTS (SELECT 1 FROM chunks c
+                       WHERE c.message_id = m.id AND c.embedding IS NOT NULL)",
         params![account_id],
         |row| row.get(0),
     )?;

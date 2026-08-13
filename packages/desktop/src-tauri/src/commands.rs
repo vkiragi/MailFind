@@ -47,6 +47,27 @@ fn cached_embedded_count(
     Ok(value)
 }
 
+/// Precomputes the embedded-message count for every account at startup so the
+/// first Accounts-tab load doesn't pay the cold ~1.6s COUNT (cold OS page cache
+/// + a version bump from the launch auto-sync would otherwise land on the
+/// user's click). Reuses `cached_embedded_count` so the warmed value is keyed
+/// and version-stamped exactly like the UI path. Runs on its own thread — a
+/// wasted recompute (if a write bumps the version mid-warm) is harmless.
+pub fn warm_embedded_counts(state: &AppState) {
+    let ids = match state.db.read() {
+        Ok(conn) => queries::list_accounts(&conn)
+            .map(|rows| rows.into_iter().map(|r| r.id).collect::<Vec<_>>())
+            .unwrap_or_default(),
+        Err(_) => return,
+    };
+    for id in ids {
+        let _ = cached_embedded_count(state, &id, || {
+            let conn = state.db.read()?;
+            queries::account_embedded_count(&conn, &id)
+        });
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct AddAccountRequest {
     pub email: String,
