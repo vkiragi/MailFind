@@ -26,10 +26,10 @@ semantic search** over your iCloud Mail.
 
 ## Run
 
+From the repo root:
+
 ```bash
-cd packages/desktop
-npm install
-npm run tauri:dev
+./dev.sh
 ```
 
 ## Try Without iCloud (Fixtures)

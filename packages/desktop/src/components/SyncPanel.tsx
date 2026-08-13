@@ -21,10 +21,8 @@ interface Props {
 
 const COOLDOWN_MS = 10 * 60 * 1000;
 const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
-// On first launch, pull this much history from iCloud. Apple Mail import (if
-// available) typically reaches further back, so this just covers anything the
-// local cache missed.
-const FIRST_RUN_IMAP_WINDOW = "three_months" as const;
+// Full IMAP backfill window for "Sync more history" (also used on first run).
+const HISTORY_SYNC_WINDOW = "three_months" as const;
 
 function isRateLimited(err: string): boolean {
   const lower = err.toLowerCase();
@@ -148,7 +146,7 @@ export default function SyncPanel({ account, onChange }: Props) {
         }
         // Always follow with an IMAP backfill to set up the UID watermark
         // and catch server-side mail Apple Mail didn't have.
-        await api.syncNow(account.id, true, FIRST_RUN_IMAP_WINDOW);
+        await api.syncNow(account.id, true, HISTORY_SYNC_WINDOW);
         await refresh();
         onChange();
       } catch (err) {
@@ -207,6 +205,40 @@ export default function SyncPanel({ account, onChange }: Props) {
     });
     try {
       await api.syncNow(account.id, false);
+      await refresh();
+      onChange();
+    } catch (err) {
+      const msg = String(err);
+      setProgress(null);
+      if (isAlreadyRunning(msg)) {
+        // Auto-sync raced us; the other one will produce results. Just refresh.
+        await refresh();
+      } else {
+        setError(msg);
+        if (isRateLimited(msg)) {
+          const until = Date.now() + COOLDOWN_MS;
+          setCooldownUntil(until);
+          localStorage.setItem(`mf:cooldown:${account.id}`, String(until));
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runHistorySync = async () => {
+    if (cooldownUntil > Date.now()) return;
+    setBusy(true);
+    setError(null);
+    setProgress({
+      account_id: account.id,
+      phase: "connecting",
+      total: null,
+      current: 0,
+      message: null,
+    });
+    try {
+      await api.syncNow(account.id, true, HISTORY_SYNC_WINDOW);
       await refresh();
       onChange();
     } catch (err) {
@@ -381,10 +413,25 @@ export default function SyncPanel({ account, onChange }: Props) {
                 ? "Syncing…"
                 : "Sync"}
           </Button>
+          <Button
+            variant="outline"
+            onClick={runHistorySync}
+            disabled={
+              busy || importing || status?.is_running || cooldownUntil > Date.now()
+            }
+            title="Fetches up to 90 days from iCloud"
+          >
+            Sync more history
+          </Button>
           <Button variant="outline" onClick={ingestFixture} disabled={busy}>
             Import .eml file
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Sync fetches new mail since your last sync. Sync more history re-fetches
+          up to 90 days from iCloud — use this if you haven&apos;t opened the app
+          in a while.
+        </p>
       </CardContent>
     </Card>
   );

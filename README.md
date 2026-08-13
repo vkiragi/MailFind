@@ -21,9 +21,7 @@ Built with Tauri 2 (Rust) + React. Embeddings and answers are powered by a local
 ## Run
 
 ```bash
-cd packages/desktop
-npm install
-npm run tauri:dev
+./dev.sh
 ```
 
 See [packages/desktop/README.md](packages/desktop/README.md) for details on syncing iCloud, trying the app with bundled `.eml` fixtures (no iCloud needed), and producing a release build.
