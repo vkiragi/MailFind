@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use chrono::DateTime;
 use serde::Serialize;
 
 use crate::db::Database;
@@ -29,7 +30,11 @@ pub struct AnswerOutcome {
 const SYSTEM_PROMPT: &str = "You are MailFind, an assistant that answers \
 questions strictly using the user's local email. Always cite the most relevant \
 emails by their numeric reference like [1], [2]. If the emails do not contain \
-the answer, say so plainly instead of guessing. Keep responses concise.";
+the answer, say so plainly instead of guessing. Keep responses concise. \
+Each email is labeled with its Date. When the question is about what is new, \
+recent, upcoming, or latest, lead with the most recent email and present items \
+newest-first, stating each item's date — do not assume the [1], [2] order \
+reflects recency.";
 
 pub async fn ask(
     db: &Database,
@@ -43,7 +48,17 @@ pub async fn ask(
         return Err(AppError::InvalidInput("empty question".into()));
     }
 
-    let outcome = search::search(db, Some(ollama), q, top_k).await?;
+    let mut outcome = search::search(db, Some(ollama), q, top_k).await?;
+    // For recency-flavored questions ("new", "latest", "upcoming"…), reorder the
+    // retrieved emails newest-first before numbering them, so [1] is the most
+    // recent. This makes the answer's ordering correct even for a small model
+    // that just walks [1]→[n], and keeps prompt numbers aligned with the
+    // citations shown in the UI (both derive from `outcome.results`).
+    if is_recency_question(q) {
+        outcome
+            .results
+            .sort_by(|a, b| date_key(&b.date).cmp(&date_key(&a.date)));
+    }
     if outcome.results.is_empty() {
         return Ok(AnswerOutcome {
             question: q.to_string(),
@@ -111,6 +126,26 @@ fn build_user_prompt(question: &str, hits: &[MessageHit]) -> String {
          If the emails are insufficient, say so.",
     );
     buf
+}
+
+/// Whether the question is asking about recency ("new", "latest", "upcoming"),
+/// in which case we present retrieved emails newest-first. Deliberately narrow:
+/// relevance-only questions keep their retrieval-score ordering.
+fn is_recency_question(q: &str) -> bool {
+    const TERMS: &[&str] = &[
+        "new", "recent", "latest", "newest", "upcoming", "lately", "so far",
+        "this week", "these days", "current", "any updates",
+    ];
+    let lower = q.to_lowercase();
+    TERMS.iter().any(|t| lower.contains(t))
+}
+
+/// Sortable key from a hit's date string. Unparseable/empty dates sort oldest so
+/// dated mail always leads a newest-first ordering.
+fn date_key(date: &str) -> i64 {
+    DateTime::parse_from_rfc3339(date)
+        .map(|d| d.timestamp())
+        .unwrap_or(i64::MIN)
 }
 
 fn clip(s: &str, max: usize) -> String {
