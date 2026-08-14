@@ -6,6 +6,7 @@ import ModelPicker from "@/components/ModelPicker";
 import SyncPanel from "@/components/SyncPanel";
 import SearchView from "@/components/SearchView";
 import ChatView from "@/components/ChatView";
+import HelpView from "@/components/HelpView";
 import Sidebar, { type Tab } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +16,7 @@ const VIEW_META: Record<Tab, { title: string; subtitle: string }> = {
   search: { title: "Search", subtitle: "Find mail by meaning, not just keywords" },
   chat: { title: "Ask", subtitle: "Ask questions and get cited answers from your mail" },
   settings: { title: "Accounts", subtitle: "Your accounts and the local Ask model" },
+  help: { title: "Help", subtitle: "How MailFind works" },
 };
 
 export default function App() {
@@ -39,6 +41,8 @@ export default function App() {
   }, []);
 
   const noAccounts = !loadingAccounts && accounts.length === 0;
+  // Help is documentation — keep it reachable even before an account exists.
+  const showOnboarding = noAccounts && tab !== "help";
   const meta = VIEW_META[tab];
 
   return (
@@ -49,22 +53,25 @@ export default function App() {
         <header className="flex shrink-0 items-center justify-between border-b border-border px-8 py-4">
           <div>
             <h1 className="font-display text-lg font-semibold tracking-tight text-foreground">
-              {noAccounts ? "Welcome" : meta.title}
+              {showOnboarding ? "Welcome" : meta.title}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {noAccounts ? "Let's connect your mail to get started" : meta.subtitle}
+              {showOnboarding
+                ? "Let's connect your mail to get started"
+                : meta.subtitle}
             </p>
           </div>
         </header>
 
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-3xl px-8 py-6">
-            {noAccounts ? (
+            {showOnboarding ? (
               <AccountSetup onAdded={reload} />
             ) : (
               <>
                 {tab === "search" && <SearchView key={tickle} />}
                 {tab === "chat" && <ChatView />}
+                {tab === "help" && <HelpView />}
                 {tab === "settings" && (
                   <div className="space-y-4">
                     <ModelPicker onChange={() => setModelTick((n) => n + 1)} />

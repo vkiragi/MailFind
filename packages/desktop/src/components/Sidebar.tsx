@@ -1,13 +1,14 @@
-import { Search, Sparkles, Settings } from "lucide-react";
+import { Search, Sparkles, Settings, HelpCircle } from "lucide-react";
 import ModelStatusBadge from "@/components/ModelStatusBadge";
 import { cn } from "@/lib/utils";
 
-export type Tab = "search" | "chat" | "settings";
+export type Tab = "search" | "chat" | "settings" | "help";
 
 const NAV: { id: Tab; label: string; icon: typeof Search }[] = [
   { id: "search", label: "Search", icon: Search },
   { id: "chat", label: "Ask", icon: Sparkles },
   { id: "settings", label: "Accounts", icon: Settings },
+  { id: "help", label: "Help", icon: HelpCircle },
 ];
 
 function LogoMark({ className }: { className?: string }) {
