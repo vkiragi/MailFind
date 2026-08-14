@@ -27,11 +27,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .menu(|handle| {
-            use tauri::menu::{Menu, MenuItem, Submenu};
-            // Start from the standard macOS menu (App/Edit/Window/Help so
-            // Quit, copy/paste, etc. keep working) and add a View menu with the
-            // usual zoom commands. The items just emit to the frontend, where
-            // the actual CSS zoom lives.
+            use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+            // Start from the standard macOS menu (App/Edit/View/Window/Help so
+            // Quit, copy/paste, full screen, etc. keep working) and add the zoom
+            // commands to the *existing* View submenu — appending a new "View"
+            // would leave two of them. Items just emit to the frontend, which
+            // owns the CSS zoom.
             let menu = Menu::default(handle)?;
             let zoom_in =
                 MenuItem::with_id(handle, "zoom_in", "Zoom In", true, Some("CmdOrCtrl+Plus"))?;
@@ -39,9 +40,23 @@ pub fn run() {
                 MenuItem::with_id(handle, "zoom_out", "Zoom Out", true, Some("CmdOrCtrl+-"))?;
             let zoom_reset =
                 MenuItem::with_id(handle, "zoom_reset", "Actual Size", true, Some("CmdOrCtrl+0"))?;
-            let view =
-                Submenu::with_items(handle, "View", true, &[&zoom_in, &zoom_out, &zoom_reset])?;
-            menu.append(&view)?;
+
+            let mut added = false;
+            for kind in menu.items()? {
+                if let Some(view) = kind.as_submenu() {
+                    if view.text().map(|t| t == "View").unwrap_or(false) {
+                        let sep = PredefinedMenuItem::separator(handle)?;
+                        view.append_items(&[&sep, &zoom_in, &zoom_out, &zoom_reset])?;
+                        added = true;
+                        break;
+                    }
+                }
+            }
+            if !added {
+                let view =
+                    Submenu::with_items(handle, "View", true, &[&zoom_in, &zoom_out, &zoom_reset])?;
+                menu.append(&view)?;
+            }
             Ok(menu)
         })
         .on_menu_event(|app, event| {
