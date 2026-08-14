@@ -87,6 +87,24 @@ struct TagEntry {
     name: String,
 }
 
+/// One progress update while pulling a model.
+pub struct PullProgress {
+    /// Ollama's status text, e.g. "pulling manifest", "downloading …".
+    pub status: String,
+    /// Bytes downloaded so far for the current layer (0 if not applicable).
+    pub completed: u64,
+    /// Total bytes for the current layer (0 if unknown).
+    pub total: u64,
+}
+
+#[derive(Deserialize)]
+struct PullStreamLine {
+    status: Option<String>,
+    total: Option<u64>,
+    completed: Option<u64>,
+    error: Option<String>,
+}
+
 impl OllamaClient {
     pub fn new(config: OllamaConfig) -> AppResult<Self> {
         let http = reqwest::Client::builder()
@@ -267,6 +285,72 @@ impl OllamaClient {
             }
         }
         Ok(full)
+    }
+
+    /// Pulls a model via `/api/pull`, streaming progress to `on_progress`.
+    /// Returns `Ok(true)` on success, `Ok(false)` if `cancel` was set mid-pull.
+    /// Uses a very long per-request timeout since model downloads (GBs) far
+    /// exceed the client's default request timeout.
+    pub async fn pull_model<F: FnMut(PullProgress)>(
+        &self,
+        model: &str,
+        mut on_progress: F,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> AppResult<bool> {
+        use std::sync::atomic::Ordering;
+
+        let mut resp = self
+            .http
+            .post(self.url("/api/pull"))
+            .timeout(Duration::from_secs(24 * 60 * 60))
+            .json(&json!({ "model": model, "stream": true }))
+            .send()
+            .await
+            .map_err(|e| AppError::Ollama(format!("pull request failed: {e}")))?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(AppError::Ollama(format!("pull returned {status}: {body}")));
+        }
+
+        let mut buf: Vec<u8> = Vec::new();
+        let mut total = 0u64;
+        let mut completed = 0u64;
+        while let Some(chunk) = resp
+            .chunk()
+            .await
+            .map_err(|e| AppError::Ollama(format!("pull stream failed: {e}")))?
+        {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(false);
+            }
+            buf.extend_from_slice(&chunk);
+            while let Some(nl) = buf.iter().position(|&b| b == b'\n') {
+                let line: Vec<u8> = buf.drain(..=nl).collect();
+                let line = &line[..line.len() - 1];
+                if line.is_empty() {
+                    continue;
+                }
+                let Ok(msg) = serde_json::from_slice::<PullStreamLine>(line) else {
+                    continue;
+                };
+                if let Some(err) = msg.error {
+                    return Err(AppError::Ollama(format!("pull failed: {err}")));
+                }
+                if let Some(t) = msg.total {
+                    total = t;
+                }
+                if let Some(c) = msg.completed {
+                    completed = c;
+                }
+                on_progress(PullProgress {
+                    status: msg.status.unwrap_or_default(),
+                    completed,
+                    total,
+                });
+            }
+        }
+        Ok(true)
     }
 }
 

@@ -541,6 +541,120 @@ pub async fn set_chat_model(model: String, state: State<'_, AppState>) -> AppRes
     Ok(())
 }
 
+/// Event carrying model-pull progress from `pull_model` to the UI.
+pub const MODEL_PULL_EVENT: &str = "model:pull";
+
+/// One `model:pull` event: streamed progress, then a terminal event with
+/// `done: true` (success) or `error: Some(_)` (failed or cancelled).
+#[derive(Debug, Clone, Serialize)]
+pub struct ModelPullOut {
+    pub model: String,
+    pub status: String,
+    pub completed: u64,
+    pub total: u64,
+    pub done: bool,
+    pub error: Option<String>,
+}
+
+/// Downloads a model into Ollama, streaming progress via `model:pull` events so
+/// the UI can show a progress bar. Registers a cancel flag `cancel_pull` can
+/// flip. This is the in-app alternative to running `ollama pull` in a terminal.
+#[tauri::command]
+pub async fn pull_model(
+    model: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    use std::sync::atomic::AtomicBool;
+    let model = model.trim().to_string();
+    if model.is_empty() {
+        return Err(AppError::InvalidInput("model is required".into()));
+    }
+
+    let flag = Arc::new(AtomicBool::new(false));
+    state.pull_cancels.lock().insert(model.clone(), flag.clone());
+
+    let progress_app = app.clone();
+    let progress_model = model.clone();
+    let outcome = state
+        .ollama
+        .pull_model(
+            &model,
+            |p| {
+                let _ = progress_app.emit(
+                    MODEL_PULL_EVENT,
+                    ModelPullOut {
+                        model: progress_model.clone(),
+                        status: p.status,
+                        completed: p.completed,
+                        total: p.total,
+                        done: false,
+                        error: None,
+                    },
+                );
+            },
+            &flag,
+        )
+        .await;
+
+    state.pull_cancels.lock().remove(&model);
+
+    match outcome {
+        Ok(true) => {
+            let _ = app.emit(
+                MODEL_PULL_EVENT,
+                ModelPullOut {
+                    model,
+                    status: "success".into(),
+                    completed: 0,
+                    total: 0,
+                    done: true,
+                    error: None,
+                },
+            );
+            Ok(())
+        }
+        Ok(false) => {
+            let _ = app.emit(
+                MODEL_PULL_EVENT,
+                ModelPullOut {
+                    model,
+                    status: "cancelled".into(),
+                    completed: 0,
+                    total: 0,
+                    done: false,
+                    error: Some("Cancelled".into()),
+                },
+            );
+            Ok(())
+        }
+        Err(e) => {
+            let _ = app.emit(
+                MODEL_PULL_EVENT,
+                ModelPullOut {
+                    model,
+                    status: "error".into(),
+                    completed: 0,
+                    total: 0,
+                    done: false,
+                    error: Some(e.to_string()),
+                },
+            );
+            Err(e)
+        }
+    }
+}
+
+/// Signals an in-progress `pull_model` to stop.
+#[tauri::command]
+pub fn cancel_pull(model: String, state: State<AppState>) -> AppResult<()> {
+    use std::sync::atomic::Ordering;
+    if let Some(flag) = state.pull_cancels.lock().get(&model) {
+        flag.store(true, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn model_status(state: State<'_, AppState>) -> AppResult<ModelStatusOut> {
     let health = state.ollama.health().await;

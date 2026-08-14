@@ -74,6 +74,18 @@ export interface ModelList {
   other_installed: string[];
 }
 
+export interface ModelPullProgress {
+  model: string;
+  status: string;
+  completed: number;
+  total: number;
+  done: boolean;
+  error: string | null;
+}
+
+/** Fired repeatedly during `pullModel`; a terminal event has done=true or error set. */
+export const MODEL_PULL_EVENT = "model:pull";
+
 export interface MessageHit {
   message_id: string;
   account_id: string;
@@ -212,6 +224,10 @@ export const api = {
 
   setChatModel: (model: string) =>
     invoke<void>("set_chat_model", { model }),
+
+  pullModel: (model: string) => invoke<void>("pull_model", { model }),
+
+  cancelPull: (model: string) => invoke<void>("cancel_pull", { model }),
 
   search: (query: string, limit: number = 20) =>
     invoke<SearchResponse>("search_messages", { query, limit }),

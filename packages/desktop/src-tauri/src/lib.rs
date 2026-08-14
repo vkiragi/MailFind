@@ -102,6 +102,8 @@ pub fn run() {
             commands::model_status,
             commands::list_models,
             commands::set_chat_model,
+            commands::pull_model,
+            commands::cancel_pull,
             commands::search_messages,
             commands::ask_question,
             commands::ingest_fixture,

@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -61,6 +61,10 @@ pub struct AppState {
     /// Stamped with `counts_version` — any embedding write bumps that, forcing a
     /// lazy reload on the next search.
     pub embedding_cache: Arc<Mutex<EmbeddingCache>>,
+    /// Cancellation flags for in-progress model pulls, keyed by model tag. The
+    /// `pull_model` command registers one and the pull loop checks it; the
+    /// `cancel_pull` command sets it to abort the download.
+    pub pull_cancels: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
 }
 
 /// Cached embeddings plus the `counts_version` they were built at.
@@ -120,6 +124,7 @@ impl AppState {
             embedded_count_cache: Arc::new(Mutex::new(HashMap::new())),
             counts_version: Arc::new(AtomicU64::new(0)),
             embedding_cache: Arc::new(Mutex::new(EmbeddingCache::default())),
+            pull_cancels: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 }
