@@ -28,6 +28,11 @@ const MIGRATIONS: &[Migration] = &[
         description: "default chat model to qwen2.5:7b-instruct",
         sql: include_str!("schema/003_default_chat_model.sql"),
     },
+    Migration {
+        version: 4,
+        description: "default chat model to qwen3:8b",
+        sql: include_str!("schema/004_default_chat_model_qwen3.sql"),
+    },
 ];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {
