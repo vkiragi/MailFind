@@ -14,18 +14,17 @@ semantic search** over your iCloud Mail.
 
 - Rust >= 1.77
 - Node 20+
-- [Ollama](https://ollama.com) running locally, with the models pulled:
+- [Ollama](https://ollama.com) running locally, with the embedder pulled:
 
   ```bash
   ollama pull nomic-embed-text
-  ollama pull qwen3:8b
   ```
 
-  The default chat model (`qwen3:8b`) uses ~7.6 GB RAM; with the embedder and the
-  in-memory embedding cache alongside, MailFind totals ~9.5 GB, so 16 GB of RAM
-  is the practical minimum (32 GB is comfortable). For a lighter footprint at
-  some quality cost, pull `qwen2.5:7b-instruct` (~5.7 GB) or `granite4.1:3b`
-  (~3.7 GB) and change `chat_model` in settings.
+  Semantic search runs on any Mac (~1.5 GB). The **Ask** tab's chat model is
+  chosen automatically to fit your RAM — search-only on 8 GB up to a 35B-class
+  model on 48 GB+ — and the app shows the right `ollama pull` command if the
+  pick isn't installed. See the model table in the [root README](../../README.md#choosing-an-ask-model--automatic).
+  You can override the choice under Accounts → Ask model.
 
 - macOS recommended for v1 (uses macOS Keychain for credential storage via
   the `keyring` crate; other platforms use the platform-native backend).
