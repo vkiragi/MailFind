@@ -36,8 +36,7 @@ module.exports = {
       boxShadow: {
         soft: "0 1px 2px hsl(var(--shadow-color) / 0.06), 0 4px 12px hsl(var(--shadow-color) / 0.05)",
         card: "0 1px 3px hsl(var(--shadow-color) / 0.08), 0 8px 24px hsl(var(--shadow-color) / 0.06)",
-        brand:
-          "0 2px 8px hsl(221 83% 53% / 0.28), 0 1px 2px hsl(221 83% 53% / 0.2)",
+        brand: "0 1px 2px hsl(222 47% 11% / 0.3)",
       },
       keyframes: {
         "fade-up": {

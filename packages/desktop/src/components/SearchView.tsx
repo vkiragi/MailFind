@@ -75,7 +75,7 @@ export default function SearchView() {
 
       {!searched && !error && (
         <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-brand">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-brand-gradient text-white">
             <Sparkles className="size-6" />
           </div>
           <h2 className="mt-4 font-display text-lg font-semibold text-foreground">
