@@ -26,6 +26,31 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .menu(|handle| {
+            use tauri::menu::{Menu, MenuItem, Submenu};
+            // Start from the standard macOS menu (App/Edit/Window/Help so
+            // Quit, copy/paste, etc. keep working) and add a View menu with the
+            // usual zoom commands. The items just emit to the frontend, where
+            // the actual CSS zoom lives.
+            let menu = Menu::default(handle)?;
+            let zoom_in =
+                MenuItem::with_id(handle, "zoom_in", "Zoom In", true, Some("CmdOrCtrl+Plus"))?;
+            let zoom_out =
+                MenuItem::with_id(handle, "zoom_out", "Zoom Out", true, Some("CmdOrCtrl+-"))?;
+            let zoom_reset =
+                MenuItem::with_id(handle, "zoom_reset", "Actual Size", true, Some("CmdOrCtrl+0"))?;
+            let view =
+                Submenu::with_items(handle, "View", true, &[&zoom_in, &zoom_out, &zoom_reset])?;
+            menu.append(&view)?;
+            Ok(menu)
+        })
+        .on_menu_event(|app, event| {
+            use tauri::Emitter;
+            let id = event.id().as_ref();
+            if matches!(id, "zoom_in" | "zoom_out" | "zoom_reset") {
+                let _ = app.emit("menu://zoom", id);
+            }
+        })
         .setup({
             let state = app_state.clone();
             move |_app| {
