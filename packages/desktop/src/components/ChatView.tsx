@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send, ChevronDown, AlertTriangle, RefreshCw } from "lucide-react";
+import { Send, ChevronDown, AlertTriangle, RefreshCw, Sparkles } from "lucide-react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { relativeTime } from "@/lib/format";
 import {
   api,
   openInMail,
@@ -13,6 +14,12 @@ import {
   type AnswerResponse,
   type ModelList,
 } from "@/lib/api";
+
+const EXAMPLES = [
+  "Do I have any new online assessments?",
+  "What did Stripe email me about?",
+  "Summarize my recent flight bookings",
+];
 
 /** Describes why Ask is unavailable, plus the fix. `null` means Ask is ready. */
 interface AskGate {
@@ -81,12 +88,11 @@ export default function ChatView() {
 
   const gate = computeGate(models);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question.trim()) return;
-    const q = question;
+  const runAsk = async (q: string) => {
+    const text = q.trim();
+    if (!text || pending) return;
     setQuestion("");
-    setPendingQuestion(q);
+    setPendingQuestion(text);
     setStreamText("");
     setPending(true);
     setError(null);
@@ -97,7 +103,7 @@ export default function ChatView() {
       unlisten = await listen<string>(ASK_TOKEN_EVENT, (ev) => {
         setStreamText((prev) => prev + ev.payload);
       });
-      const r = await api.ask(q, 8);
+      const r = await api.ask(text, 8);
       setHistory((prev) => [r, ...prev]);
     } catch (err) {
       setError(String(err));
@@ -108,56 +114,40 @@ export default function ChatView() {
     }
   };
 
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    runAsk(question);
+  };
+
+  const showEmpty = !gate && !pending && !error && history.length === 0;
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {gate ? (
-        <Card>
-          <CardContent className="space-y-2 p-4">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-              <div className="space-y-1">
-                <div className="text-sm font-semibold">{gate.title}</div>
-                <p className="text-xs text-muted-foreground">{gate.body}</p>
-                {gate.pull && (
-                  <p className="text-xs text-muted-foreground">
-                    Install it with:{" "}
-                    <code className="rounded bg-muted px-1 py-0.5 font-mono">
-                      ollama pull {gate.pull}
-                    </code>
-                  </p>
-                )}
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={checkModels}
-              className="ml-6"
-            >
-              <RefreshCw className="mr-1 size-4" />
-              Recheck
-            </Button>
-          </CardContent>
-        </Card>
+        <GateCard gate={gate} onRecheck={checkModels} />
       ) : (
         <form onSubmit={submit} className="flex gap-2">
           <Input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="Ask a question about your mail…"
+            autoFocus
+            className="h-12 text-base"
           />
-          <Button type="submit" disabled={pending}>
-            <Send className="mr-1" />
+          <Button type="submit" variant="brand" size="lg" disabled={pending}>
+            <Send className="size-4" />
             {pending ? "Thinking…" : "Ask"}
           </Button>
         </form>
       )}
 
       {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
+
+      {showEmpty && <AskEmpty onPick={runAsk} />}
 
       <div className="space-y-3">
         {pending && (
@@ -165,9 +155,9 @@ export default function ChatView() {
             <CardContent className="space-y-3 p-4">
               <UserBubble text={pendingQuestion} />
               {streamText ? (
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
                   {streamText}
-                  <span className="ml-0.5 inline-block h-3.5 w-[3px] animate-pulse bg-primary align-text-bottom" />
+                  <span className="ml-0.5 inline-block h-4 w-[3px] animate-pulse rounded-full bg-primary align-text-bottom" />
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -186,10 +176,63 @@ export default function ChatView() {
   );
 }
 
+function AskEmpty({ onPick }: { onPick: (q: string) => void }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
+      <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-brand">
+        <Sparkles className="size-6" />
+      </div>
+      <h2 className="mt-4 font-display text-lg font-semibold text-foreground">
+        Ask anything about your mail
+      </h2>
+      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+        MailFind finds the relevant emails and answers with citations you can open.
+      </p>
+      <div className="mx-auto mt-5 flex max-w-md flex-col gap-2">
+        {EXAMPLES.map((ex) => (
+          <button
+            key={ex}
+            onClick={() => onPick(ex)}
+            className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5 text-left text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+          >
+            {ex}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GateCard({ gate, onRecheck }: { gate: AskGate; onRecheck: () => void }) {
+  return (
+    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+      <div className="flex items-start gap-2.5">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+        <div className="space-y-1.5">
+          <div className="text-sm font-semibold text-foreground">{gate.title}</div>
+          <p className="text-sm text-muted-foreground">{gate.body}</p>
+          {gate.pull && (
+            <p className="text-sm text-muted-foreground">
+              Install it with:{" "}
+              <code className="rounded bg-background/60 px-1.5 py-0.5 font-mono text-xs">
+                ollama pull {gate.pull}
+              </code>
+            </p>
+          )}
+          <Button variant="outline" size="sm" onClick={onRecheck} className="mt-1">
+            <RefreshCw className="mr-1 size-4" />
+            Recheck
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-3.5 py-2 text-sm">
+      <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary/10 px-3.5 py-2 text-sm text-foreground">
         {text}
       </div>
     </div>
@@ -230,11 +273,11 @@ function AnswerExchange({ entry }: { entry: AnswerResponse }) {
   const extra = hasCited ? all.filter((x) => !referenced.has(x.n)) : [];
 
   return (
-    <Card>
+    <Card className="animate-fade-up">
       <CardContent className="space-y-4 p-4">
         <UserBubble text={entry.question} />
 
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+        <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
           {renderAnswer(entry.answer, referenced, jumpTo)}
         </div>
 
@@ -288,8 +331,9 @@ function AnswerExchange({ entry }: { entry: AnswerResponse }) {
           </div>
         )}
 
-        <div className="text-[10px] text-muted-foreground">
-          {entry.model} • {(entry.took_ms / 1000).toFixed(1)}s
+        <div className="text-[11px] text-muted-foreground">
+          <span className="font-mono">{entry.model}</span> ·{" "}
+          {(entry.took_ms / 1000).toFixed(1)}s
         </div>
       </CardContent>
     </Card>
@@ -319,7 +363,7 @@ function renderAnswer(
           key={`chip-${key++}`}
           type="button"
           onClick={() => jumpTo(n)}
-          className="mx-0.5 inline-flex h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded bg-primary/15 px-1 align-text-top text-[10px] font-semibold text-primary transition-colors hover:bg-primary/30"
+          className="mx-0.5 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-md bg-primary/15 px-1 align-text-top text-[10px] font-semibold text-primary transition-colors hover:bg-primary/30"
           title={`Jump to source ${n}`}
         >
           {n}
@@ -359,20 +403,20 @@ function SourceCard({
         }
       }}
       className={cn(
-        "flex gap-3 rounded-md border border-border p-2.5 text-xs transition-colors",
-        clickable && "cursor-pointer hover:bg-muted/40",
+        "flex gap-3 rounded-lg border border-border p-2.5 text-xs transition-colors",
+        clickable && "cursor-pointer hover:bg-secondary/60",
         flash && "ring-2 ring-primary",
       )}
       title={clickable ? "Open in Apple Mail" : undefined}
     >
-      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
+      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
         {n}
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="truncate font-semibold text-foreground">{c.subject}</div>
         <div className="truncate text-muted-foreground">
-          {c.sender ? `${c.sender} • ` : ""}
-          {new Date(c.date).toLocaleDateString()}
+          {c.sender ? `${c.sender} · ` : ""}
+          {relativeTime(c.date)}
         </div>
         <div className="line-clamp-1 text-muted-foreground">{c.snippet}</div>
       </div>

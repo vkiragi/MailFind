@@ -37,9 +37,9 @@ export default function AccountSetup({ onAdded }: Props) {
   };
 
   return (
-    <Card className="max-w-xl">
+    <Card>
       <CardHeader>
-        <CardTitle>Add an iCloud Mail Account</CardTitle>
+        <CardTitle>Connect your iCloud mail</CardTitle>
         <p className="text-xs text-muted-foreground">
           Generate an{" "}
           <a
@@ -96,8 +96,8 @@ export default function AccountSetup({ onAdded }: Props) {
               {error}
             </div>
           )}
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Connecting…" : "Add Account"}
+          <Button type="submit" variant="brand" disabled={submitting}>
+            {submitting ? "Connecting…" : "Add account"}
           </Button>
         </form>
       </CardContent>

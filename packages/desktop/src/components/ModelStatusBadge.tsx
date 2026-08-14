@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { api, type ModelStatus } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export default function ModelStatusBadge() {
   const [status, setStatus] = useState<ModelStatus | null>(null);
@@ -23,35 +23,38 @@ export default function ModelStatusBadge() {
     };
   }, []);
 
-  if (!status) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        Checking Ollama…
-      </div>
-    );
-  }
+  const { dot, primary, secondary } = describe(status);
 
-  const ok =
-    status.ollama_reachable &&
-    status.embedding_available &&
-    status.chat_available;
-  const Icon = ok ? CheckCircle2 : AlertTriangle;
   return (
-    <div
-      className={`flex items-center gap-2 text-xs ${
-        ok ? "text-green-400" : "text-yellow-400"
-      }`}
-    >
-      <Icon className="size-4" />
-      <span className="truncate">
-        {status.ollama_reachable
-          ? `${status.embedding_model}${
-              status.embedding_available ? "" : " (missing)"
-            } • ${status.chat_model}${
-              status.chat_available ? "" : " (missing)"
-            }`
-          : `Ollama unreachable at ${status.endpoint}`}
-      </span>
+    <div className="flex items-center gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-2.5">
+      <span className={cn("size-2 shrink-0 rounded-full", dot)} />
+      <div className="min-w-0 leading-tight">
+        <div className="truncate font-mono text-xs text-foreground">{primary}</div>
+        <div className="truncate text-[11px] text-muted-foreground">{secondary}</div>
+      </div>
     </div>
   );
+}
+
+function describe(status: ModelStatus | null): {
+  dot: string;
+  primary: string;
+  secondary: string;
+} {
+  if (!status) {
+    return { dot: "bg-muted-foreground animate-pulse", primary: "Ollama", secondary: "Connecting…" };
+  }
+  if (!status.ollama_reachable) {
+    return { dot: "bg-amber-500", primary: "Ollama offline", secondary: "Search still works" };
+  }
+  const ok = status.embedding_available && status.chat_available;
+  return {
+    dot: ok ? "bg-emerald-500" : "bg-amber-500",
+    primary: status.chat_model || "No model",
+    secondary: ok
+      ? "Running locally"
+      : status.chat_available
+        ? "Embedder missing"
+        : "Needs a model",
+  };
 }
