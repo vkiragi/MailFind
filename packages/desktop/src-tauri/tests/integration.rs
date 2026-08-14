@@ -121,8 +121,11 @@ fn migrations_create_expected_tables_and_seed_defaults() {
     // Defaults seeded.
     let embedding_model = queries::get_setting(&conn, "embedding_model").unwrap();
     assert_eq!(embedding_model.as_deref(), Some("nomic-embed-text"));
+    // Migrations seed the chat-model default (currently qwen3:8b via migration
+    // 004). At runtime the startup RAM-based auto-pick may override this, but
+    // that task doesn't run here — migrations alone should leave the seed.
     let chat_model = queries::get_setting(&conn, "chat_model").unwrap();
-    assert!(chat_model.as_deref().unwrap_or("").starts_with("granite"));
+    assert_eq!(chat_model.as_deref(), Some("qwen3:8b"));
 }
 
 #[test]
@@ -164,11 +167,20 @@ fn embedding_blob_round_trips_through_db() {
     };
     assert!(!chunk_id.is_empty());
 
+    // Read the raw stored blob and decode it — verifies the encode/decode codec
+    // round-trips losslessly through the DB. (all_message_embeddings normalizes
+    // for the cosine pass, so it can't be used for a raw-fidelity check.)
     let conn = db.read().unwrap();
-    let rows = queries::all_chunks_with_embeddings(&conn).unwrap();
-    let found = rows.iter().find(|c| c.message_id == message_id).unwrap();
-    assert_eq!(found.embedding.len(), embedding.len());
-    for (a, b) in embedding.iter().zip(found.embedding.iter()) {
+    let blob: Vec<u8> = conn
+        .query_row(
+            "SELECT embedding FROM chunks WHERE message_id = ?1",
+            params![message_id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let decoded = queries::decode_embedding(&blob);
+    assert_eq!(decoded.len(), embedding.len());
+    for (a, b) in embedding.iter().zip(decoded.iter()) {
         assert!((a - b).abs() < 1e-6, "round-trip mismatch: {a} vs {b}");
     }
 }
@@ -218,8 +230,10 @@ async fn hybrid_search_uses_keyword_fallback_when_no_embeddings() {
         "Want to grab lunch at the new place tomorrow?",
     );
 
-    // No Ollama client passed: only keyword search runs.
-    let outcome = search::search(&db, None, "contract delivery", 5).await.unwrap();
+    // No Ollama client and no embedding snapshot: only keyword search runs.
+    let outcome = search::search(&db, None, "contract delivery", 5, None)
+        .await
+        .unwrap();
     assert!(outcome.used_keyword);
     assert!(!outcome.used_vector);
     assert!(!outcome.results.is_empty());
