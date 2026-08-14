@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Send, ChevronDown } from "lucide-react";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   api,
   openInMail,
+  ASK_TOKEN_EVENT,
   type AnswerCitation,
   type AnswerResponse,
 } from "@/lib/api";
@@ -15,6 +17,7 @@ export default function ChatView() {
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState("");
+  const [streamText, setStreamText] = useState("");
   const [history, setHistory] = useState<AnswerResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,15 +27,24 @@ export default function ChatView() {
     const q = question;
     setQuestion("");
     setPendingQuestion(q);
+    setStreamText("");
     setPending(true);
     setError(null);
+    let unlisten: UnlistenFn | undefined;
     try {
+      // Subscribe before invoking so no early fragments are missed. Retrieval
+      // runs before the first token, so this is registered well in time.
+      unlisten = await listen<string>(ASK_TOKEN_EVENT, (ev) => {
+        setStreamText((prev) => prev + ev.payload);
+      });
       const r = await api.ask(q, 8);
       setHistory((prev) => [r, ...prev]);
     } catch (err) {
       setError(String(err));
     } finally {
+      unlisten?.();
       setPending(false);
+      setStreamText("");
     }
   };
 
@@ -61,10 +73,17 @@ export default function ChatView() {
           <Card>
             <CardContent className="space-y-3 p-4">
               <UserBubble text={pendingQuestion} />
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="size-2 animate-pulse rounded-full bg-primary" />
-                Searching your mail…
-              </div>
+              {streamText ? (
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {streamText}
+                  <span className="ml-0.5 inline-block h-3.5 w-[3px] animate-pulse bg-primary align-text-bottom" />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="size-2 animate-pulse rounded-full bg-primary" />
+                  Searching your mail…
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

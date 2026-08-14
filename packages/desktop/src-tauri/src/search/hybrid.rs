@@ -8,12 +8,13 @@
 //! `sqlite-vec` or `lance` without changing the public API.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::db::queries::{self, ChunkWithEmbedding, MessageRow};
+use crate::db::queries::{self, MessageRow};
 use crate::db::Database;
 use crate::error::AppResult;
 use crate::models::OllamaClient;
@@ -80,6 +81,10 @@ pub async fn search(
     ollama: Option<&OllamaClient>,
     query: &str,
     limit: usize,
+    // Preloaded embedding snapshot (from `AppState::embeddings_snapshot`). When
+    // `None` — e.g. the example binaries — embeddings are loaded from SQLite,
+    // preserving the old per-call behavior.
+    embeddings: Option<Arc<Vec<(String, Vec<f32>)>>>,
 ) -> AppResult<SearchOutcome> {
     let started = Instant::now();
     let query_trim = query.trim();
@@ -112,9 +117,12 @@ pub async fn search(
     if let Some(ollama) = ollama {
         match ollama.embed(query_trim).await {
             Ok(qvec) => {
-                let chunks = {
-                    let conn = db.read()?;
-                    queries::all_chunks_with_embeddings(&conn)?
+                let chunks = match embeddings {
+                    Some(cached) => cached,
+                    None => Arc::new({
+                        let conn = db.read()?;
+                        queries::all_message_embeddings(&conn)?
+                    }),
                 };
                 if !chunks.is_empty() {
                     used_vector = true;
@@ -256,47 +264,42 @@ fn recency_factor(sent_at: &str, now: DateTime<Utc>) -> f32 {
 /// surface a long email).
 fn vector_top_k(
     query: &[f32],
-    chunks: &[ChunkWithEmbedding],
+    chunks: &[(String, Vec<f32>)],
     limit: usize,
 ) -> Vec<(String, f32)> {
-    let mut best_per_message: HashMap<String, (String, f32)> = HashMap::new();
     let qnorm = norm(query);
     if qnorm == 0.0 {
         return vec![];
     }
-    for chunk in chunks {
-        if chunk.embedding.len() != query.len() {
+    // Normalize the query once; cached embeddings are already unit vectors, so
+    // cosine similarity is just their dot product.
+    let q: Vec<f32> = query.iter().map(|x| x / qnorm).collect();
+    let mut best_per_message: HashMap<String, f32> = HashMap::new();
+    for (message_id, embedding) in chunks {
+        if embedding.len() != q.len() {
             continue;
         }
-        let sim = cosine_pre(query, qnorm, &chunk.embedding);
-        match best_per_message.get_mut(&chunk.message_id) {
-            Some(existing) if existing.1 >= sim => {}
-            _ => {
-                best_per_message
-                    .insert(chunk.message_id.clone(), (chunk.chunk_id.clone(), sim));
+        let mut sim = 0.0f32;
+        for i in 0..q.len() {
+            sim += q[i] * embedding[i];
+        }
+        // Clone the id only when this message is seen for the first time, not on
+        // every one of its chunks.
+        match best_per_message.get_mut(message_id) {
+            Some(best) => {
+                if sim > *best {
+                    *best = sim;
+                }
+            }
+            None => {
+                best_per_message.insert(message_id.clone(), sim);
             }
         }
     }
-    let mut v: Vec<(String, f32)> = best_per_message
-        .into_iter()
-        .map(|(k, (_chunk, sim))| (k, sim))
-        .collect();
+    let mut v: Vec<(String, f32)> = best_per_message.into_iter().collect();
     v.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     v.truncate(limit);
     v
-}
-
-fn cosine_pre(q: &[f32], qnorm: f32, v: &[f32]) -> f32 {
-    let mut dot = 0.0f32;
-    let mut vn = 0.0f32;
-    for i in 0..v.len() {
-        dot += q[i] * v[i];
-        vn += v[i] * v[i];
-    }
-    if vn == 0.0 {
-        return 0.0;
-    }
-    dot / (qnorm * vn.sqrt())
 }
 
 fn norm(v: &[f32]) -> f32 {
@@ -325,27 +328,9 @@ mod tests {
     fn vector_top_k_returns_best_per_message() {
         let q = vec![1.0, 0.0];
         let chunks = vec![
-            ChunkWithEmbedding {
-                chunk_id: "c1".into(),
-                message_id: "m1".into(),
-                chunk_index: 0,
-                text: "".into(),
-                embedding: vec![1.0, 0.0],
-            },
-            ChunkWithEmbedding {
-                chunk_id: "c2".into(),
-                message_id: "m1".into(),
-                chunk_index: 1,
-                text: "".into(),
-                embedding: vec![0.5, 0.5],
-            },
-            ChunkWithEmbedding {
-                chunk_id: "c3".into(),
-                message_id: "m2".into(),
-                chunk_index: 0,
-                text: "".into(),
-                embedding: vec![0.0, 1.0],
-            },
+            ("m1".to_string(), vec![1.0, 0.0]),
+            ("m1".to_string(), vec![0.5, 0.5]),
+            ("m2".to_string(), vec![0.0, 1.0]),
         ];
         let results = vector_top_k(&q, &chunks, 5);
         assert_eq!(results[0].0, "m1");

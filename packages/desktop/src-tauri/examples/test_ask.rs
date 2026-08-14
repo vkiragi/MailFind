@@ -34,7 +34,20 @@ async fn main() {
     .expect("ollama client");
 
     println!("\n=== model: {model} ===\n=== question: {question:?} ===\n");
-    let out = qa::ask(&db, &ollama, &question, 8).await.expect("ask");
+    let start = std::time::Instant::now();
+    let mut ticks: Vec<u128> = Vec::new();
+    let out = qa::ask(&db, &ollama, &question, 8, None, |_delta| {
+        ticks.push(start.elapsed().as_millis());
+    })
+    .await
+    .expect("ask");
+    if let (Some(f), Some(l)) = (ticks.first(), ticks.last()) {
+        println!(
+            "[stream] {} deltas, first@{f}ms last@{l}ms spread={}ms\n",
+            ticks.len(),
+            l - f
+        );
+    }
 
     println!("--- answer ({} ms) ---\n{}\n", out.took_ms, out.answer);
     println!("--- citations (in retrieval order) ---");

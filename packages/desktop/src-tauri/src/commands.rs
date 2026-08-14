@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
 
 use crate::credentials;
@@ -17,6 +17,9 @@ use crate::mail::{fixtures, sync};
 use crate::qa::AnswerOutcome;
 use crate::search::{self, SearchOutcome};
 use crate::state::AppState;
+
+/// Event carrying each streamed answer fragment from `ask_question` to the UI.
+pub const ASK_TOKEN_EVENT: &str = "ask:token";
 
 /// Returns the cached embedded-chunk count if it was computed at the current
 /// `counts_version`, otherwise calls `compute` and caches the result with the
@@ -371,16 +374,38 @@ pub async fn search_messages(
     limit: Option<usize>,
     state: State<'_, AppState>,
 ) -> AppResult<SearchOutcome> {
-    search::search(&state.db, Some(&state.ollama), &query, limit.unwrap_or(20)).await
+    let embeddings = state.embeddings_snapshot()?;
+    search::search(
+        &state.db,
+        Some(&state.ollama),
+        &query,
+        limit.unwrap_or(20),
+        Some(embeddings),
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn ask_question(
     question: String,
     limit: Option<usize>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> AppResult<AnswerOutcome> {
-    crate::qa::ask(&state.db, &state.ollama, &question, limit.unwrap_or(8)).await
+    // Stream answer fragments to the frontend as they arrive; the full
+    // AnswerOutcome (with citations) is still returned when the command resolves.
+    let embeddings = state.embeddings_snapshot()?;
+    crate::qa::ask(
+        &state.db,
+        &state.ollama,
+        &question,
+        limit.unwrap_or(8),
+        Some(embeddings),
+        |delta| {
+            let _ = app.emit(ASK_TOKEN_EVENT, delta);
+        },
+    )
+    .await
 }
 
 #[tauri::command]

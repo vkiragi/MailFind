@@ -55,6 +55,19 @@ pub struct AppState {
     /// Monotonic counter bumped by any write that affects message/embedded
     /// counts. Cached values stamped with a stale version are recomputed.
     pub counts_version: Arc<AtomicU64>,
+    /// In-memory snapshot of every chunk embedding for the vector search pass.
+    /// Loading all ~850MB of BLOBs from SQLite per query was the dominant search
+    /// cost (~13s); this holds them resident so the cosine scan is milliseconds.
+    /// Stamped with `counts_version` — any embedding write bumps that, forcing a
+    /// lazy reload on the next search.
+    pub embedding_cache: Arc<Mutex<EmbeddingCache>>,
+}
+
+/// Cached embeddings plus the `counts_version` they were built at.
+#[derive(Default)]
+pub struct EmbeddingCache {
+    version: Option<u64>,
+    data: Arc<Vec<(String, Vec<f32>)>>,
 }
 
 impl AppState {
@@ -63,6 +76,28 @@ impl AppState {
     /// counts.
     pub fn bump_counts_version(&self) {
         self.counts_version.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Returns the embedding snapshot for vector search, loading it from SQLite
+    /// on a cold or stale (out-of-date `counts_version`) cache. The load runs
+    /// outside the lock since it can take seconds on a large corpus; a rare race
+    /// where two searches both load is harmless (last write wins).
+    pub fn embeddings_snapshot(&self) -> AppResult<Arc<Vec<(String, Vec<f32>)>>> {
+        let current = self.counts_version.load(Ordering::Relaxed);
+        {
+            let cache = self.embedding_cache.lock();
+            if cache.version == Some(current) {
+                return Ok(cache.data.clone());
+            }
+        }
+        let data = Arc::new({
+            let conn = self.db.read()?;
+            queries::all_message_embeddings(&conn)?
+        });
+        let mut cache = self.embedding_cache.lock();
+        cache.version = Some(current);
+        cache.data = data.clone();
+        Ok(data)
     }
 }
 
@@ -84,6 +119,7 @@ impl AppState {
             sync_guard: Arc::new(Mutex::new(sync_guard)),
             embedded_count_cache: Arc::new(Mutex::new(HashMap::new())),
             counts_version: Arc::new(AtomicU64::new(0)),
+            embedding_cache: Arc::new(Mutex::new(EmbeddingCache::default())),
         })
     }
 }

@@ -159,6 +159,9 @@ export interface ImportProgress {
 
 export const IMPORT_PROGRESS_EVENT = "import:progress";
 
+/** Fired for each streamed answer fragment during `ask`; payload is the delta string. */
+export const ASK_TOKEN_EVENT = "ask:token";
+
 export const api = {
   greet: (name: string) => invoke<string>("greet", { name }),
 

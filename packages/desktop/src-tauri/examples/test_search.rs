@@ -35,7 +35,7 @@ async fn main() {
     let ollama = OllamaClient::new(ollama_cfg).expect("ollama client");
 
     println!("\n=== query: {:?} ===", query);
-    let out = hybrid::search(&db, Some(&ollama), &query, 10)
+    let out = hybrid::search(&db, Some(&ollama), &query, 10, None)
         .await
         .expect("search");
     println!(

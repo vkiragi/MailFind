@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::DateTime;
@@ -36,11 +37,13 @@ recent, upcoming, or latest, lead with the most recent email and present items \
 newest-first, stating each item's date — do not assume the [1], [2] order \
 reflects recency.";
 
-pub async fn ask(
+pub async fn ask<F: FnMut(&str)>(
     db: &Database,
     ollama: &OllamaClient,
     question: &str,
     top_k: usize,
+    embeddings: Option<Arc<Vec<(String, Vec<f32>)>>>,
+    on_delta: F,
 ) -> AppResult<AnswerOutcome> {
     let started = Instant::now();
     let q = question.trim();
@@ -48,7 +51,7 @@ pub async fn ask(
         return Err(AppError::InvalidInput("empty question".into()));
     }
 
-    let mut outcome = search::search(db, Some(ollama), q, top_k).await?;
+    let mut outcome = search::search(db, Some(ollama), q, top_k, embeddings).await?;
     // For recency-flavored questions ("new", "latest", "upcoming"…), reorder the
     // retrieved emails newest-first before numbering them, so [1] is the most
     // recent. This makes the answer's ordering correct even for a small model
@@ -81,7 +84,7 @@ pub async fn ask(
         },
     ];
 
-    let answer = ollama.chat(messages).await?;
+    let answer = ollama.chat(messages, on_delta).await?;
     let citations = outcome
         .results
         .iter()

@@ -79,15 +79,6 @@ pub struct NewChunk {
 }
 
 #[derive(Debug, Clone)]
-pub struct ChunkWithEmbedding {
-    pub chunk_id: String,
-    pub message_id: String,
-    pub chunk_index: i64,
-    pub text: String,
-    pub embedding: Vec<f32>,
-}
-
-#[derive(Debug, Clone)]
 pub struct ChunkPending {
     pub chunk_id: String,
     pub message_id: String,
@@ -252,21 +243,27 @@ pub fn pending_embedding_chunks(
     Ok(rows)
 }
 
-pub fn all_chunks_with_embeddings(conn: &Connection) -> AppResult<Vec<ChunkWithEmbedding>> {
+/// Lean loader for the in-memory vector cache: one `(message_id, embedding)`
+/// pair per embedded chunk. Deliberately skips `text`/`chunk_index` so the
+/// resident cache holds only what the cosine pass needs, keeping its RAM
+/// footprint to the embeddings themselves.
+pub fn all_message_embeddings(conn: &Connection) -> AppResult<Vec<(String, Vec<f32>)>> {
     let mut stmt = conn.prepare(
-        "SELECT id, message_id, chunk_index, text, embedding
-         FROM chunks WHERE embedding IS NOT NULL",
+        "SELECT message_id, embedding FROM chunks WHERE embedding IS NOT NULL",
     )?;
     let rows = stmt
         .query_map([], |row| {
-            let blob: Vec<u8> = row.get(4)?;
-            Ok(ChunkWithEmbedding {
-                chunk_id: row.get(0)?,
-                message_id: row.get(1)?,
-                chunk_index: row.get(2)?,
-                text: row.get(3)?,
-                embedding: decode_embedding(&blob),
-            })
+            let blob: Vec<u8> = row.get(1)?;
+            let mut v = decode_embedding(&blob);
+            // Normalize to unit length once, here, so the per-query cosine pass
+            // is a plain dot product (no per-vector norm/sqrt on every search).
+            let n = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if n > 0.0 {
+                for x in &mut v {
+                    *x /= n;
+                }
+            }
+            Ok((row.get::<_, String>(0)?, v))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)

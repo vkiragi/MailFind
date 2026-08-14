@@ -29,11 +29,15 @@ pub fn run() {
         .setup({
             let state = app_state.clone();
             move |_app| {
-                // Warm the embedded-count cache off the UI path so the first
-                // Accounts-tab load is instant instead of paying the cold COUNT.
+                // Warm the embedded-count cache and the ~850MB embedding
+                // snapshot off the UI path, so the first Accounts-tab load and
+                // the first search don't pay their cold loads interactively.
                 std::thread::spawn({
                     let state = state.clone();
-                    move || commands::warm_embedded_counts(&state)
+                    move || {
+                        commands::warm_embedded_counts(&state);
+                        let _ = state.embeddings_snapshot();
+                    }
                 });
                 search::spawn_background_embedder(state);
                 Ok(())

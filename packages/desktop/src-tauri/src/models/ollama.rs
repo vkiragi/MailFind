@@ -55,8 +55,8 @@ struct EmbeddingResp {
 }
 
 #[derive(Deserialize)]
-struct ChatResp {
-    message: ChatMessageOwned,
+struct ChatStreamChunk {
+    message: Option<ChatMessageOwned>,
 }
 
 #[derive(Deserialize)]
@@ -160,14 +160,27 @@ impl OllamaClient {
         Ok(parsed.embedding)
     }
 
-    pub async fn chat(&self, messages: Vec<ChatMessage>) -> AppResult<String> {
-        let resp = self
+    /// Streams a chat completion. `on_delta` is called with each new content
+    /// fragment as it arrives; the full accumulated answer is returned at the
+    /// end. `keep_alive` pins the model in RAM for 30m so spaced-out questions
+    /// avoid a cold reload — Ollama frees the memory after that idle window.
+    pub async fn chat<F: FnMut(&str)>(
+        &self,
+        messages: Vec<ChatMessage>,
+        mut on_delta: F,
+    ) -> AppResult<String> {
+        let mut resp = self
             .http
             .post(self.url("/api/chat"))
             .json(&json!({
                 "model": self.config.chat_model,
                 "messages": messages,
-                "stream": false,
+                "stream": true,
+                "keep_alive": "30m",
+                // Low temperature: this is factual RAG over the user's mail, not
+                // creative writing. Ollama defaults to 0.8, which caused the
+                // model to occasionally mis-attribute citations.
+                "options": { "temperature": 0.2 },
             }))
             .send()
             .await
@@ -177,11 +190,35 @@ impl OllamaClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(AppError::Ollama(format!("chat returned {status}: {body}")));
         }
-        let parsed: ChatResp = resp
-            .json()
+
+        // Ollama streams one JSON object per line. Accumulate bytes and parse
+        // each complete line, forwarding new content deltas as they arrive.
+        let mut full = String::new();
+        let mut buf: Vec<u8> = Vec::new();
+        while let Some(chunk) = resp
+            .chunk()
             .await
-            .map_err(|e| AppError::Ollama(format!("chat parse failed: {e}")))?;
-        Ok(parsed.message.content)
+            .map_err(|e| AppError::Ollama(format!("chat stream failed: {e}")))?
+        {
+            buf.extend_from_slice(&chunk);
+            while let Some(nl) = buf.iter().position(|&b| b == b'\n') {
+                let line: Vec<u8> = buf.drain(..=nl).collect();
+                let line = &line[..line.len() - 1];
+                if line.is_empty() {
+                    continue;
+                }
+                let Ok(msg) = serde_json::from_slice::<ChatStreamChunk>(line) else {
+                    continue;
+                };
+                if let Some(m) = msg.message {
+                    if !m.content.is_empty() {
+                        full.push_str(&m.content);
+                        on_delta(&m.content);
+                    }
+                }
+            }
+        }
+        Ok(full)
     }
 }
 
