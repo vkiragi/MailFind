@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use crate::db::Database;
@@ -32,10 +32,11 @@ const SYSTEM_PROMPT: &str = "You are MailFind, an assistant that answers \
 questions strictly using the user's local email. Always cite the most relevant \
 emails by their numeric reference like [1], [2]. If the emails do not contain \
 the answer, say so plainly instead of guessing. Keep responses concise. \
-Each email is labeled with its Date. When the question is about what is new, \
-recent, upcoming, or latest, lead with the most recent email and present items \
-newest-first, stating each item's date — do not assume the [1], [2] order \
-reflects recency.";
+Each email is labeled with its Date and how long ago it arrived. When the \
+question is about what is new, recent, upcoming, or latest, lead with the most \
+recent email and present items newest-first, stating each item's date — do not \
+assume the [1], [2] order reflects recency. Never describe an email as recent, \
+new, or upcoming if it arrived more than a few months ago.";
 
 pub async fn ask<F: FnMut(&str)>(
     db: &Database,
@@ -109,6 +110,7 @@ pub async fn ask<F: FnMut(&str)>(
 }
 
 fn build_user_prompt(question: &str, hits: &[MessageHit]) -> String {
+    let now = Utc::now();
     let mut buf = String::new();
     buf.push_str("Question: ");
     buf.push_str(question);
@@ -116,11 +118,12 @@ fn build_user_prompt(question: &str, hits: &[MessageHit]) -> String {
     for (i, hit) in hits.iter().enumerate() {
         let n = i + 1;
         buf.push_str(&format!(
-            "\n[{n}] From: {sender}\n    Subject: {subject}\n    Date: {date}\n    Excerpt: {snippet}\n",
+            "\n[{n}] From: {sender}\n    Subject: {subject}\n    Date: {date}{age}\n    Excerpt: {snippet}\n",
             n = n,
             sender = clip(&hit.sender, 120),
             subject = clip(&hit.subject, 200),
             date = hit.date,
+            age = relative_age(&hit.date, now),
             snippet = clip(&hit.body_preview.is_empty().then(|| hit.snippet.clone()).unwrap_or_else(|| hit.body_preview.clone()), 800),
         ));
     }
@@ -129,6 +132,31 @@ fn build_user_prompt(question: &str, hits: &[MessageHit]) -> String {
          If the emails are insufficient, say so.",
     );
     buf
+}
+
+/// Human-readable age like " (2 years ago)" appended to a source's date, so the
+/// model doesn't have to do date math to know an email is stale. Empty string
+/// for undated or future-dated mail.
+fn relative_age(date: &str, now: DateTime<Utc>) -> String {
+    let Ok(dt) = DateTime::parse_from_rfc3339(date) else {
+        return String::new();
+    };
+    let days = (now - dt.with_timezone(&Utc)).num_days();
+    if days < 0 {
+        return String::new();
+    }
+    let label = if days <= 1 {
+        "today".to_string()
+    } else if days < 30 {
+        format!("{days} days ago")
+    } else if days < 365 {
+        let m = (days / 30).max(1);
+        format!("{m} month{} ago", if m == 1 { "" } else { "s" })
+    } else {
+        let y = (days / 365).max(1);
+        format!("{y} year{} ago", if y == 1 { "" } else { "s" })
+    };
+    format!(" ({label})")
 }
 
 /// Whether the question is asking about recency ("new", "latest", "upcoming"),
