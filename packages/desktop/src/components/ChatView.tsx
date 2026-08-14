@@ -21,6 +21,10 @@ const EXAMPLES = [
   "Summarize my recent flight bookings",
 ];
 
+// For the streaming preview, before citations are known.
+const NO_CITATIONS = new Set<number>();
+const noop = () => {};
+
 /** Describes why Ask is unavailable, plus the fix. `null` means Ask is ready. */
 interface AskGate {
   title: string;
@@ -155,9 +159,13 @@ export default function ChatView() {
             <CardContent className="space-y-3 p-4">
               <UserBubble text={pendingQuestion} />
               {streamText ? (
-                <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
-                  {streamText}
-                  <span className="ml-0.5 inline-block h-4 w-[3px] animate-pulse rounded-full bg-primary align-text-bottom" />
+                <div className="space-y-2.5 text-[15px] leading-relaxed text-foreground">
+                  <MarkdownAnswer
+                    text={streamText}
+                    referenced={NO_CITATIONS}
+                    jumpTo={noop}
+                  />
+                  <span className="inline-block h-4 w-[3px] animate-pulse rounded-full bg-primary align-text-bottom" />
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -277,8 +285,8 @@ function AnswerExchange({ entry }: { entry: AnswerResponse }) {
       <CardContent className="space-y-4 p-4">
         <UserBubble text={entry.question} />
 
-        <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
-          {renderAnswer(entry.answer, referenced, jumpTo)}
+        <div className="space-y-2.5 text-[15px] leading-relaxed text-foreground">
+          <MarkdownAnswer text={entry.answer} referenced={referenced} jumpTo={jumpTo} />
         </div>
 
         {citations.length > 0 && (
@@ -341,41 +349,155 @@ function AnswerExchange({ entry }: { entry: AnswerResponse }) {
 }
 
 /**
- * Renders the answer text, replacing each `[n]` citation marker with a small
- * clickable chip that scrolls to source `n`. Markers that don't map to a real
- * citation are left as plain text.
+ * Renders the model's answer as light Markdown — bold, bullet/numbered lists,
+ * and paragraphs — so the raw `**` / `-` syntax never shows. `[n]` markers that
+ * map to a real citation become clickable chips that scroll to that source.
+ * (Deliberately minimal: no dependency, and full control over the chips.)
  */
-function renderAnswer(
-  answer: string,
+function MarkdownAnswer({
+  text,
+  referenced,
+  jumpTo,
+}: {
+  text: string;
+  referenced: Set<number>;
+  jumpTo: (n: number) => void;
+}) {
+  const blocks = parseBlocks(text);
+  return (
+    <>
+      {blocks.map((b, i) => {
+        if (b.type === "heading") {
+          return (
+            <p key={i} className="font-semibold text-foreground">
+              {renderInline(b.text, referenced, jumpTo)}
+            </p>
+          );
+        }
+        if (b.type === "list") {
+          const Tag = b.ordered ? "ol" : "ul";
+          return (
+            <Tag
+              key={i}
+              className={cn(
+                "space-y-1 pl-5",
+                b.ordered ? "list-decimal" : "list-disc",
+              )}
+            >
+              {b.items.map((it, j) => (
+                <li key={j} className="pl-1 marker:text-muted-foreground">
+                  {renderInline(it, referenced, jumpTo)}
+                </li>
+              ))}
+            </Tag>
+          );
+        }
+        return <p key={i}>{renderInline(b.text, referenced, jumpTo)}</p>;
+      })}
+    </>
+  );
+}
+
+type Block =
+  | { type: "paragraph"; text: string }
+  | { type: "heading"; text: string }
+  | { type: "list"; ordered: boolean; items: string[] };
+
+function parseBlocks(text: string): Block[] {
+  const blocks: Block[] = [];
+  let para: string[] = [];
+  let list: { ordered: boolean; items: string[] } | null = null;
+  const flushPara = () => {
+    if (para.length) {
+      blocks.push({ type: "paragraph", text: para.join(" ") });
+      para = [];
+    }
+  };
+  const flushList = () => {
+    if (list) {
+      blocks.push({ type: "list", ordered: list.ordered, items: list.items });
+      list = null;
+    }
+  };
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) {
+      flushPara();
+      flushList();
+      continue;
+    }
+    const bullet = line.match(/^[-*•]\s+(.*)/);
+    const numbered = line.match(/^\d+[.)]\s+(.*)/);
+    const heading = line.match(/^#{1,6}\s+(.*)/);
+    if (bullet) {
+      flushPara();
+      if (!list || list.ordered) {
+        flushList();
+        list = { ordered: false, items: [] };
+      }
+      list.items.push(bullet[1]);
+    } else if (numbered) {
+      flushPara();
+      if (!list || !list.ordered) {
+        flushList();
+        list = { ordered: true, items: [] };
+      }
+      list.items.push(numbered[1]);
+    } else if (heading) {
+      flushPara();
+      flushList();
+      blocks.push({ type: "heading", text: heading[1] });
+    } else {
+      flushList();
+      para.push(line);
+    }
+  }
+  flushPara();
+  flushList();
+  return blocks;
+}
+
+/** Inline formatting: **bold** and clickable [n] citation chips. */
+function renderInline(
+  text: string,
   referenced: Set<number>,
   jumpTo: (n: number) => void,
-) {
-  const parts: React.ReactNode[] = [];
+): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const re = /\*\*(.+?)\*\*|\[(\d+)\]/g;
   let last = 0;
   let key = 0;
-  for (const m of answer.matchAll(/\[(\d+)\]/g)) {
-    const n = Number(m[1]);
-    const start = m.index ?? 0;
-    if (start > last) parts.push(answer.slice(last, start));
-    if (referenced.has(n)) {
-      parts.push(
-        <button
-          key={`chip-${key++}`}
-          type="button"
-          onClick={() => jumpTo(n)}
-          className="mx-0.5 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-md bg-primary/15 px-1 align-text-top text-[10px] font-semibold text-primary transition-colors hover:bg-primary/30"
-          title={`Jump to source ${n}`}
-        >
-          {n}
-        </button>,
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      nodes.push(
+        <strong key={`b${key++}`} className="font-semibold text-foreground">
+          {m[1]}
+        </strong>,
       );
     } else {
-      parts.push(m[0]);
+      const n = Number(m[2]);
+      if (referenced.has(n)) {
+        nodes.push(
+          <button
+            key={`c${key++}`}
+            type="button"
+            onClick={() => jumpTo(n)}
+            className="mx-0.5 inline-flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-md bg-primary/15 px-1 align-text-top text-[10px] font-semibold text-primary transition-colors hover:bg-primary/30"
+            title={`Jump to source ${n}`}
+          >
+            {n}
+          </button>,
+        );
+      } else {
+        nodes.push(m[0]);
+      }
     }
-    last = start + m[0].length;
+    last = m.index + m[0].length;
   }
-  if (last < answer.length) parts.push(answer.slice(last));
-  return parts;
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
 }
 
 function SourceCard({
