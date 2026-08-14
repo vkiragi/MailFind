@@ -39,6 +39,14 @@ pub fn run() {
                         let _ = state.embeddings_snapshot();
                     }
                 });
+                // Derive the best chat model for this machine's RAM (async: hits
+                // Ollama). Off the UI/setup path so a down daemon can't hang it.
+                tauri::async_runtime::spawn({
+                    let state = state.clone();
+                    async move {
+                        commands::auto_pick_chat_model(&state).await;
+                    }
+                });
                 search::spawn_background_embedder(state);
                 Ok(())
             }
@@ -52,6 +60,8 @@ pub fn run() {
             commands::sync_status,
             commands::sync_now,
             commands::model_status,
+            commands::list_models,
+            commands::set_chat_model,
             commands::search_messages,
             commands::ask_question,
             commands::ingest_fixture,

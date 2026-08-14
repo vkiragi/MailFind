@@ -2,5 +2,6 @@
 //! embeddings and Qwen-class chat completions.
 
 pub mod ollama;
+pub mod select;
 
 pub use ollama::{ChatMessage, ModelHealth, OllamaClient, OllamaConfig};

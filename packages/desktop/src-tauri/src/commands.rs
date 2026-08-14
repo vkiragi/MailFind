@@ -14,12 +14,69 @@ use crate::db::queries::{self, AccountRow, NewAccount};
 use crate::error::{AppError, AppResult};
 use crate::mail::sync::SyncWindow;
 use crate::mail::{fixtures, sync};
+use crate::models::select::{self, AutoPick};
 use crate::qa::AnswerOutcome;
 use crate::search::{self, SearchOutcome};
 use crate::state::AppState;
 
 /// Event carrying each streamed answer fragment from `ask_question` to the UI.
 pub const ASK_TOKEN_EVENT: &str = "ask:token";
+
+/// `app_settings` key holding the active chat model.
+pub const CHAT_MODEL_SETTING: &str = "chat_model";
+/// `app_settings` key: `"auto"` (derive from RAM/installed models) or `"user"`
+/// (explicit picker choice — never auto-overridden).
+pub const CHAT_MODEL_SOURCE_SETTING: &str = "chat_model_source";
+
+/// Startup: unless the user explicitly chose a chat model, derive the best one
+/// this machine can run from total RAM + installed Ollama models and apply it.
+/// This is what neutralizes migration 004's blanket qwen3:8b force-set on
+/// machines that can't afford it. Runs off the UI path (spawned in `lib::run`)
+/// because it makes an async Ollama call that would hang startup if the daemon
+/// is down. A sub-second window where the seed model is active before this
+/// resolves is harmless — Ask won't fire that fast.
+pub async fn auto_pick_chat_model(state: &AppState) {
+    // An explicit user choice is authoritative — never override it.
+    let source = match state.db.read() {
+        Ok(conn) => queries::get_setting(&conn, CHAT_MODEL_SOURCE_SETTING)
+            .ok()
+            .flatten(),
+        Err(_) => None,
+    };
+    if source.as_deref() == Some("user") {
+        return;
+    }
+
+    let installed = match state.ollama.list_models().await {
+        Ok(m) => m,
+        Err(e) => {
+            tracing::warn!(?e, "auto-pick: Ollama unreachable; leaving chat model as-is");
+            return;
+        }
+    };
+    let budget = select::model_budget_gb(select::total_ram_gb());
+    match select::auto_pick(budget, &installed) {
+        AutoPick::Model(model) => {
+            if model != state.ollama.chat_model() {
+                state.ollama.set_chat_model(model.clone()).await;
+                if let Ok(conn) = state.db.write() {
+                    let _ = queries::set_setting(&conn, CHAT_MODEL_SETTING, &model);
+                }
+                tracing::info!(%model, budget_gb = budget, "auto-picked chat model");
+            }
+        }
+        AutoPick::NeedsPull(model) => {
+            tracing::info!(
+                %model,
+                budget_gb = budget,
+                "auto-pick: best-fitting model not installed; Ask needs `ollama pull`"
+            );
+        }
+        AutoPick::SearchOnly => {
+            tracing::info!(budget_gb = budget, "auto-pick: RAM below Ask floor; search-only");
+        }
+    }
+}
 
 /// Returns the cached embedded-chunk count if it was computed at the current
 /// `counts_version`, otherwise calls `compute` and caches the result with the
@@ -355,6 +412,135 @@ pub async fn sync_now(
     sync_status(Some(account_id), state)
 }
 
+/// One selectable chat model, with the labels the picker shows.
+#[derive(Debug, Serialize)]
+pub struct ModelOption {
+    pub model: String,
+    /// Approx RAM (GiB) to load it.
+    pub needs_gb: f64,
+    /// Present in Ollama right now.
+    pub installed: bool,
+    /// Fits this machine's RAM budget.
+    pub fits: bool,
+    /// Eligible for automatic selection (false = opt-in only, e.g. the tiny floor).
+    pub auto: bool,
+    /// Non-fatal caveat to show next to the model.
+    pub warn: Option<String>,
+    /// This is the currently active chat model.
+    pub is_current: bool,
+}
+
+/// Everything the settings model-picker needs in one call.
+#[derive(Debug, Serialize)]
+pub struct ModelListOut {
+    pub ollama_reachable: bool,
+    pub total_ram_gb: f64,
+    pub budget_gb: f64,
+    /// Active chat model.
+    pub current_model: String,
+    /// `"auto"` or `"user"`.
+    pub source: String,
+    /// What auto-pick would choose now: `"model"` | `"needs_pull"` | `"search_only"`.
+    pub auto_pick_state: String,
+    /// The model for `"model"`/`"needs_pull"` states (None for `"search_only"`).
+    pub auto_pick_model: Option<String>,
+    /// The curated, RAM-labeled recommendation ladder.
+    pub options: Vec<ModelOption>,
+    /// Installed chat models not in the ladder (unlabeled advanced choices).
+    pub other_installed: Vec<String>,
+}
+
+/// Lists the recommended model ladder plus any other installed chat models,
+/// annotated with RAM fit / installed / current, so the settings picker can
+/// render everything from one call. Also reports what auto-pick would choose —
+/// which phase-5 Ask gating uses to show a "needs a model" state.
+#[tauri::command]
+pub async fn list_models(state: State<'_, AppState>) -> AppResult<ModelListOut> {
+    let (ollama_reachable, installed) = match state.ollama.list_models().await {
+        Ok(m) => (true, m),
+        Err(_) => (false, vec![]),
+    };
+
+    let total_ram_gb = select::total_ram_gb();
+    let budget_gb = select::model_budget_gb(total_ram_gb);
+    let current_model = state.ollama.chat_model();
+
+    let source = {
+        let conn = state.db.read()?;
+        queries::get_setting(&conn, CHAT_MODEL_SOURCE_SETTING)?
+            .unwrap_or_else(|| "auto".to_string())
+    };
+
+    let (auto_pick_state, auto_pick_model) = match select::auto_pick(budget_gb, &installed) {
+        AutoPick::Model(m) => ("model", Some(m)),
+        AutoPick::NeedsPull(m) => ("needs_pull", Some(m)),
+        AutoPick::SearchOnly => ("search_only", None),
+    };
+
+    let options: Vec<ModelOption> = select::RECOMMENDED
+        .iter()
+        .map(|r| ModelOption {
+            model: r.model.to_string(),
+            needs_gb: r.needs_gb,
+            installed: select::is_model_installed(&installed, r.model),
+            fits: r.needs_gb <= budget_gb,
+            auto: r.auto,
+            warn: r.warn.map(|w| w.to_string()),
+            is_current: r.model == current_model,
+        })
+        .collect();
+
+    // Installed models the ladder doesn't cover, minus the embedding model —
+    // power users may still pick these even though we can't RAM-label them.
+    let embed_base = state
+        .ollama
+        .config
+        .embedding_model
+        .split(':')
+        .next()
+        .unwrap_or("")
+        .to_string();
+    let other_installed: Vec<String> = installed
+        .iter()
+        .filter(|tag| {
+            let base = tag.split(':').next().unwrap_or("");
+            base != embed_base
+                && !select::RECOMMENDED
+                    .iter()
+                    .any(|r| select::is_model_installed(std::slice::from_ref(*tag), r.model))
+        })
+        .cloned()
+        .collect();
+
+    Ok(ModelListOut {
+        ollama_reachable,
+        total_ram_gb,
+        budget_gb,
+        current_model,
+        source,
+        auto_pick_state: auto_pick_state.to_string(),
+        auto_pick_model,
+        options,
+        other_installed,
+    })
+}
+
+/// Sets the active chat model: swaps the live client (unloading the previous
+/// model), persists the choice, and marks the source `"user"` so startup
+/// auto-pick never overrides it again. Takes effect on the next Ask — no restart.
+#[tauri::command]
+pub async fn set_chat_model(model: String, state: State<'_, AppState>) -> AppResult<()> {
+    let model = model.trim().to_string();
+    if model.is_empty() {
+        return Err(AppError::InvalidInput("model is required".into()));
+    }
+    state.ollama.set_chat_model(model.clone()).await;
+    let conn = state.db.write()?;
+    queries::set_setting(&conn, CHAT_MODEL_SETTING, &model)?;
+    queries::set_setting(&conn, CHAT_MODEL_SOURCE_SETTING, "user")?;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn model_status(state: State<'_, AppState>) -> AppResult<ModelStatusOut> {
     let health = state.ollama.health().await;
@@ -362,7 +548,7 @@ pub async fn model_status(state: State<'_, AppState>) -> AppResult<ModelStatusOu
         ollama_reachable: health.reachable,
         embedding_model: state.ollama.config.embedding_model.clone(),
         embedding_available: health.embedding_available,
-        chat_model: state.ollama.config.chat_model.clone(),
+        chat_model: state.ollama.chat_model(),
         chat_available: health.chat_available,
         endpoint: state.ollama.config.endpoint.clone(),
     })

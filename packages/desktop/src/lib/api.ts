@@ -50,6 +50,30 @@ export interface ModelStatus {
   endpoint: string;
 }
 
+export interface ModelOption {
+  model: string;
+  needs_gb: number;
+  installed: boolean;
+  fits: boolean;
+  auto: boolean;
+  warn: string | null;
+  is_current: boolean;
+}
+
+export type AutoPickState = "model" | "needs_pull" | "search_only";
+
+export interface ModelList {
+  ollama_reachable: boolean;
+  total_ram_gb: number;
+  budget_gb: number;
+  current_model: string;
+  source: "auto" | "user";
+  auto_pick_state: AutoPickState;
+  auto_pick_model: string | null;
+  options: ModelOption[];
+  other_installed: string[];
+}
+
 export interface MessageHit {
   message_id: string;
   account_id: string;
@@ -183,6 +207,11 @@ export const api = {
   ) => invoke<SyncStatus>("sync_now", { accountId, fullResync, window }),
 
   modelStatus: () => invoke<ModelStatus>("model_status"),
+
+  listModels: () => invoke<ModelList>("list_models"),
+
+  setChatModel: (model: string) =>
+    invoke<void>("set_chat_model", { model }),
 
   search: (query: string, limit: number = 20) =>
     invoke<SearchResponse>("search_messages", { query, limit }),

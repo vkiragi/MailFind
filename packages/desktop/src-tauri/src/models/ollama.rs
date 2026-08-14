@@ -5,8 +5,10 @@
 //! - Chat:       POST `/api/chat`       with `{ model, messages, stream:false }`
 //! - List:       GET  `/api/tags`
 
+use std::sync::Arc;
 use std::time::Duration;
 
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -16,6 +18,10 @@ use crate::error::{AppError, AppResult};
 pub struct OllamaConfig {
     pub endpoint: String,
     pub embedding_model: String,
+    /// Seed for the client's live chat model — read only once, in
+    /// `OllamaClient::new`. After construction the active chat model lives in
+    /// `OllamaClient::chat_model` (interior-mutable) so it can be swapped at
+    /// runtime; never read `config.chat_model` past construction.
     pub chat_model: String,
 }
 
@@ -32,6 +38,11 @@ impl OllamaConfig {
 #[derive(Debug, Clone)]
 pub struct OllamaClient {
     pub config: OllamaConfig,
+    /// The active chat model. Interior-mutable so `set_chat_model` (from the
+    /// settings picker or startup auto-pick) takes effect on the next `chat()`
+    /// call without rebuilding the client or restarting the app. Shared across
+    /// every `Arc<OllamaClient>` clone.
+    chat_model: Arc<Mutex<String>>,
     http: reqwest::Client,
 }
 
@@ -81,7 +92,44 @@ impl OllamaClient {
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
             .build()?;
-        Ok(Self { config, http })
+        let chat_model = Arc::new(Mutex::new(config.chat_model.clone()));
+        Ok(Self {
+            config,
+            chat_model,
+            http,
+        })
+    }
+
+    /// The active chat model.
+    pub fn chat_model(&self) -> String {
+        self.chat_model.lock().clone()
+    }
+
+    /// Swap the active chat model at runtime. No-op if unchanged. Best-effort
+    /// unloads the previously-active model from Ollama (`keep_alive: 0`) so it
+    /// doesn't sit warm for the usual 30m eating RAM — the whole point of the
+    /// picker is to fit constrained machines. Persisting the choice to SQLite is
+    /// the caller's responsibility.
+    pub async fn set_chat_model(&self, model: String) {
+        let previous = {
+            let mut guard = self.chat_model.lock();
+            if *guard == model {
+                return;
+            }
+            std::mem::replace(&mut *guard, model)
+        };
+        self.unload_model(&previous).await;
+    }
+
+    /// Asks Ollama to evict a model from memory immediately (`keep_alive: 0`).
+    /// Best-effort: failures (model wasn't loaded, daemon down) are ignored.
+    async fn unload_model(&self, model: &str) {
+        let _ = self
+            .http
+            .post(self.url("/api/generate"))
+            .json(&json!({ "model": model, "keep_alive": 0 }))
+            .send()
+            .await;
     }
 
     fn url(&self, path: &str) -> String {
@@ -96,7 +144,7 @@ impl OllamaClient {
         match self.list_models().await {
             Ok(models) => {
                 let embedding_available = model_present(&models, &self.config.embedding_model);
-                let chat_available = model_present(&models, &self.config.chat_model);
+                let chat_available = model_present(&models, &self.chat_model());
                 ModelHealth {
                     reachable: true,
                     embedding_available,
@@ -173,7 +221,7 @@ impl OllamaClient {
             .http
             .post(self.url("/api/chat"))
             .json(&json!({
-                "model": self.config.chat_model,
+                "model": self.chat_model(),
                 "messages": messages,
                 "stream": true,
                 "keep_alive": "30m",
@@ -222,7 +270,7 @@ impl OllamaClient {
     }
 }
 
-fn model_present(models: &[String], wanted: &str) -> bool {
+pub(crate) fn model_present(models: &[String], wanted: &str) -> bool {
     // Ollama returns full tags like `granite4.1:3b`; we accept either
     // an exact match or a prefix match on the base name.
     let base = wanted.split(':').next().unwrap_or(wanted);

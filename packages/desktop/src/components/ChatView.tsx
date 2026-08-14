@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { Send, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Send, ChevronDown, AlertTriangle, RefreshCw } from "lucide-react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,49 @@ import {
   ASK_TOKEN_EVENT,
   type AnswerCitation,
   type AnswerResponse,
+  type ModelList,
 } from "@/lib/api";
+
+/** Describes why Ask is unavailable, plus the fix. `null` means Ask is ready. */
+interface AskGate {
+  title: string;
+  body: string;
+  /** A model to `ollama pull`, when the fix is installing one. */
+  pull?: string;
+}
+
+/**
+ * Decides whether the Ask tab can serve questions. Search always works; Ask
+ * needs a reachable Ollama with the active chat model actually installed. On a
+ * machine below the Ask RAM floor (auto-pick says search-only) we keep Ask off
+ * unless the user explicitly opted into a small model via the picker.
+ */
+function computeGate(m: ModelList | null): AskGate | null {
+  if (!m) return null; // still loading — don't gate yet
+  if (!m.ollama_reachable) {
+    return {
+      title: "Ask is off — Ollama isn't running",
+      body: "The Ask tab needs a local model served by Ollama. Your searches still work without it.",
+    };
+  }
+  if (m.auto_pick_state === "search_only" && m.source !== "user") {
+    return {
+      title: `Ask is off — ${Math.round(m.total_ram_gb)} GB is below the threshold for a reliable chat model`,
+      body: "Semantic search runs on any Mac. To try Ask anyway, pick the small model under Accounts → Ask model.",
+    };
+  }
+  const currentInstalled =
+    m.options.some((o) => o.is_current && o.installed) ||
+    m.other_installed.includes(m.current_model);
+  if (!currentInstalled) {
+    return {
+      title: "Ask needs a model installed",
+      body: "Install a local chat model, then recheck. You can also choose a different one under Accounts → Ask model.",
+      pull: m.auto_pick_model ?? m.current_model,
+    };
+  }
+  return null;
+}
 
 export default function ChatView() {
   const [question, setQuestion] = useState("");
@@ -20,6 +62,24 @@ export default function ChatView() {
   const [streamText, setStreamText] = useState("");
   const [history, setHistory] = useState<AnswerResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<ModelList | null>(null);
+
+  const checkModels = async () => {
+    try {
+      setModels(await api.listModels());
+    } catch {
+      setModels(null);
+    }
+  };
+
+  // Re-runs on mount, which includes every time the user switches to the Ask
+  // tab (App unmounts ChatView on other tabs), so a model change in the picker
+  // is reflected without extra wiring.
+  useEffect(() => {
+    checkModels();
+  }, []);
+
+  const gate = computeGate(models);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,17 +110,48 @@ export default function ChatView() {
 
   return (
     <div className="space-y-3">
-      <form onSubmit={submit} className="flex gap-2">
-        <Input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question about your mail…"
-        />
-        <Button type="submit" disabled={pending}>
-          <Send className="mr-1" />
-          {pending ? "Thinking…" : "Ask"}
-        </Button>
-      </form>
+      {gate ? (
+        <Card>
+          <CardContent className="space-y-2 p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+              <div className="space-y-1">
+                <div className="text-sm font-semibold">{gate.title}</div>
+                <p className="text-xs text-muted-foreground">{gate.body}</p>
+                {gate.pull && (
+                  <p className="text-xs text-muted-foreground">
+                    Install it with:{" "}
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono">
+                      ollama pull {gate.pull}
+                    </code>
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={checkModels}
+              className="ml-6"
+            >
+              <RefreshCw className="mr-1 size-4" />
+              Recheck
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <form onSubmit={submit} className="flex gap-2">
+          <Input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask a question about your mail…"
+          />
+          <Button type="submit" disabled={pending}>
+            <Send className="mr-1" />
+            {pending ? "Thinking…" : "Ask"}
+          </Button>
+        </form>
+      )}
 
       {error && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">

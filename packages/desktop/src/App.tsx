@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Inbox, MessageCircle, Plus, Search, Settings as SettingsIcon } from "lucide-react";
 
 import AccountSetup from "@/components/AccountSetup";
+import ModelPicker from "@/components/ModelPicker";
 import SyncPanel from "@/components/SyncPanel";
 import SearchView from "@/components/SearchView";
 import ChatView from "@/components/ChatView";
@@ -18,6 +19,9 @@ export default function App() {
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [tab, setTab] = useState<Tab>("search");
   const [tickle, setTickle] = useState(0);
+  // Bumped when the chat model changes, to force the header badge to refetch
+  // immediately rather than waiting for its 8s poll.
+  const [modelTick, setModelTick] = useState(0);
   const [showAddAccount, setShowAddAccount] = useState(false);
 
   const reload = async () => {
@@ -43,7 +47,7 @@ export default function App() {
           <Inbox className="size-5 text-primary" />
           <div className="text-sm font-semibold">MailFind</div>
         </div>
-        <ModelStatusBadge />
+        <ModelStatusBadge key={modelTick} />
       </header>
 
       <nav className="flex items-center gap-1 border-b border-border px-2 py-1">
@@ -76,6 +80,7 @@ export default function App() {
             {tab === "chat" && <ChatView />}
             {tab === "settings" && (
               <div className="space-y-3">
+                <ModelPicker onChange={() => setModelTick((n) => n + 1)} />
                 {accounts.map((a) => (
                   <SyncPanel
                     key={a.id}

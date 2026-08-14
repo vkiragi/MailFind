@@ -67,7 +67,7 @@ pub async fn ask<F: FnMut(&str)>(
         return Ok(AnswerOutcome {
             question: q.to_string(),
             answer: "I could not find any relevant emails locally.".to_string(),
-            model: ollama.config.chat_model.clone(),
+            model: ollama.chat_model(),
             citations: vec![],
             took_ms: started.elapsed().as_millis() as u64,
         });
@@ -103,7 +103,7 @@ pub async fn ask<F: FnMut(&str)>(
     Ok(AnswerOutcome {
         question: q.to_string(),
         answer,
-        model: ollama.config.chat_model.clone(),
+        model: ollama.chat_model(),
         citations,
         took_ms: started.elapsed().as_millis() as u64,
     })

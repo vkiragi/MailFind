@@ -33,6 +33,11 @@ const MIGRATIONS: &[Migration] = &[
         description: "default chat model to qwen3:8b",
         sql: include_str!("schema/004_default_chat_model_qwen3.sql"),
     },
+    Migration {
+        version: 5,
+        description: "mark chat model source auto for RAM-based auto-pick",
+        sql: include_str!("schema/005_chat_model_source.sql"),
+    },
 ];
 
 pub fn run(conn: &mut Connection) -> AppResult<()> {
