@@ -16,9 +16,9 @@ import {
 } from "@/lib/api";
 
 const EXAMPLES = [
-  "Do I have any new online assessments?",
-  "What did Stripe email me about?",
-  "Summarize my recent flight bookings",
+  "What subscriptions am I paying for?",
+  "Summarize my recent online orders",
+  "Do I have any upcoming travel?",
 ];
 
 // For the streaming preview, before citations are known.

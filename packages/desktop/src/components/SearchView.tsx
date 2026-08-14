@@ -8,10 +8,10 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const EXAMPLES = [
-  "receipt from Amazon",
-  "online assessment invites",
-  "flight confirmation",
-  "anything about my internship",
+  "receipts and invoices",
+  "flight confirmations",
+  "password reset emails",
+  "subscription renewals",
 ];
 
 export default function SearchView() {
