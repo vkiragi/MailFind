@@ -286,11 +286,15 @@ fn decode_entity_body(body: &str) -> Option<char> {
     })
 }
 
-/// Removes invisible zero-width characters (ZWSP/ZWNJ/ZWJ U+200B-200D, BOM
-/// U+FEFF). Runs after entity decoding so both literal UTF-8 zero-width
+/// Removes invisible/formatting characters: ZWSP/ZWNJ/ZWJ/LRM/RLM
+/// (U+200B-200F), BOM (U+FEFF), combining grapheme joiner (U+034F), and soft
+/// hyphen (U+00AD). Runs after entity decoding so both literal UTF-8
 /// characters and ones produced by decoding `&zwnj;`-style entities are
-/// caught — marketing email uses these as filler to control preview-text
-/// length, and left in place they silently eat the snippet's char budget.
+/// caught. Marketing email uses these as filler to control preview-text
+/// length — measured on a 5,000-snippet sample of the live corpus, U+034F
+/// alone appeared 8,514 times, more than any other offender including ZWNJ.
+/// Left in place they eat the snippet's char budget and (for U+034F
+/// especially) often render as visible tofu/dotted-circle glyphs.
 pub fn strip_invisible(s: &str) -> String {
     if !s.chars().any(is_invisible) {
         return s.to_string();
@@ -299,7 +303,10 @@ pub fn strip_invisible(s: &str) -> String {
 }
 
 fn is_invisible(c: char) -> bool {
-    matches!(c, '\u{200B}'..='\u{200D}' | '\u{FEFF}')
+    matches!(
+        c,
+        '\u{200B}'..='\u{200F}' | '\u{FEFF}' | '\u{034F}' | '\u{00AD}'
+    )
 }
 
 /// Strip inline CSS rules (`@media`/`.selector { … }`) that bleed into
@@ -502,6 +509,22 @@ Time of sign-in Mar 11, 2026.";
         assert!(!out.contains('\u{FEFF}'));
         assert!(out.contains("Chanel"));
         assert!(out.contains("extraits"));
+    }
+
+    #[test]
+    fn strip_invisible_removes_combining_grapheme_joiner_and_soft_hyphen() {
+        // U+034F (combining grapheme joiner) was the single most common
+        // padding character found in the live corpus (8,514 hits in a
+        // 5,000-snippet sample) -- more common than ZWNJ. Left in place it
+        // often renders as a visible tofu/dotted-circle glyph, not nothing.
+        let input = "rule\u{034F} \u{034F} \u{034F}soft\u{00AD}hyphen\u{200E}\u{200F}end";
+        let out = strip_invisible(input);
+        assert!(!out.contains('\u{034F}'), "CGJ not stripped: {out:?}");
+        assert!(!out.contains('\u{00AD}'), "soft hyphen not stripped: {out:?}");
+        assert!(!out.contains('\u{200E}'), "LRM not stripped: {out:?}");
+        assert!(!out.contains('\u{200F}'), "RLM not stripped: {out:?}");
+        assert!(out.contains("rule"));
+        assert!(out.contains("end"));
     }
 
     #[test]

@@ -220,6 +220,43 @@ pub fn update_chunk_embedding(
     Ok(())
 }
 
+/// Overwrites a message's stored preview snippet. Used by the text-cleaning
+/// backfill (`examples/backfill_text.rs`) to re-derive snippets for mail
+/// ingested before entity decoding / CSS stripping was applied to them.
+pub fn update_message_snippet(conn: &Connection, message_id: &str, snippet: &str) -> AppResult<()> {
+    conn.execute(
+        "UPDATE messages SET snippet = ?1 WHERE id = ?2",
+        params![snippet, message_id],
+    )?;
+    Ok(())
+}
+
+/// A message's chunks as `(chunk_id, text)`, ordered by `chunk_index`. Used by
+/// the text-cleaning backfill to compare freshly-cleaned chunk text against
+/// what's stored, index-for-index.
+pub fn fetch_chunk_texts(conn: &Connection, message_id: &str) -> AppResult<Vec<(String, String)>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, text FROM chunks WHERE message_id = ?1 ORDER BY chunk_index ASC",
+    )?;
+    let rows = stmt
+        .query_map(params![message_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+/// Overwrites a chunk's text **in place**, preserving its embedding. The
+/// `chunks_au` trigger keeps `chunks_fts` in sync automatically. Only valid
+/// when the caller has confirmed the chunk boundary itself hasn't moved
+/// (e.g. same chunk count before/after re-cleaning a message) -- otherwise
+/// the embedding would now describe different text than what's stored.
+pub fn update_chunk_text(conn: &Connection, chunk_id: &str, text: &str) -> AppResult<()> {
+    conn.execute(
+        "UPDATE chunks SET text = ?1 WHERE id = ?2",
+        params![text, chunk_id],
+    )?;
+    Ok(())
+}
+
 pub fn pending_embedding_chunks(
     conn: &Connection,
     limit: i64,
