@@ -8,6 +8,23 @@ Built with Tauri 2 (Rust) + React. Embeddings and answers run on a local [Ollama
 
 ---
 
+## Screenshots
+
+<table>
+<tr>
+<td width="33%"><img src="docs/screenshots/search.png" alt="Search results ranked by meaning, with relative timestamps and a semantic/keyword match badge"></td>
+<td width="33%"><img src="docs/screenshots/ask.png" alt="Ask a question and get a cited answer, with the source emails listed below"></td>
+<td width="33%"><img src="docs/screenshots/accounts.png" alt="RAM-aware Ask model picker with one-click install"></td>
+</tr>
+<tr>
+<td align="center"><sub>Search — ranked by meaning, not just keywords</sub></td>
+<td align="center"><sub>Ask — cited answers from your mail</sub></td>
+<td align="center"><sub>Model picker — install a model in one click</sub></td>
+</tr>
+</table>
+
+---
+
 ## Features
 
 - **Semantic + keyword search, fused.** Hybrid retrieval combines BM25 full-text search (SQLite FTS5) with in-Rust vector cosine over local embeddings, merged via Reciprocal Rank Fusion, with recency and bulk-mail adjustments.
@@ -67,7 +84,7 @@ flowchart LR
 
 ### Choosing an Ask model — automatic
 
-Semantic search needs only ~1.5 GB and runs on any Mac. The chat model for the **Ask** tab is what needs memory, so on first run MailFind detects your RAM and auto-selects the best model that both fits and is already installed. If none is installed, the app shows the exact `ollama pull` command; if your Mac is below the threshold, Ask stays off and search still works.
+Semantic search needs only ~1.5 GB and runs on any Mac. The chat model for the **Ask** tab is what needs memory, so on first run MailFind detects your RAM and auto-selects the best model that both fits and is already installed. If it's not installed yet, click **Install** right in the app — no terminal needed — and watch it download with live progress; if your Mac is below the threshold, Ask stays off and search still works.
 
 | Your Mac's RAM | Auto-picked Ask model | Pull command |
 | --- | --- | --- |
