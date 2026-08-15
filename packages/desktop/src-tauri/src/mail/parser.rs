@@ -95,7 +95,7 @@ pub fn parse_rfc822(bytes: &[u8]) -> AppResult<ParsedMessage> {
             .single()
     });
 
-    let body_plain = msg.body_text(0).map(|c| c.to_string());
+    let body_plain = select_text_body(&msg);
     let body_html = msg.body_html(0).map(|c| c.to_string());
     let has_attachments = msg.attachments().any(|p| !p.is_message());
 
@@ -125,6 +125,55 @@ pub fn parse_rfc822(bytes: &[u8]) -> AppResult<ParsedMessage> {
         has_attachments,
         raw_size,
     })
+}
+
+/// Picks the best text/plain body from a parsed message, skipping parts that
+/// are JSON-LD/structured-data markup rather than human-readable prose.
+///
+/// `Message::body_text(0)` (mail-parser's own accessor) always takes the
+/// *first* text/plain part. Some transactional email embeds a schema.org
+/// JSON blob (`[{"@context": "http://schema.org", "@type":
+/// "FlightReservation", ...}]`) as that first part, ahead of the actual
+/// human-readable confirmation text -- `body_text(0)` alone would silently
+/// make that JSON the entire stored `body_plain`, which then pollutes the
+/// preview snippet, the search index, and (since bulk detection scans
+/// `body_plain` for "unsubscribe") bulk-mail detection too.
+///
+/// Walks every text/plain part looking for the first one that isn't
+/// markup-only; falls back to the first HTML part converted to text if every
+/// text/plain part is markup (or none exist).
+fn select_text_body<'x>(msg: &'x mail_parser::Message<'x>) -> Option<String> {
+    use mail_parser::decoders::html::html_to_text;
+    use mail_parser::PartType;
+
+    for part in msg.text_bodies() {
+        let text = match &part.body {
+            PartType::Text(t) => t.as_ref().to_string(),
+            PartType::Html(h) => html_to_text(h.as_ref()),
+            _ => continue,
+        };
+        if !looks_like_markup(&text) {
+            return Some(text);
+        }
+    }
+
+    for part in msg.html_bodies() {
+        if let PartType::Html(h) = &part.body {
+            return Some(html_to_text(h.as_ref()));
+        }
+    }
+    None
+}
+
+/// True if `s` looks like JSON-LD/structured-data markup rather than prose:
+/// starts with `{` or `[{` (after trimming leading whitespace) and contains
+/// the schema.org markers real corpus mail has been seen to abuse this way.
+/// Deliberately narrow so real prose that happens to open with a brace (a
+/// code snippet quoted in an email, say) is never misclassified.
+fn looks_like_markup(s: &str) -> bool {
+    let trimmed = s.trim_start();
+    (trimmed.starts_with('{') || trimmed.starts_with("[{"))
+        && (s.contains("@context") || s.contains("@type"))
 }
 
 fn first_address(addr: Option<&Address>) -> (Option<String>, Option<String>) {
@@ -572,5 +621,72 @@ Time of sign-in today.\r\n"
         assert!(!s.contains("color: red"), "CSS leaked into snippet: {s}");
         assert!(s.contains("exceptional"));
         assert!(s.contains("Time of sign-in"));
+    }
+
+    #[test]
+    fn looks_like_markup_detects_json_ld_only() {
+        assert!(looks_like_markup(
+            r#"[{"@context": "http://schema.org", "@type": "FlightReservation"}]"#
+        ));
+        assert!(looks_like_markup(
+            r#"{"@context": "http://schema.org", "@type": "Order"}"#
+        ));
+        // Real prose that happens to quote a code snippet must not trip this.
+        assert!(!looks_like_markup(
+            "Here's the config: { \"debug\": true } -- let me know what you think."
+        ));
+        assert!(!looks_like_markup("Your flight confirmation code is OYFOHP."));
+        assert!(!looks_like_markup(""));
+    }
+
+    #[test]
+    fn select_text_body_skips_json_ld_part_for_real_prose() {
+        // Real shape of the bug: an airline's first text/plain part is a
+        // schema.org FlightReservation JSON blob; the human-readable
+        // confirmation text only exists in the HTML alternative. Naively
+        // taking body_text(0) would make body_plain the JSON blob.
+        let raw = "From: Airline <no-reply@example.com>\r\n\
+To: Bob <bob@example.com>\r\n\
+Subject: Your Flight Confirmation\r\n\
+Date: Mon, 1 Jan 2024 12:00:00 +0000\r\n\
+Message-ID: <flight123@example.com>\r\n\
+MIME-Version: 1.0\r\n\
+Content-Type: multipart/alternative; boundary=\"BOUNDARY\"\r\n\
+\r\n\
+--BOUNDARY\r\n\
+Content-Type: text/plain; charset=utf-8\r\n\
+\r\n\
+[{\"@context\": \"http://schema.org\", \"@type\": \"FlightReservation\", \"reservationNumber\": \"OYFOHP\"}]\r\n\
+--BOUNDARY\r\n\
+Content-Type: text/html; charset=utf-8\r\n\
+\r\n\
+<html><body><p>Your flight confirmation code is OYFOHP. Thanks for flying with us.</p></body></html>\r\n\
+--BOUNDARY--\r\n";
+        let parsed = parse_rfc822(raw.as_bytes()).unwrap();
+        let body = parsed.body_plain.expect("body_plain should be set");
+        assert!(
+            !body.contains("@context"),
+            "JSON-LD leaked into body_plain: {body}"
+        );
+        assert!(
+            body.contains("confirmation code is OYFOHP"),
+            "expected the real HTML-derived prose, got: {body}"
+        );
+    }
+
+    #[test]
+    fn select_text_body_prefers_real_text_plain_part_when_present() {
+        // The common case (no JSON-LD trick) must be unaffected: a normal
+        // text/plain part is used as-is, not overridden by the HTML fallback.
+        let raw = "From: Alice <alice@example.com>\r\n\
+To: Bob <bob@example.com>\r\n\
+Subject: Hello\r\n\
+Date: Mon, 1 Jan 2024 12:00:00 +0000\r\n\
+Message-ID: <plain1@example.com>\r\n\
+\r\n\
+Just a normal plain-text message body.\r\n";
+        let parsed = parse_rfc822(raw.as_bytes()).unwrap();
+        let body = parsed.body_plain.expect("body_plain should be set");
+        assert!(body.contains("Just a normal plain-text message body"));
     }
 }
