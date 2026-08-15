@@ -86,6 +86,116 @@ fn insert_message(
     id
 }
 
+/// Inserts a message whose body is split across several chunks, so tests can
+/// exercise how the ranker treats long, many-chunk mail.
+fn insert_message_with_chunks(
+    db: &Database,
+    account_id: &str,
+    subject: &str,
+    sender: &str,
+    chunk_texts: &[&str],
+) -> String {
+    let id = uuid::Uuid::new_v4().to_string();
+    let body = chunk_texts.join("\n\n");
+    let new_msg = NewMessage {
+        id: id.clone(),
+        account_id: account_id.to_string(),
+        mailbox_id: None,
+        imap_uid: None,
+        rfc822_message_id: Some(format!("{}@test", id)),
+        thread_id: None,
+        subject: Some(subject.to_string()),
+        sender: Some(sender.to_string()),
+        sender_email: Some(sender.to_string()),
+        sender_domain: Some("test".to_string()),
+        recipients: Some("you@icloud.com".to_string()),
+        sent_at: None,
+        received_at: Some(chrono::Utc::now()),
+        snippet: Some(body.chars().take(200).collect::<String>()),
+        body_plain: Some(body.clone()),
+        body_html: None,
+        has_attachments: false,
+        raw_size: Some(body.len() as i64),
+    };
+    let mut handle = db.write().expect("write conn");
+    let tx = handle.transaction().expect("tx");
+    queries::insert_message(&tx, &new_msg).expect("insert msg");
+    for (i, text) in chunk_texts.iter().enumerate() {
+        queries::insert_chunk(
+            &tx,
+            &NewChunk {
+                message_id: id.clone(),
+                chunk_index: i as i64,
+                text: (*text).to_string(),
+                embedding: None,
+                embedding_model: None,
+            },
+        )
+        .expect("insert chunk");
+    }
+    tx.commit().expect("commit");
+    id
+}
+
+/// Regression: ranking must not reward a message for being long.
+///
+/// The keyword pass ranks *chunks*, so a many-chunk message appears repeatedly.
+/// Accumulating an RRF term per chunk let a verbose newsletter outscore a
+/// short, precisely-on-topic message — real symptom: car-parts promos ranking
+/// above music articles for "music production tips". Each message must
+/// contribute exactly one keyword term, at its best rank.
+#[tokio::test]
+async fn long_messages_do_not_outrank_short_relevant_ones() {
+    let (db, _tmp) = fresh_db();
+    let account_id = seed_account(&db);
+
+    // Short and squarely on-topic: one chunk.
+    let focused = insert_message(
+        &db,
+        &account_id,
+        "Mixing vocals cleanly",
+        "guide@example.com",
+        "A short guide to mixing vocals.",
+    );
+
+    // Long promo that mentions the terms in passing, spread over many chunks.
+    let verbose_chunk = "Mega clearance event with vocals gear and mixing extras \
+         plus unrelated filler copy about shipping, returns, warranties, and \
+         seasonal promotions running all week long across every department.";
+    let verbose = insert_message_with_chunks(
+        &db,
+        &account_id,
+        "Weekly deals blowout",
+        "promos@example.com",
+        &[verbose_chunk; 8],
+    );
+
+    // Keyword-only (no Ollama), so this isolates the keyword fusion path.
+    let outcome = search::search(&db, None, "mixing vocals", 5, None)
+        .await
+        .unwrap();
+    assert!(outcome.used_keyword);
+    assert!(!outcome.results.is_empty());
+
+    let top = &outcome.results[0];
+    assert_eq!(
+        top.message_id, focused,
+        "short on-topic message should rank first, got {:?} (long message wins \
+         only if each of its chunks adds another RRF term)",
+        top.subject
+    );
+
+    // And the long message must not have accumulated a runaway score.
+    if let Some(long_hit) = outcome.results.iter().find(|h| h.message_id == verbose) {
+        assert!(
+            long_hit.combined_score <= top.combined_score,
+            "8-chunk message outscored the focused one: {} vs {}",
+            long_hit.combined_score,
+            top.combined_score
+        );
+    }
+}
+
 #[test]
 fn migrations_create_expected_tables_and_seed_defaults() {
     let (db, _tmp) = fresh_db();

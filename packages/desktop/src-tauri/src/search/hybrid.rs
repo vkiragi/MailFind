@@ -53,7 +53,7 @@ const RRF_K: f32 = 60.0;
 // neighbor at rank 0 shouldn't outrank a perfect FTS match. Tuned so a top
 // keyword hit dominates a single top vector hit but doesn't drown out a
 // message that hits BOTH modalities.
-const KW_RRF_WEIGHT: f32 = 2.0;
+const KW_RRF_WEIGHT: f32 = 1.0;
 const VEC_RRF_WEIGHT: f32 = 1.0;
 // Vector candidates below this cosine similarity are dropped before fusion.
 // Otherwise sparse-corpus noise (e.g. before background embedding catches up)
@@ -137,17 +137,10 @@ pub async fn search(
 
     // Fuse at the message level using weighted reciprocal rank fusion.
     let mut fused: HashMap<String, FusedScore> = HashMap::new();
-    for (rank, (msg_id, _bm25)) in keyword_chunks.iter().enumerate() {
-        let entry = fused.entry(msg_id.clone()).or_default();
+    for (msg_id, rank) in best_rank_per_message(&keyword_chunks) {
+        let entry = fused.entry(msg_id).or_default();
         entry.score += KW_RRF_WEIGHT / (RRF_K + rank as f32 + 1.0);
-        // Track the best (lowest) rank across all matching chunks for this
-        // message, not the last one we happened to iterate.
-        entry.keyword_rank = Some(
-            entry
-                .keyword_rank
-                .map(|r| r.min(rank))
-                .unwrap_or(rank),
-        );
+        entry.keyword_rank = Some(rank);
     }
     for (rank, (msg_id, sim)) in vector_chunks.iter().enumerate() {
         if *sim < VEC_SIM_FLOOR {
@@ -262,6 +255,24 @@ fn recency_factor(sent_at: &str, now: DateTime<Utc>) -> f32 {
 /// Cosine-similarity scan. For each chunk we keep the best chunk per message,
 /// which is what we care about (a single matching paragraph is enough to
 /// surface a long email).
+/// Collapses the keyword pass's per-*chunk* hits to one entry per message,
+/// keeping each message's best (lowest) rank.
+///
+/// The FTS pass ranks chunks, so a long message can appear many times. Adding
+/// an RRF term per chunk would score length instead of relevance — a 10-chunk
+/// marketing blast accumulates ten contributions and outranks a short,
+/// on-topic message with one. `vector_top_k` already returns best-per-message,
+/// so this keeps both rankers symmetric, which is what RRF assumes.
+fn best_rank_per_message(chunks: &[(String, f64)]) -> HashMap<String, usize> {
+    let mut best: HashMap<String, usize> = HashMap::new();
+    for (rank, (msg_id, _bm25)) in chunks.iter().enumerate() {
+        best.entry(msg_id.clone())
+            .and_modify(|r| *r = (*r).min(rank))
+            .or_insert(rank);
+    }
+    best
+}
+
 fn vector_top_k(
     query: &[f32],
     chunks: &[(String, Vec<f32>)],
@@ -322,6 +333,36 @@ mod tests {
         assert!(f_old < f_fresh, "recency still prefers fresh mail");
         // Undated mail is never demoted.
         assert_eq!(recency_factor("", now), 1.0);
+    }
+
+    #[test]
+    fn keyword_rank_collapses_chunks_to_best_per_message() {
+        // `m_long` matches on three chunks (ranks 0, 2, 3); `m_short` on one.
+        let chunks = vec![
+            ("m_long".to_string(), 9.0),
+            ("m_short".to_string(), 8.0),
+            ("m_long".to_string(), 7.0),
+            ("m_long".to_string(), 6.0),
+        ];
+        let best = best_rank_per_message(&chunks);
+        assert_eq!(best.len(), 2, "one entry per message, not per chunk");
+        assert_eq!(best["m_long"], 0, "keeps the best (lowest) rank");
+        assert_eq!(best["m_short"], 1);
+
+        // Regression: a message must not earn extra RRF weight just for being
+        // long. Summing a term per chunk gave `m_long` ~3x its due, which let
+        // verbose marketing mail outrank short, on-topic messages.
+        let rrf = |r: usize| KW_RRF_WEIGHT / (RRF_K + r as f32 + 1.0);
+        let deduped = rrf(best["m_long"]);
+        let per_chunk = rrf(0) + rrf(2) + rrf(3);
+        assert!(
+            deduped < per_chunk,
+            "per-chunk accumulation inflates long messages: {deduped} vs {per_chunk}"
+        );
+        assert!(
+            (deduped - rrf(0)).abs() < f32::EPSILON,
+            "a message contributes exactly one term, at its best rank"
+        );
     }
 
     #[test]
