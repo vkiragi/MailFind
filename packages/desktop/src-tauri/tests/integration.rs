@@ -236,6 +236,70 @@ fn no_reply_sender_alone_is_not_flagged_bulk() {
     );
 }
 
+/// Regression: an explicit brand/company-name search must not lose to a much
+/// weaker match just because the strong match happens to be bulk-flagged.
+/// Reproduces a real bug found by searching "CHANEL" in the app: a
+/// bulk-flagged promotional email that was a near-perfect keyword match for
+/// the brand (kw≈0.94) ranked BELOW an unrelated newsletter that only barely
+/// matched (kw≈0.11, not bulk, but fresher) -- the ×0.4 bulk penalty
+/// compounding with recency decay on the older message flipped the ranking.
+/// "Bulk" should mean "don't surface this when the user didn't ask for it",
+/// not "demote it even when they explicitly searched for exactly this".
+///
+/// Both messages use the same (implicit "now") date, isolating the bulk-
+/// exemption logic itself from the separate, already-covered recency
+/// behavior (`recency_factor_blends_toward_floor_for_old_mail`): with RRF's
+/// harmonic rank curve this flat, even the equal-recency case flips under the
+/// old un-exempted ×0.4 penalty (0.0066 vs 0.0161 -- the weak match wins),
+/// and corrects with the fix (0.0164 vs 0.0161 -- the strong match wins).
+#[tokio::test]
+async fn strong_keyword_match_is_exempt_from_bulk_penalty() {
+    let (db, _tmp) = fresh_db();
+    let account_id = seed_account(&db);
+
+    // Near-perfect keyword match for "chanel", genuinely promotional
+    // (bulk-flagged via "unsubscribe").
+    let brand_promo = insert_message(
+        &db,
+        &account_id,
+        "Discover the infinite possibilities of Chanel",
+        "hello@sopost.example.com",
+        "Chanel chanel chanel -- discover the new Chanel collection. \
+         Click here to unsubscribe from future emails.",
+    );
+    // Weak keyword match (mentions the term once, in passing) and NOT bulk.
+    let unrelated = insert_message(
+        &db,
+        &account_id,
+        "Weekly recipe roundup",
+        "ideas@cooking.example.com",
+        "This week: pasta, salads, and one dessert that vaguely resembles \
+         something you might buy at a Chanel counter.",
+    );
+
+    let outcome = search::search(&db, None, "chanel", 5, None).await.unwrap();
+    assert!(!outcome.results.is_empty());
+
+    let find_score = |id: &str| {
+        outcome
+            .results
+            .iter()
+            .find(|h| h.message_id == id)
+            .map(|h| h.combined_score)
+    };
+    let (Some(promo_score), Some(unrelated_score)) =
+        (find_score(&brand_promo), find_score(&unrelated))
+    else {
+        panic!("expected both messages in results");
+    };
+    assert!(
+        promo_score > unrelated_score,
+        "strong bulk-flagged brand match ({promo_score}) should outrank a weak, \
+         non-bulk match ({unrelated_score}) at equal recency -- got the reverse, \
+         meaning the bulk penalty is suppressing an explicit brand-name search"
+    );
+}
+
 #[test]
 fn migrations_create_expected_tables_and_seed_defaults() {
     let (db, _tmp) = fresh_db();

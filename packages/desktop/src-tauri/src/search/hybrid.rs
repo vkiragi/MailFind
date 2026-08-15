@@ -75,6 +75,18 @@ const RECENCY_FLOOR: f32 = 0.5;
 // them entirely. 0.4 lets bulk still surface on overwhelming keyword/vector
 // match (e.g. a query *about* a newsletter) without dominating real mail.
 const BULK_PENALTY: f32 = 0.4;
+// A bulk-flagged message with a keyword match this strong (normalized rank,
+// 1.0 = best in the candidate pool) is exempt from BULK_PENALTY. Without
+// this, searching a brand/company name by name can fail: that brand's own
+// promotional mail is a near-perfect keyword hit but IS "bulk" by definition,
+// and the bulk penalty compounding with recency decay (e.g. an older message
+// already at ~0.6x from age) can flip a much weaker, fresher, non-bulk match
+// above it (measured: "CHANEL" ranked a Half Baked newsletter — kw=0.11, not
+// bulk-flagged, 3 months old — above a near-perfect-match CHANEL promo email
+// — kw=0.94, bulk-flagged, 10 months old — combined penalty ~4x). Being
+// "bulk" means "don't surface this when the user didn't ask for it", not
+// "demote it even when they explicitly searched for exactly this".
+const BULK_PENALTY_EXEMPT_KEYWORD_SCORE: f32 = 0.85;
 
 pub async fn search(
     db: &Database,
@@ -175,6 +187,10 @@ pub async fn search(
     let by_id: HashMap<String, MessageRow> =
         messages.into_iter().map(|m| (m.id.clone(), m)).collect();
 
+    // Computed here (not just at result-building time) so the bulk-penalty
+    // exemption below uses the exact same normalized keyword strength that's
+    // ultimately shown to the caller as `keyword_score`.
+    let kw_total = keyword_chunks.len().max(1) as f32;
     let now = Utc::now();
     let mut ranked: Vec<(String, FusedScore)> = fused
         .into_iter()
@@ -182,7 +198,13 @@ pub async fn search(
             if let Some(m) = by_id.get(&id) {
                 s.score *= recency_factor(&m.date, now);
                 if m.is_bulk {
-                    s.score *= BULK_PENALTY;
+                    let kw_strength = s.keyword_rank.map(|r| 1.0 - (r as f32 / kw_total));
+                    let exempt = kw_strength
+                        .map(|k| k >= BULK_PENALTY_EXEMPT_KEYWORD_SCORE)
+                        .unwrap_or(false);
+                    if !exempt {
+                        s.score *= BULK_PENALTY;
+                    }
                 }
             }
             (id, s)
@@ -195,7 +217,6 @@ pub async fn search(
     });
     ranked.truncate(limit);
 
-    let kw_total = keyword_chunks.len().max(1) as f32;
     let results: Vec<MessageHit> = ranked
         .into_iter()
         .filter_map(|(id, fused)| {
