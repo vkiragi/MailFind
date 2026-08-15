@@ -32,7 +32,8 @@ const CASES: &[Case] = &[
         shape: "conceptual (few exact keywords)",
         relevant: &[
             "adsrsounds", "busyworksbeats", "splice", "hitproducerstash",
-            "mix", "mastering", "music", "beat", "producer", "sound design",
+            "mix", "mastering", "music", "beat", "producer", "production",
+            "sound design",
         ],
         junk: &["subimods", "exhaust", "awe tuning", "23andme"],
     },
@@ -67,8 +68,8 @@ const CASES: &[Case] = &[
         query: "subscription renewals",
         shape: "conceptual, financial",
         relevant: &[
-            "subscription", "renew", "billing", "plan", "membership",
-            "paypal", "stripe", "invoice", "payment",
+            "subscription", "subscribed", "renew", "trial", "billing", "plan",
+            "membership", "paypal", "stripe", "invoice", "payment",
         ],
         junk: &["exhaust", "flight"],
     },

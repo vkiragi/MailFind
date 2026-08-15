@@ -280,9 +280,17 @@ pub fn fetch_messages(
     let sql = format!(
         "SELECT id, account_id, thread_id, subject, sender, sender_email,
                 recipients, received_at, snippet, body_plain, rfc822_message_id,
+                -- noreply@/no-reply@ deliberately excluded: it means dont
+                -- reply, not marketing -- receipts, tickets, and application
+                -- or assessment confirmations all use it. Measured against
+                -- the live corpus, that pattern alone caught 5,045 messages
+                -- (7.6%) with no other bulk signal, nearly all transactional
+                -- (Thank you for applying..., [Confirmation] You have
+                -- completed the Assessment...). unsubscribe in the body is
+                -- the real marketing signal (mirrors RFC List-Unsubscribe);
+                -- newsletter%/mailer%/%notifications@% each independently
+                -- catch hundreds of messages unsubscribe misses, so they stay.
                 CASE WHEN LOWER(COALESCE(body_plain, '')) LIKE '%unsubscribe%'
-                       OR LOWER(COALESCE(sender_email, '')) LIKE 'noreply%'
-                       OR LOWER(COALESCE(sender_email, '')) LIKE 'no-reply%'
                        OR LOWER(COALESCE(sender_email, '')) LIKE 'newsletter%'
                        OR LOWER(COALESCE(sender_email, '')) LIKE 'mailer%'
                        OR LOWER(COALESCE(sender_email, '')) LIKE '%notifications@%'

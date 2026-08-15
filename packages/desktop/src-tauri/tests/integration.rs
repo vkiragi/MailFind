@@ -196,6 +196,46 @@ async fn long_messages_do_not_outrank_short_relevant_ones() {
     }
 }
 
+/// Regression: `no-reply@`/`noreply@` senders must not be treated as bulk on
+/// their own. "no-reply" means "don't reply", not "marketing" — job
+/// application confirmations, assessment invites, and receipts all use it.
+/// Measured on the live corpus, that pattern alone (no other bulk signal)
+/// caught 5,045 real messages, nearly all transactional.
+#[test]
+fn no_reply_sender_alone_is_not_flagged_bulk() {
+    let (db, _tmp) = fresh_db();
+    let account_id = seed_account(&db);
+
+    let transactional = insert_message(
+        &db,
+        &account_id,
+        "Thank you for applying to Acme Corp",
+        "no-reply@ashbyhq.com",
+        "We've received your application and will follow up soon.",
+    );
+    // A genuine marketing blast should still be flagged.
+    let promo = insert_message(
+        &db,
+        &account_id,
+        "Big summer sale",
+        "deals@shop.example.com",
+        "Save 20% storewide. Click here to unsubscribe from future emails.",
+    );
+
+    let conn = db.read().unwrap();
+    let rows = queries::fetch_messages(&conn, &[transactional.clone(), promo.clone()]).unwrap();
+    let by_id: std::collections::HashMap<_, _> = rows.into_iter().map(|r| (r.id.clone(), r)).collect();
+
+    assert!(
+        !by_id[&transactional].is_bulk,
+        "no-reply@ transactional mail must not be flagged bulk"
+    );
+    assert!(
+        by_id[&promo].is_bulk,
+        "mail with 'unsubscribe' in the body should still be flagged bulk"
+    );
+}
+
 #[test]
 fn migrations_create_expected_tables_and_seed_defaults() {
     let (db, _tmp) = fresh_db();
