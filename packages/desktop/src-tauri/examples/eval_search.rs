@@ -73,6 +73,27 @@ const CASES: &[Case] = &[
         ],
         junk: &["exhaust", "flight"],
     },
+    Case {
+        query: "order 309757",
+        shape: "exact order number (numeric lexical)",
+        relevant: &["309757", "ebay"],
+        junk: &["exhaust", "assessment", "flight"],
+    },
+    Case {
+        query: "GitHub security notifications",
+        shape: "distinctive sender/company name",
+        relevant: &[
+            "github", "oauth", "personal access token", "verify your email",
+            "security",
+        ],
+        junk: &["exhaust", "assessment"],
+    },
+    Case {
+        query: "Google Play receipt April 2025",
+        shape: "date-shaped",
+        relevant: &["google play", "receipt", "order"],
+        junk: &["exhaust", "assessment", "flight"],
+    },
 ];
 
 /// How many top hits each case is scored over.
