@@ -8,7 +8,7 @@
 
 use mailfind_lib::db::queries::{self, NewChunk};
 use mailfind_lib::db::Database;
-use mailfind_lib::mail::parser::{compact_text, strip_css};
+use mailfind_lib::mail::parser::build_chunk_input;
 use mailfind_lib::search::chunking;
 use mailfind_lib::state;
 
@@ -50,8 +50,7 @@ fn main() {
     let mut done = 0usize;
     let mut skipped_empty = 0usize;
     for (i, (msg_id, subject, sender, recipients, body)) in messages.into_iter().enumerate() {
-        let header_blurb = format!("Subject: {subject}\nFrom: {sender}\nTo: {recipients}\n");
-        let combined = format!("{}\n{}", header_blurb, compact_text(&strip_css(&body), 8000));
+        let combined = build_chunk_input(&subject, &sender, &recipients, &body, 8000);
         let chunks = chunking::split(&combined);
 
         if chunks.is_empty() {

@@ -20,7 +20,7 @@ use tauri::{AppHandle, Emitter};
 use crate::db::queries::{self, NewChunk};
 use crate::db::Database;
 use crate::error::{AppError, AppResult};
-use crate::mail::parser::{compact_text, parse_rfc822, strip_css};
+use crate::mail::parser::{build_chunk_input, parse_rfc822};
 use crate::search::chunking;
 
 /// Tauri event channel for Apple Mail import progress.
@@ -205,13 +205,13 @@ pub fn store_rfc822(db: &Database, account_id: &str, raw: &[u8]) -> AppResult<bo
         .clone()
         .or_else(|| parsed.body_html.clone())
         .unwrap_or_default();
-    let header_blurb = format!(
-        "Subject: {}\nFrom: {}\nTo: {}\n",
-        parsed.subject.clone().unwrap_or_default(),
-        parsed.sender_display.clone().unwrap_or_default(),
-        parsed.recipients.clone().unwrap_or_default(),
+    let combined = build_chunk_input(
+        parsed.subject.as_deref().unwrap_or_default(),
+        parsed.sender_display.as_deref().unwrap_or_default(),
+        parsed.recipients.as_deref().unwrap_or_default(),
+        &body,
+        8000,
     );
-    let combined = format!("{}\n{}", header_blurb, compact_text(&strip_css(&body), 8000));
     let chunks = chunking::split(&combined);
 
     let new_msg = parsed.into_new_message(account_id, None, None);

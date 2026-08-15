@@ -34,7 +34,7 @@ impl ParsedMessage {
             .body_plain
             .as_deref()
             .unwrap_or_else(|| self.body_html.as_deref().unwrap_or(""));
-        compact_text(body, 200)
+        compact_text(&clean_body(body), 200)
     }
 
     pub fn into_new_message(
@@ -180,6 +180,126 @@ fn format_addresses(addr: Option<&Address>) -> Vec<String> {
             })
             .collect(),
     }
+}
+
+/// Builds the text used to chunk a message for indexing: a small header
+/// blurb (subject/from/to) followed by the cleaned, truncated body. Shared by
+/// live ingest (`mail::import`, `mail::sync`) and the `rechunk`/backfill
+/// example binaries so they can never drift from each other — the three call
+/// sites used to carry byte-identical logic independently.
+pub fn build_chunk_input(subject: &str, sender: &str, recipients: &str, body: &str, max_chars: usize) -> String {
+    let header_blurb = format!("Subject: {subject}\nFrom: {sender}\nTo: {recipients}\n");
+    format!("{header_blurb}\n{}", compact_text(&clean_body(body), max_chars))
+}
+
+/// Decodes HTML entities, strips invisible zero-width characters, and drops
+/// CSS blocks. Applied to email bodies before they become a stored snippet or
+/// indexed chunk text, so marketing-email preheader padding (`&zwnj;` /
+/// `&nbsp;` filler used to control preview length) and raw CSS don't pollute
+/// what the user sees or what search matches against.
+pub fn clean_body(s: &str) -> String {
+    strip_css(&strip_invisible(&decode_entities(s)))
+}
+
+/// Decodes common named and numeric HTML/XML entities to their literal
+/// characters. Deliberately narrow — this is NOT a full HTML parser and never
+/// touches `<`/`>` outside of actual `&lt;`/`&gt;` entities, so bare
+/// angle-bracketed URLs in plain-text mail (`<https://example.com>`) survive
+/// untouched. (`mail_parser::decoders::html::html_to_text` was considered and
+/// rejected for this reason — it strips anything tag-shaped.)
+pub fn decode_entities(s: &str) -> String {
+    if !s.contains('&') {
+        return s.to_string();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    // Longest named entity below plus a small margin.
+    const MAX_ENTITY_LEN: usize = 10;
+    while i < n {
+        if chars[i] != '&' {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        let mut j = i + 1;
+        let mut semi = None;
+        while j < n && j - i <= MAX_ENTITY_LEN {
+            match chars[j] {
+                ';' => {
+                    semi = Some(j);
+                    break;
+                }
+                '&' => break,
+                c if c.is_whitespace() => break,
+                _ => j += 1,
+            }
+        }
+        if let Some(semi) = semi {
+            let body: String = chars[i + 1..semi].iter().collect();
+            if let Some(decoded) = decode_entity_body(&body) {
+                out.push(decoded);
+                i = semi + 1;
+                continue;
+            }
+        }
+        // Not a recognized entity (e.g. "AT&T", a bare `&`) — keep it literal.
+        out.push('&');
+        i += 1;
+    }
+    out
+}
+
+fn decode_entity_body(body: &str) -> Option<char> {
+    if let Some(rest) = body.strip_prefix('#') {
+        let (radix, digits) = match rest.strip_prefix('x').or_else(|| rest.strip_prefix('X')) {
+            Some(hex) => (16, hex),
+            None => (10, rest),
+        };
+        if digits.is_empty() {
+            return None;
+        }
+        return u32::from_str_radix(digits, radix).ok().and_then(char::from_u32);
+    }
+    Some(match body {
+        "amp" => '&',
+        "lt" => '<',
+        "gt" => '>',
+        "quot" => '"',
+        "apos" => '\'',
+        "nbsp" => '\u{00A0}',
+        "zwnj" => '\u{200C}',
+        "zwj" => '\u{200D}',
+        "zwsp" => '\u{200B}',
+        "mdash" => '\u{2014}',
+        "ndash" => '\u{2013}',
+        "lsquo" => '\u{2018}',
+        "rsquo" => '\u{2019}',
+        "ldquo" => '\u{201C}',
+        "rdquo" => '\u{201D}',
+        "hellip" => '\u{2026}',
+        "copy" => '\u{00A9}',
+        "reg" => '\u{00AE}',
+        "trade" => '\u{2122}',
+        _ => return None,
+    })
+}
+
+/// Removes invisible zero-width characters (ZWSP/ZWNJ/ZWJ U+200B-200D, BOM
+/// U+FEFF). Runs after entity decoding so both literal UTF-8 zero-width
+/// characters and ones produced by decoding `&zwnj;`-style entities are
+/// caught — marketing email uses these as filler to control preview-text
+/// length, and left in place they silently eat the snippet's char budget.
+pub fn strip_invisible(s: &str) -> String {
+    if !s.chars().any(is_invisible) {
+        return s.to_string();
+    }
+    s.chars().filter(|c| !is_invisible(*c)).collect()
+}
+
+fn is_invisible(c: char) -> bool {
+    matches!(c, '\u{200B}'..='\u{200D}' | '\u{FEFF}')
 }
 
 /// Strip inline CSS rules (`@media`/`.selector { … }`) that bleed into
@@ -354,5 +474,80 @@ Time of sign-in Mar 11, 2026.";
         let input = "Here is some json: { \"name\": \"alice\" } and that's all.";
         let out = strip_css(input);
         assert!(out.contains("\"name\""), "stripped non-CSS braces: {out}");
+    }
+
+    #[test]
+    fn decode_entities_handles_named_and_numeric() {
+        assert_eq!(decode_entities("Rock &amp; Roll"), "Rock & Roll");
+        assert_eq!(decode_entities("a &lt; b &gt; c"), "a < b > c");
+        assert_eq!(decode_entities("&quot;quoted&quot;"), "\"quoted\"");
+        assert_eq!(decode_entities("caf&#233;"), "café");
+        assert_eq!(decode_entities("caf&#xE9;"), "café");
+        // Real preheader-padding example from the corpus.
+        assert_eq!(decode_entities("Chanel&zwnj; &zwnj;&nbsp;"), "Chanel\u{200C} \u{200C}\u{00A0}");
+    }
+
+    #[test]
+    fn decode_entities_leaves_bare_ampersands_alone() {
+        // No terminating `;` nearby -> not an entity, keep literal.
+        assert_eq!(decode_entities("AT&T"), "AT&T");
+        assert_eq!(decode_entities("Rock & Roll forever"), "Rock & Roll forever");
+    }
+
+    #[test]
+    fn strip_invisible_removes_zero_width_chars() {
+        let input = "Chanel\u{200C} \u{200C}\u{00A0}\u{FEFF}extraits";
+        let out = strip_invisible(input);
+        assert!(!out.contains('\u{200C}'));
+        assert!(!out.contains('\u{FEFF}'));
+        assert!(out.contains("Chanel"));
+        assert!(out.contains("extraits"));
+    }
+
+    #[test]
+    fn clean_body_decodes_and_strips_padding_entities() {
+        // Real shape of the bug: CHANEL-style preheader filler that showed up
+        // as literal "&zwnj;" text in stored snippets.
+        let input = "Where being exceptional is the first rule &zwnj; &zwnj; &zwnj; &zwnj;";
+        let out = clean_body(input);
+        assert!(!out.contains("&zwnj;"), "raw entity leaked through: {out}");
+        assert!(!out.contains('\u{200C}'), "decoded zero-width char not stripped: {out}");
+        assert!(out.contains("exceptional"));
+    }
+
+    #[test]
+    fn clean_body_preserves_angle_bracket_urls() {
+        // Guard against ever swapping in an HTML-tag-stripping decoder here —
+        // plain-text mail commonly wraps links in angle brackets.
+        let input = "View this email in your browser <https://example.com/a?x=1&amp;y=2>.";
+        let out = clean_body(input);
+        assert!(
+            out.contains("<https://example.com/a?x=1&y=2>"),
+            "angle-bracketed URL was mangled: {out}"
+        );
+    }
+
+    #[test]
+    fn snippet_decodes_entities_and_strips_css() {
+        // CSS block on its own line (mirrors real marketing-email shape, and
+        // strip_css's backward selector-scan relies on a `\n` boundary to know
+        // where prose ends — see strip_css_removes_inline_rules).
+        let raw = format!(
+            "From: Alice <alice@example.com>\r\n\
+To: Bob <bob@example.com>\r\n\
+Subject: Hello\r\n\
+Date: Mon, 1 Jan 2024 12:00:00 +0000\r\n\
+Message-ID: <abc123@example.com>\r\n\
+\r\n\
+Where being exceptional is the first rule &zwnj; &zwnj;\r\n\
+.selector {{ color: red; important: yes; }}\r\n\
+Time of sign-in today.\r\n"
+        );
+        let parsed = parse_rfc822(raw.as_bytes()).unwrap();
+        let s = parsed.snippet();
+        assert!(!s.contains("&zwnj;"), "entity leaked into snippet: {s}");
+        assert!(!s.contains("color: red"), "CSS leaked into snippet: {s}");
+        assert!(s.contains("exceptional"));
+        assert!(s.contains("Time of sign-in"));
     }
 }
