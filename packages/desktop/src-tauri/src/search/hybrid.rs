@@ -35,6 +35,10 @@ pub struct MessageHit {
     pub similarity: Option<f32>,
     pub keyword_score: Option<f32>,
     pub combined_score: f32,
+    /// Whether this hit was flagged bulk/newsletter mail (see `is_bulk` on
+    /// `MessageRow`). Surfaced so the UI's confidence indicator can explain a
+    /// surprising rank — e.g. "this scored lower because it's flagged bulk".
+    pub is_bulk: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -237,6 +241,7 @@ pub async fn search(
                     .keyword_rank
                     .map(|r| 1.0 - (r as f32 / kw_total)),
                 combined_score: fused.score,
+                is_bulk: m.is_bulk,
             })
         })
         .collect();

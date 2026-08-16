@@ -130,7 +130,12 @@ export default function SearchView() {
       {!searching && results.length > 0 && (
         <div className="space-y-2.5">
           {results.map((hit, i) => (
-            <ResultRow key={hit.message_id} hit={hit} index={i} />
+            <ResultRow
+              key={hit.message_id}
+              hit={hit}
+              index={i}
+              topScore={results[0].combined_score}
+            />
           ))}
         </div>
       )}
@@ -138,7 +143,15 @@ export default function SearchView() {
   );
 }
 
-function ResultRow({ hit, index }: { hit: MessageHit; index: number }) {
+function ResultRow({
+  hit,
+  index,
+  topScore,
+}: {
+  hit: MessageHit;
+  index: number;
+  topScore: number;
+}) {
   const clickable = !!hit.rfc822_message_id;
   return (
     <button
@@ -171,28 +184,58 @@ function ResultRow({ hit, index }: { hit: MessageHit; index: number }) {
           </div>
         )}
         <div className="mt-2">
-          <MatchPill hit={hit} />
+          <ConfidenceBadge hit={hit} topScore={topScore} />
         </div>
       </div>
     </button>
   );
 }
 
-function MatchPill({ hit }: { hit: MessageHit }) {
-  const semantic = hit.similarity !== null;
-  const keyword = hit.keyword_score !== null;
-  const label = semantic && keyword ? "semantic + keyword" : semantic ? "semantic match" : "keyword match";
+/**
+ * Compact match-confidence badge. The percentage is a quick-glance signal;
+ * hovering reveals the full breakdown (semantic/keyword strength, whether
+ * bulk demotion applied, the raw ranking score) for debugging a surprising
+ * result — the same numbers surfaced by the `test_search`/`eval_search`
+ * dev tools, now visible without a terminal.
+ */
+function ConfidenceBadge({ hit, topScore }: { hit: MessageHit; topScore: number }) {
+  // Derived from combined_score itself (the number that actually sorts the
+  // list), relative to the top result in this search. This is deliberate:
+  // combined_score already bakes in recency decay and the bulk-mail penalty,
+  // which the raw semantic/keyword signals alone don't reflect. Blending
+  // just similarity+keyword_score for the badge produced percentages that
+  // didn't descend in list order — a result ranked #1 could show a LOWER
+  // percentage than one ranked #3, which reads as broken. Scaling against
+  // topScore guarantees the badge always descends top-to-bottom, matching
+  // what's on screen, by construction.
+  const pct = topScore > 0 ? Math.min(1, hit.combined_score / topScore) : 0;
+  const tier = pct >= 0.75 ? "high" : pct >= 0.5 ? "medium" : "low";
+
+  const detail = [
+    hit.similarity !== null
+      ? `Semantic ${Math.round(hit.similarity * 100)}%`
+      : "No semantic match",
+    hit.keyword_score !== null
+      ? `Keyword ${Math.round(hit.keyword_score * 100)}%`
+      : "No keyword match",
+    hit.is_bulk ? "Flagged bulk (demoted unless keyword match is strong)" : null,
+    `Rank score ${hit.combined_score.toFixed(4)} (${Math.round(pct * 100)}% of top result)`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <span
+      title={detail}
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-        semantic
-          ? "bg-primary/10 text-primary"
-          : "bg-secondary text-muted-foreground",
+        tier === "high" && "bg-primary/10 text-primary",
+        tier === "medium" && "bg-secondary text-muted-foreground",
+        tier === "low" && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
       )}
     >
-      {semantic && <Sparkles className="size-3" />}
-      {label}
+      {tier === "high" && <Sparkles className="size-3" />}
+      {Math.round(pct * 100)}% match
     </span>
   );
 }

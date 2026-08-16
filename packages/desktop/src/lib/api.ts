@@ -101,6 +101,7 @@ export interface MessageHit {
   similarity: number | null;
   keyword_score: number | null;
   combined_score: number;
+  is_bulk: boolean;
 }
 
 export interface SearchResponse {
