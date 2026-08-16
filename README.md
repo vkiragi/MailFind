@@ -115,3 +115,10 @@ See [packages/desktop/README.md](packages/desktop/README.md) for syncing iCloud,
 - [docs/](docs/) — vision, architecture, and decision records.
 
 There is no backend service. There is nothing to deploy. The app runs entirely on your machine.
+
+---
+
+## License
+
+[Apache License 2.0](LICENSE) — free to use, modify, and distribute, including
+commercially. Includes an explicit patent grant.
