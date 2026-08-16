@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 
 import AccountSetup from "@/components/AccountSetup";
@@ -11,6 +11,7 @@ import Sidebar, { type Tab } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 
 import { api, type AccountSummary } from "@/lib/api";
+import { computeAskGate } from "@/lib/askGate";
 
 const VIEW_META: Record<Tab, { title: string; subtitle: string }> = {
   search: { title: "Search", subtitle: "Find mail by meaning, not just keywords" },
@@ -26,6 +27,14 @@ export default function App() {
   const [tickle, setTickle] = useState(0);
   const [modelTick, setModelTick] = useState(0);
   const [showAddAccount, setShowAddAccount] = useState(false);
+  // Set once the user manually picks a tab, so the capability-based default
+  // below never overrides an explicit choice (e.g. a slow model check
+  // resolving after they've already clicked into Search).
+  const userPickedTab = useRef(false);
+  const handleTab = (t: Tab) => {
+    userPickedTab.current = true;
+    setTab(t);
+  };
 
   const reload = async () => {
     setLoadingAccounts(true);
@@ -40,6 +49,25 @@ export default function App() {
     reload();
   }, []);
 
+  // Lead with Ask when this Mac can actually run it — that's the fuller
+  // experience (Search's own retrieval, plus a synthesized, cited answer).
+  // Search remains the default when Ask isn't viable (no capable model,
+  // Ollama unreachable, etc.), since Search is the one thing guaranteed to
+  // work on any machine. Only affects the initial landing tab.
+  useEffect(() => {
+    api
+      .listModels()
+      .then((models) => {
+        if (userPickedTab.current) return;
+        if (computeAskGate(models) === null) {
+          setTab("chat");
+        }
+      })
+      .catch(() => {
+        // Can't determine capability (Ollama down, etc.) — stay on Search.
+      });
+  }, []);
+
   const noAccounts = !loadingAccounts && accounts.length === 0;
   // Help is documentation — keep it reachable even before an account exists.
   const showOnboarding = noAccounts && tab !== "help";
@@ -47,7 +75,7 @@ export default function App() {
 
   return (
     <div className="flex h-full">
-      <Sidebar tab={tab} onTab={setTab} statusKey={modelTick} />
+      <Sidebar tab={tab} onTab={handleTab} statusKey={modelTick} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center justify-between border-b border-border px-8 py-4">

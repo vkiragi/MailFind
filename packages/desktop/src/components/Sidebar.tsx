@@ -4,9 +4,13 @@ import { cn } from "@/lib/utils";
 
 export type Tab = "search" | "chat" | "settings" | "help";
 
+// Ask listed first: it's the fuller experience (Search's own retrieval, plus
+// a synthesized, cited answer) and stays clickable even when gated off on
+// weaker hardware — clicking it there just explains why and how to enable
+// it, which is a better default than burying the capability behind Search.
 const NAV: { id: Tab; label: string; icon: typeof Search }[] = [
-  { id: "search", label: "Search", icon: Search },
   { id: "chat", label: "Ask", icon: Sparkles },
+  { id: "search", label: "Search", icon: Search },
   { id: "settings", label: "Accounts", icon: Settings },
   { id: "help", label: "Help", icon: HelpCircle },
 ];
