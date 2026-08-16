@@ -69,18 +69,41 @@ flowchart LR
 
 ---
 
+## Install
+
+**[Download the latest release](../../releases/latest)** → open the `.dmg` → drag
+MailFind to Applications. The app is signed and notarized by Apple, so it opens
+normally with no security warnings.
+
+> Apple silicon (M1 and later) only for now. On an Intel Mac, [build from
+> source](#build-from-source).
+
+Two things to set up before first launch:
+
+**1. Ollama and the embedding model.** MailFind runs every model locally through
+[Ollama](https://ollama.com) — install it, then pull the embedder (~0.3 GB):
+
+```bash
+ollama pull nomic-embed-text
+```
+
+That's the only model you need from the terminal. The chat model that powers the
+**Ask** tab is chosen automatically for your Mac's memory and installs with one
+click inside the app — see [Choosing an Ask model](#choosing-an-ask-model--automatic).
+
+**2. An iCloud app-specific password**, so MailFind can read your mail over IMAP.
+Generate one at [appleid.apple.com](https://appleid.apple.com) → Sign-In and
+Security → App-Specific Passwords, then paste it into MailFind's setup screen.
+It's stored in your macOS Keychain, never in a file.
+
+---
+
 ## Requirements
 
-- **macOS** (uses the system Keychain for credential storage)
-- **Rust ≥ 1.77** and **Node 20+**
-- **[Ollama](https://ollama.com)** running locally
-- The embedding model (required for indexing, ~0.3 GB):
-
-  ```bash
-  ollama pull nomic-embed-text
-  ```
-
-- An **iCloud app-specific password** — generate one at <https://appleid.apple.com>.
+- **macOS** on Apple silicon (uses the system Keychain for credential storage)
+- **[Ollama](https://ollama.com)** running locally, with `nomic-embed-text` pulled
+- An **iCloud app-specific password**
+- **Rust ≥ 1.77** and **Node 20+** — only if you're building from source
 
 ### Choosing an Ask model — automatic
 
@@ -97,7 +120,9 @@ You can override the choice anytime in **Accounts → Ask model**; your pick is 
 
 ---
 
-## Run
+## Build from source
+
+Requires Rust ≥ 1.77 and Node 20+.
 
 ```bash
 ./dev.sh
