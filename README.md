@@ -75,8 +75,10 @@ flowchart LR
 MailFind to Applications. The app is signed and notarized by Apple, so it opens
 normally with no security warnings.
 
-> Apple silicon (M1 and later) only for now. On an Intel Mac, [build from
-> source](#build-from-source).
+Two builds are attached to each release — grab the one for your Mac:
+
+- **`MailFind_*_aarch64.dmg`** — Apple silicon (M1 and later)
+- **`MailFind_*_x64.dmg`** — Intel
 
 Two things to set up before first launch:
 
@@ -100,7 +102,7 @@ It's stored in your macOS Keychain, never in a file.
 
 ## Requirements
 
-- **macOS** on Apple silicon (uses the system Keychain for credential storage)
+- **macOS**, Apple silicon or Intel (uses the system Keychain for credential storage)
 - **[Ollama](https://ollama.com)** running locally, with `nomic-embed-text` pulled
 - An **iCloud app-specific password**
 - **Rust ≥ 1.77** and **Node 20+** — only if you're building from source
